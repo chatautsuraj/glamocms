@@ -19,9 +19,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatNPR } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/components/providers/auth-provider";
 import { commerceClient, type AnalyticsSummary } from "@/lib/commerce-client";
 
 export default function DashboardPage() {
+  const { user } = useAuth();
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,8 +44,8 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Store desk"
-        description="Today’s sales, stock alerts, and recent orders"
+        title={`Namaste${user?.name ? `, ${user.name.split(" ")[0]}` : ""}`}
+        description="Glamo Nepal — sales, stock, and orders at a glance"
         actions={
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => void reload()}>

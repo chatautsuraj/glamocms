@@ -24,7 +24,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div
         className={cn(
           "flex min-h-screen min-w-0 flex-col transition-all duration-300",
-          collapsed ? "md:pl-[68px]" : "md:pl-60"
+          collapsed ? "md:pl-[68px]" : "md:pl-64"
         )}
       >
         <Topbar onMenuToggle={() => setMobileOpen((open) => !open)} mobileOpen={mobileOpen} />
