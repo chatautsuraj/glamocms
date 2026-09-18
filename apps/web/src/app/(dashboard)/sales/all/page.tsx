@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { DataTable, type Column } from "@/components/data-table";
+import { DateRangeFilter } from "@/components/date-range-filter";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +19,13 @@ import {
 } from "@/components/ui/dialog";
 import { Select } from "@/components/ui/select";
 import { commerceClient, type ApiOrder } from "@/lib/commerce-client";
+import {
+  datePresetLabel,
+  filterByCreatedAt,
+  resolveDateRange,
+  type DatePreset,
+} from "@/lib/date-range";
+import { printDeliverySequence } from "@/lib/print-delivery";
 import { useApiProducts } from "@/lib/use-api-products";
 import { formatNPR } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -29,7 +37,11 @@ export default function SalesByChannelPage() {
   const { products } = useApiProducts();
   const [orders, setOrders] = useState<ApiOrder[]>([]);
   const [channel, setChannel] = useState<(typeof CHANNELS)[number]>("all");
+  const [datePreset, setDatePreset] = useState<DatePreset>("today");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
   const [loading, setLoading] = useState(true);
+  const [printing, setPrinting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [logOpen, setLogOpen] = useState(false);
   const [logChannel, setLogChannel] = useState<"website" | "whatsapp">("website");
@@ -62,18 +74,56 @@ export default function SalesByChannelPage() {
     if (!logProductId && products[0]) setLogProductId(products[0].id);
   }, [products, logProductId]);
 
+  const dateRange = useMemo(
+    () => resolveDateRange(datePreset, customFrom, customTo),
+    [datePreset, customFrom, customTo],
+  );
+
+  const filteredOrders = useMemo(
+    () => filterByCreatedAt(orders, dateRange),
+    [orders, dateRange],
+  );
+
+  const rangeLabel = datePresetLabel(datePreset, customFrom, customTo);
+
   const totalsByChannel = useMemo(() => {
     const map: Record<string, { count: number; amount: number }> = {};
-    for (const o of orders) {
+    for (const o of filteredOrders) {
       const c = o.channel || "store";
       if (!map[c]) map[c] = { count: 0, amount: 0 };
       map[c].count += 1;
       map[c].amount += Number(o.amount) || 0;
     }
     return map;
-  }, [orders]);
+  }, [filteredOrders]);
 
-  const grandTotal = orders.reduce((s, o) => s + (Number(o.amount) || 0), 0);
+  const grandTotal = filteredOrders.reduce((s, o) => s + (Number(o.amount) || 0), 0);
+
+  const printFilteredDelivery = async () => {
+    if (!filteredOrders.length) {
+      toast.error("No sales in this date range");
+      return;
+    }
+    setPrinting(true);
+    try {
+      const enriched = await Promise.all(
+        filteredOrders.map(async (o) => {
+          if (o.items?.length) return o;
+          try {
+            const { order } = await commerceClient.getOrder(o.id);
+            return order;
+          } catch {
+            return o;
+          }
+        }),
+      );
+      const ok = printDeliverySequence({ orders: enriched, rangeLabel });
+      if (!ok) toast.error("Allow pop-ups to print delivery details");
+      else toast.success(`Printing ${enriched.length} delivery stop(s)`);
+    } finally {
+      setPrinting(false);
+    }
+  };
 
   const submitOnlineSale = async () => {
     const product = products.find((p) => p.id === logProductId);
@@ -189,11 +239,18 @@ export default function SalesByChannelPage() {
     <div className="space-y-6">
       <PageHeader
         title="All sales"
-        description="Every sale from POS, phone, website, and WhatsApp — filter by source"
+        description="Every sale from POS, phone, website, and WhatsApp — filter by source and date"
         actions={
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => void reload()} disabled={loading}>
               Refresh
+            </Button>
+            <Button
+              variant="outline"
+              disabled={printing || !filteredOrders.length}
+              onClick={() => void printFilteredDelivery()}
+            >
+              {printing ? "Preparing…" : `Print delivery (${filteredOrders.length})`}
             </Button>
             <Button variant="outline" onClick={() => setLogOpen(true)}>
               Log website / WhatsApp
@@ -225,16 +282,26 @@ export default function SalesByChannelPage() {
         ))}
       </div>
 
+      <DateRangeFilter
+        preset={datePreset}
+        onPresetChange={setDatePreset}
+        customFrom={customFrom}
+        customTo={customTo}
+        onCustomFromChange={setCustomFrom}
+        onCustomToChange={setCustomTo}
+      />
+
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               {channel === "all" ? "All sales" : `${channel === "store" ? "POS" : channel} sales`}
+              <span className="ml-1 font-normal">· {rangeLabel}</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-semibold text-primary">{formatNPR(grandTotal)}</p>
-            <p className="text-xs text-muted-foreground">{orders.length} order(s)</p>
+            <p className="text-xs text-muted-foreground">{filteredOrders.length} order(s)</p>
           </CardContent>
         </Card>
         {Object.entries(totalsByChannel).map(([c, v]) => (
@@ -253,7 +320,7 @@ export default function SalesByChannelPage() {
       </div>
 
       <DataTable
-        data={orders}
+        data={filteredOrders}
         columns={columns}
         getRowId={(r) => r.id}
         searchKeys={[

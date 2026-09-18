@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { MapPin, Truck } from "lucide-react";
 import { DataTable, type Column } from "@/components/data-table";
+import { DateRangeFilter } from "@/components/date-range-filter";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,12 +19,28 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { commerceClient, type ApiOrder } from "@/lib/commerce-client";
+import {
+  datePresetLabel,
+  isInDateRange,
+  resolveDateRange,
+  type DatePreset,
+} from "@/lib/date-range";
 import { formatNPR } from "@/lib/format";
+import { printDeliverySequence } from "@/lib/print-delivery";
 import { toast } from "sonner";
+
+/** Prefer scheduled date for delivery runs; fall back to created. */
+function deliveryFilterDate(o: ApiOrder) {
+  return o.deliveryScheduledAt || o.createdAt;
+}
 
 export default function DeliveryPage() {
   const [orders, setOrders] = useState<ApiOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [printing, setPrinting] = useState(false);
+  const [datePreset, setDatePreset] = useState<DatePreset>("today");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
   const [edit, setEdit] = useState<ApiOrder | null>(null);
   const [assignee, setAssignee] = useState("");
   const [address, setAddress] = useState("");
@@ -47,10 +64,48 @@ export default function DeliveryPage() {
     void reload();
   }, [reload]);
 
-  const active = orders.filter((d) =>
+  const dateRange = useMemo(
+    () => resolveDateRange(datePreset, customFrom, customTo),
+    [datePreset, customFrom, customTo],
+  );
+
+  const filteredOrders = useMemo(
+    () => orders.filter((o) => isInDateRange(deliveryFilterDate(o), dateRange)),
+    [orders, dateRange],
+  );
+
+  const rangeLabel = datePresetLabel(datePreset, customFrom, customTo);
+
+  const active = filteredOrders.filter((d) =>
     ["confirmed", "packed", "out_for_delivery"].includes(d.fulfillmentStatus),
   ).length;
-  const delivered = orders.filter((d) => d.fulfillmentStatus === "delivered").length;
+  const delivered = filteredOrders.filter((d) => d.fulfillmentStatus === "delivered").length;
+
+  const printFilteredDelivery = async () => {
+    if (!filteredOrders.length) {
+      toast.error("No deliveries in this date range");
+      return;
+    }
+    setPrinting(true);
+    try {
+      const enriched = await Promise.all(
+        filteredOrders.map(async (o) => {
+          if (o.items?.length) return o;
+          try {
+            const { order } = await commerceClient.getOrder(o.id);
+            return order;
+          } catch {
+            return o;
+          }
+        }),
+      );
+      const ok = printDeliverySequence({ orders: enriched, rangeLabel });
+      if (!ok) toast.error("Allow pop-ups to print delivery details");
+      else toast.success(`Printing ${enriched.length} delivery stop(s)`);
+    } finally {
+      setPrinting(false);
+    }
+  };
 
   const columns: Column<ApiOrder>[] = useMemo(
     () => [
@@ -167,12 +222,29 @@ export default function DeliveryPage() {
     <div className="space-y-6">
       <PageHeader
         title="Delivery"
-        description="Assign drivers now — connect Pathao / partner API via DELIVERY_PARTNER when ready"
+        description="Filter by date, then print the full delivery sequence for the driver"
         actions={
-          <Button variant="outline" onClick={() => void reload()} disabled={loading}>
-            Refresh
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => void reload()} disabled={loading}>
+              Refresh
+            </Button>
+            <Button
+              disabled={printing || !filteredOrders.length}
+              onClick={() => void printFilteredDelivery()}
+            >
+              {printing ? "Preparing…" : `Print delivery (${filteredOrders.length})`}
+            </Button>
+          </div>
         }
+      />
+
+      <DateRangeFilter
+        preset={datePreset}
+        onPresetChange={setDatePreset}
+        customFrom={customFrom}
+        customTo={customTo}
+        onCustomFromChange={setCustomFrom}
+        onCustomToChange={setCustomTo}
       />
 
       <div className="grid gap-4 sm:grid-cols-3">
@@ -183,7 +255,7 @@ export default function DeliveryPage() {
             </div>
             <div>
               <p className="text-2xl font-semibold">{active}</p>
-              <p className="text-xs text-muted-foreground">Active deliveries</p>
+              <p className="text-xs text-muted-foreground">Active · {rangeLabel}</p>
             </div>
           </CardContent>
         </Card>
@@ -204,15 +276,15 @@ export default function DeliveryPage() {
               <Truck className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-2xl font-semibold">{orders.length}</p>
-              <p className="text-xs text-muted-foreground">Open orders</p>
+              <p className="text-2xl font-semibold">{filteredOrders.length}</p>
+              <p className="text-xs text-muted-foreground">In this range</p>
             </div>
           </CardContent>
         </Card>
       </div>
 
       <DataTable
-        data={orders}
+        data={filteredOrders}
         columns={columns}
         getRowId={(r) => r.id}
         searchKeys={[(r) => r.customer?.name ?? "", (r) => r.deliveryAssignee ?? "", (r) => r.id]}
@@ -263,7 +335,8 @@ export default function DeliveryPage() {
             </div>
             <p className="text-[11px] text-muted-foreground">
               Partner API is stubbed until DELIVERY_PARTNER_URL is set — Send still records a manual tracking id.
-            </p>          </div>
+            </p>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

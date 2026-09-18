@@ -2,12 +2,20 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DataTable, type Column } from "@/components/data-table";
+import { DateRangeFilter } from "@/components/date-range-filter";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { commerceClient, type ApiOrder } from "@/lib/commerce-client";
+import {
+  datePresetLabel,
+  filterByCreatedAt,
+  resolveDateRange,
+  type DatePreset,
+} from "@/lib/date-range";
 import { formatNPR } from "@/lib/format";
+import { printDeliverySequence } from "@/lib/print-delivery";
 import { toast } from "sonner";
 
 const FULFILLMENT = [
@@ -22,7 +30,11 @@ const FULFILLMENT = [
 export default function OrdersPage() {
   const [orders, setOrders] = useState<ApiOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [printing, setPrinting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [datePreset, setDatePreset] = useState<DatePreset>("today");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -40,6 +52,45 @@ export default function OrdersPage() {
   useEffect(() => {
     void reload();
   }, [reload]);
+
+  const dateRange = useMemo(
+    () => resolveDateRange(datePreset, customFrom, customTo),
+    [datePreset, customFrom, customTo],
+  );
+
+  const filteredOrders = useMemo(
+    () => filterByCreatedAt(orders, dateRange),
+    [orders, dateRange],
+  );
+
+  const rangeLabel = datePresetLabel(datePreset, customFrom, customTo);
+
+  const printFilteredDelivery = async () => {
+    const printable = filteredOrders.filter((o) => o.fulfillmentStatus !== "cancelled");
+    if (!printable.length) {
+      toast.error("No orders in this date range");
+      return;
+    }
+    setPrinting(true);
+    try {
+      const enriched = await Promise.all(
+        printable.map(async (o) => {
+          if (o.items?.length) return o;
+          try {
+            const { order } = await commerceClient.getOrder(o.id);
+            return order;
+          } catch {
+            return o;
+          }
+        }),
+      );
+      const ok = printDeliverySequence({ orders: enriched, rangeLabel });
+      if (!ok) toast.error("Allow pop-ups to print delivery details");
+      else toast.success(`Printing ${enriched.length} delivery stop(s)`);
+    } finally {
+      setPrinting(false);
+    }
+  };
 
   const columns: Column<ApiOrder>[] = useMemo(
     () => [
@@ -145,18 +196,35 @@ export default function OrdersPage() {
     <div className="space-y-6">
       <PageHeader
         title="Orders"
-        description="All channels — store / website / WhatsApp — from the shared database"
+        description="All channels — store / website / WhatsApp — filter by date, print delivery run"
         actions={
-          <Button variant="outline" onClick={() => void reload()} disabled={loading}>
-            Refresh
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => void reload()} disabled={loading}>
+              Refresh
+            </Button>
+            <Button
+              variant="outline"
+              disabled={printing || !filteredOrders.length}
+              onClick={() => void printFilteredDelivery()}
+            >
+              {printing ? "Preparing…" : `Print delivery (${filteredOrders.filter((o) => o.fulfillmentStatus !== "cancelled").length})`}
+            </Button>
+          </div>
         }
+      />
+      <DateRangeFilter
+        preset={datePreset}
+        onPresetChange={setDatePreset}
+        customFrom={customFrom}
+        customTo={customTo}
+        onCustomFromChange={setCustomFrom}
+        onCustomToChange={setCustomTo}
       />
       {error && (
         <p className="rounded-lg border border-danger/30 bg-danger/5 px-3 py-2 text-sm text-danger">{error}</p>
       )}
       <DataTable
-        data={orders}
+        data={filteredOrders}
         columns={columns}
         getRowId={(r) => r.id}
         searchKeys={[(r) => r.id, (r) => r.customer?.name ?? "", (r) => r.channel]}
