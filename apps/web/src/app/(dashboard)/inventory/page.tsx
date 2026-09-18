@@ -16,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useApiProducts, type UiProduct } from "@/lib/use-api-products";
+import { useApiProducts, type UiProduct, invalidateProductCache } from "@/lib/use-api-products";
 import { commerceClient } from "@/lib/commerce-client";
 import { formatNPR } from "@/lib/format";
 import { printStockBarcodes } from "@/lib/print-barcodes";
@@ -102,6 +102,7 @@ export default function InventoryPage() {
         reason: delta > 0 ? "receive" : "adjust_out",
         currentStock: target.stock,
       });
+      invalidateProductCache();
       toast.success(delta > 0 ? `Received +${delta}` : `Removed ${Math.abs(delta)}`);
       setTarget(null);
       await reload();

@@ -117,6 +117,7 @@ export type LocalProductInput = {
   galla?: boolean;
   vatApplicable?: boolean;
   isTester?: boolean;
+  barcode?: string;
 };
 
 /** Merge catalog/API products with locally created products and stock overrides. */
@@ -134,13 +135,14 @@ export function mergeProductsWithLocal(remote: ApiProduct[]): ApiProduct[] {
     skuOwner.set(p.sku.toLowerCase(), p.id);
   }
 
-  for (const p of store.products) {
-    const skuKey = p.sku.toLowerCase();
-    const oldId = skuOwner.get(skuKey);
-    if (oldId && oldId !== p.id) map.delete(oldId);
-    map.set(p.id, p);
-    skuOwner.set(skuKey, p.id);
-  }
+      // Prefer local SKU ownership if catalog has same SKU — also keep barcode on updates
+      for (const p of store.products) {
+        const skuKey = p.sku.toLowerCase();
+        const oldId = skuOwner.get(skuKey);
+        if (oldId && oldId !== p.id) map.delete(oldId);
+        map.set(p.id, p);
+        skuOwner.set(skuKey, p.id);
+      }
 
   return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -165,6 +167,7 @@ export function localCreateProduct(input: LocalProductInput): ApiProduct {
       galla: input.galla ?? existing.galla,
       vatApplicable: input.vatApplicable ?? existing.vatApplicable,
       isTester: input.isTester ?? existing.isTester,
+      barcode: input.barcode?.trim() || existing.barcode || existing.sku,
       updatedAt: new Date().toISOString(),
     };
     store.products = store.products.map((p) => (p.id === existing.id ? updated : p));
@@ -190,6 +193,7 @@ export function localCreateProduct(input: LocalProductInput): ApiProduct {
     reorderAt: input.reorderAt ?? 5,
     galla: input.galla !== false,
     vatApplicable: input.vatApplicable === true,
+    barcode: input.barcode?.trim() || sku,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };

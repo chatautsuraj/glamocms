@@ -13,6 +13,11 @@ export type UiProduct = ReturnType<typeof apiProductToUi>;
 let cache: { at: number; products: ApiProduct[] } | null = null;
 const CACHE_MS = 5 * 60_000; // 5 min — catalog rarely changes on Vercel fallback
 
+/** Bust in-memory catalog cache after create/update/adjust. */
+export function invalidateProductCache() {
+  cache = null;
+}
+
 export function useApiProducts() {
   const [products, setProducts] = useState<UiProduct[]>(() =>
     cache ? cache.products.map(apiProductToUi) : [],

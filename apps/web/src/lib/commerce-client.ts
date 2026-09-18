@@ -60,6 +60,7 @@ export type ApiProduct = {
   reorderAt?: number;
   galla?: boolean;
   vatApplicable?: boolean;
+  barcode?: string | null;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -128,6 +129,7 @@ function toLocalProductInput(body: Record<string, unknown>): LocalProductInput {
     galla: body.galla !== false,
     vatApplicable: body.vatApplicable === true,
     isTester: body.isTester === true,
+    barcode: body.barcode != null ? String(body.barcode) : undefined,
   };
 }
 
@@ -375,7 +377,7 @@ export function apiProductToUi(p: ApiProduct) {
   return {
     id: p.id,
     sku: p.sku,
-    barcode: p.sku,
+    barcode: (p.barcode || p.sku || "").trim(),
     name: p.name,
     brand: p.brand ?? "",
     category: p.category ?? "",

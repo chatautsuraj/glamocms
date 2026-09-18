@@ -25,9 +25,16 @@ export function BarcodeCameraDialog({ open, onOpenChange, onDetected }: Props) {
   const regionId = `glamo-cam-scan-${reactId}`;
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const handledRef = useRef(false);
+  const onDetectedRef = useRef(onDetected);
+  const onOpenChangeRef = useRef(onOpenChange);
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [manual, setManual] = useState("");
+
+  useEffect(() => {
+    onDetectedRef.current = onDetected;
+    onOpenChangeRef.current = onOpenChange;
+  }, [onDetected, onOpenChange]);
 
   useEffect(() => {
     if (!open) return;
@@ -83,27 +90,29 @@ export function BarcodeCameraDialog({ open, onOpenChange, onDetected }: Props) {
 
           const boxW = Math.max(180, Math.min(280, Math.floor(window.innerWidth * 0.72)));
           const boxH = Math.max(100, Math.floor(boxW * 0.5));
+          const scanConfig = {
+            fps: 12,
+            qrbox: { width: boxW, height: boxH },
+            aspectRatio: 1.333,
+            disableFlip: false,
+          };
 
-          await scanner.start(
-            cameraConfig,
-            {
-              fps: 12,
-              qrbox: { width: boxW, height: boxH },
-              aspectRatio: 1.333,
-              disableFlip: false,
-            },
-            (decoded) => {
-              if (cancelled || handledRef.current) return;
-              const code = decoded.trim();
-              if (!code) return;
-              handledRef.current = true;
-              onDetected(code);
-              onOpenChange(false);
-            },
-            () => {
-              /* frame miss */
-            },
-          );
+          const onDecode = (decoded: string) => {
+            if (cancelled || handledRef.current) return;
+            const code = decoded.trim();
+            if (!code) return;
+            handledRef.current = true;
+            onDetectedRef.current(code);
+            onOpenChangeRef.current(false);
+          };
+
+          try {
+            await scanner.start(cameraConfig, scanConfig, onDecode, () => undefined);
+          } catch (firstErr) {
+            // Fallback to front camera
+            await scanner.start({ facingMode: "user" }, scanConfig, onDecode, () => undefined);
+            void firstErr;
+          }
           if (!cancelled) setStarting(false);
         } catch (e) {
           if (cancelled) return;
@@ -139,7 +148,7 @@ export function BarcodeCameraDialog({ open, onOpenChange, onDetected }: Props) {
         }
       })();
     };
-  }, [open, regionId, onDetected, onOpenChange]);
+  }, [open, regionId]);
 
   const submitManual = () => {
     const code = manual.trim();

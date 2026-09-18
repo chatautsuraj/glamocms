@@ -13,6 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { commerceClient, type ApiProduct } from "@/lib/commerce-client";
+import { invalidateProductCache } from "@/lib/use-api-products";
 import { toast } from "sonner";
 
 type Props = {
@@ -101,6 +102,7 @@ export function GlamoProductDialog({ open, onOpenChange, edit, onSaved }: Props)
         await commerceClient.createProduct(payload);
         toast.success("Product created with opening stock · inventory synced");
       }
+      invalidateProductCache();
       onOpenChange(false);
       onSaved();
     } catch (err) {

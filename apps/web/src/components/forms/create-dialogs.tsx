@@ -26,6 +26,8 @@ import {
   useTenantSuppliers,
 } from "@/lib/use-tenant-data";
 import { useVatEnabled } from "@/lib/use-entitlements";
+import { commerceClient } from "@/lib/commerce-client";
+import { invalidateProductCache } from "@/lib/use-api-products";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { featureLabel, type FeatureKey } from "@/lib/features";
@@ -825,10 +827,30 @@ export function CreateProductDialog({
 
     setLoading(true);
     try {
+      const sku = form.sku.trim().toUpperCase();
+      const name = form.name.trim();
+      const commercePayload = {
+        name,
+        sku,
+        price: trade,
+        mrp,
+        stock,
+        reorderAt,
+        category: form.category.trim() || undefined,
+        brand: form.brand.trim() || undefined,
+        size: form.size.trim() || undefined,
+        shade: form.shade.trim() || undefined,
+        images: form.image ? [form.image] : [],
+        galla: form.galla,
+        vatApplicable: vatEnabled && (vat || 13) > 0,
+        isTester: form.isTester,
+        barcode: form.barcode.trim() || undefined,
+      };
+
       if (edit) {
         const updated = updateProduct(edit.id, {
-          name: form.name.trim(),
-          sku: form.sku.trim().toUpperCase(),
+          name,
+          sku,
           barcode: form.barcode.trim() || edit.barcode,
           brand: form.brand.trim(),
           category: form.category.trim(),
@@ -843,11 +865,23 @@ export function CreateProductDialog({
           image: form.image || "",
         });
         if (!updated) throw new Error("Could not update product");
-        toast.success(`Product ${updated.sku} updated`, { description: updated.name });
+        try {
+          await commerceClient.updateProduct(edit.id, commercePayload);
+          invalidateProductCache();
+        } catch {
+          /* Nest offline — Zustand still updated; local commerce may miss this id */
+          try {
+            await commerceClient.createProduct(commercePayload);
+            invalidateProductCache();
+          } catch {
+            /* ignore dual-write failure */
+          }
+        }
+        toast.success(`Product ${updated.sku} updated`, { description: `${updated.name} · inventory synced` });
       } else {
         const created = addProduct({
-          name: form.name.trim(),
-          sku: form.sku.trim().toUpperCase(),
+          name,
+          sku,
           barcode: form.barcode.trim() || `89${Date.now().toString().slice(-10)}`,
           brand: form.brand.trim(),
           category: form.category.trim(),
@@ -861,7 +895,22 @@ export function CreateProductDialog({
           galla: form.galla,
           image: form.image || "",
         });
-        toast.success(`Product ${created.sku} added`, { description: created.name });
+        try {
+          await commerceClient.createProduct({
+            ...commercePayload,
+            barcode: created.barcode,
+          });
+          invalidateProductCache();
+        } catch (e) {
+          toast.error(
+            e instanceof Error
+              ? `Saved locally, but inventory sync failed: ${e.message}`
+              : "Saved locally, inventory sync failed",
+          );
+        }
+        toast.success(`Product ${created.sku} added`, {
+          description: `${created.name} · stock ${stock} in Inventory`,
+        });
         onCreated?.(created);
       }
       reset();
@@ -881,7 +930,11 @@ export function CreateProductDialog({
         onOpenChange(v);
       }}
       title={edit ? "Edit Product" : "Add Product"}
-      description={edit ? "Update SKU details and stock" : "Add a SKU with pricing and opening stock"}
+      description={
+        edit
+          ? "Update SKU details and stock — syncs to Inventory"
+          : "Add a SKU with pricing and opening stock — appears in Inventory"
+      }
       wide
     >
       <form onSubmit={submit} className="space-y-4">
