@@ -180,7 +180,7 @@ export function localCreateProduct(input: LocalProductInput): ApiProduct {
     name: input.name.trim(),
     sku,
     price: Number(input.price) || 0,
-    mrp: input.mrp ?? Number(input.price) || 0,
+    mrp: input.mrp ?? (Number(input.price) || 0),
     stock: Math.max(0, Math.floor(Number(input.stock) || 0)),
     category: input.category?.trim() || null,
     brand: input.brand?.trim() || null,

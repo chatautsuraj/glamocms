@@ -804,7 +804,7 @@ export function CreateProductDialog({
     }
   };
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     const next: FieldError = {};
     if (!form.name.trim()) next.name = "Product name is required";
