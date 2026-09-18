@@ -6,20 +6,40 @@ import { usePathname, useRouter } from "next/navigation";
 import { ShieldOff } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { pathToFeature } from "@/lib/features";
-import { useCanAccessAdmin, useEffectiveFeatures } from "@/lib/use-entitlements";
+import { useCanAccessAdmin } from "@/lib/use-entitlements";
 import { cn } from "@/lib/utils";
+
+/**
+ * Glamo Nepal is a single-store CMS+POS. Catalog / sales / inventory modules
+ * stay available for every signed-in user. Only /admin is role-gated.
+ */
+const OPEN_FEATURES = new Set([
+  "dashboard",
+  "sales",
+  "galla",
+  "orders",
+  "customers",
+  "products",
+  "inventory",
+  "analytics",
+  "notifications",
+  "purchase",
+  "suppliers",
+  "expenses",
+  "reports",
+  "settings",
+]);
 
 export function FeatureGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const effective = useEffectiveFeatures();
   const canAdmin = useCanAccessAdmin();
   const feature = pathToFeature(pathname);
 
   const allowed =
     !feature ||
-    feature === "dashboard" ||
-    (feature === "admin" ? canAdmin : effective.includes(feature));
+    OPEN_FEATURES.has(feature) ||
+    (feature === "admin" ? canAdmin : false);
 
   useEffect(() => {
     if (feature === "admin" && !canAdmin) {
