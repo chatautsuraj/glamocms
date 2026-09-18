@@ -176,7 +176,6 @@ export function apiProductToUi(p: ApiProduct) {
     tradePrice: Number(p.price),
     stock: p.stock,
     reorderAt: p.reorderAt ?? 5,
-    vat: 13,
     galla: p.galla !== false,
     vatApplicable: p.vatApplicable === true,
     tenantId: "glamo",

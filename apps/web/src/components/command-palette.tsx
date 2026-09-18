@@ -15,6 +15,7 @@ import {
   Receipt,
   Search,
   Settings,
+  Shield,
   ShoppingCart,
   Smartphone,
   Sparkles,
@@ -50,6 +51,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Wallet,
   FileText,
   Settings,
+  Shield,
 };
 
 type CommandPaletteProps = {
@@ -117,7 +119,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
 
           <Command.Group heading="Pages" className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
             {navItems.map((item) => {
-              const Icon = item.icon === "Shield" ? Shield : iconMap[item.icon] ?? LayoutDashboard;
+              const Icon = iconMap[item.icon] ?? LayoutDashboard;
               return (
                 <Command.Item
                   key={item.href}
