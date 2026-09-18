@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, LogOut, Moon, Menu, Sun, User } from "lucide-react";
+import { LogOut, Moon, Menu, Sun, User } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Avatar } from "@/components/ui/avatar";
@@ -21,7 +21,7 @@ export function Topbar({ onMenuToggle, mobileOpen }: { onMenuToggle?: () => void
   const { theme, setTheme } = useTheme();
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b border-border bg-background/85 px-4 backdrop-blur-md md:gap-4 md:px-6">
+    <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-border bg-background px-4 md:gap-4 md:px-6">
       <Button
         variant="ghost"
         size="icon"
@@ -34,9 +34,8 @@ export function Topbar({ onMenuToggle, mobileOpen }: { onMenuToggle?: () => void
       </Button>
 
       <div className="flex min-w-0 flex-1 items-center gap-2">
-        <Building2 className="hidden h-4 w-4 text-primary sm:block" />
         <p className="truncate font-display text-base font-semibold tracking-tight">Glamo Nepal</p>
-        <span className="hidden text-xs text-muted-foreground sm:inline">· Store desk</span>
+        <span className="hidden text-xs text-muted-foreground sm:inline">Store desk</span>
       </div>
 
       <div className="flex items-center gap-1">
@@ -55,7 +54,7 @@ export function Topbar({ onMenuToggle, mobileOpen }: { onMenuToggle?: () => void
           trigger={
             <button
               type="button"
-              className="flex items-center gap-2 rounded-xl px-2 py-1.5 transition-colors hover:bg-accent"
+              className="flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-accent"
             >
               <Avatar initials={user?.avatar ?? "G"} size="sm" />
               <span className="hidden text-sm font-medium sm:inline">{user?.name}</span>

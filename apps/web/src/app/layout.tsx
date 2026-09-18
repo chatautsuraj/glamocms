@@ -1,18 +1,19 @@
 import type { Metadata } from "next";
-import { Cormorant_Garamond, Outfit } from "next/font/google";
+import { Manrope, Newsreader } from "next/font/google";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import "./globals.css";
 
-const outfit = Outfit({
+const manrope = Manrope({
   variable: "--font-glamo-sans",
   subsets: ["latin"],
   display: "swap",
   preload: true,
 });
 
-const cormorant = Cormorant_Garamond({
+/** Used sparingly for brand wordmark only — not every page title. */
+const newsreader = Newsreader({
   variable: "--font-glamo-display",
   subsets: ["latin"],
   weight: ["600", "700"],
@@ -37,7 +38,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${outfit.variable} ${cormorant.variable} min-h-screen font-sans antialiased`}
+        className={`${manrope.variable} ${newsreader.variable} min-h-screen font-sans antialiased`}
       >
         <ThemeProvider>
           <AuthProvider>
@@ -48,7 +49,7 @@ export default function RootLayout({
               closeButton
               toastOptions={{
                 classNames: {
-                  toast: "rounded-xl border border-border shadow-lg",
+                  toast: "rounded-md border border-border",
                 },
               }}
             />

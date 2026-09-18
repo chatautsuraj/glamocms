@@ -1,78 +1,79 @@
 @import "tailwindcss";
 
+/* Glamo Nepal store desk — paper + ink + burgundy. Avoid soft blush SaaS look. */
 :root {
-  --background: #fff8f6;
-  --foreground: #1c1412;
+  --background: #f3f1ee;
+  --foreground: #171412;
   --card: #ffffff;
-  --card-foreground: #1c1412;
+  --card-foreground: #171412;
   --popover: #ffffff;
-  --popover-foreground: #1c1412;
-  --muted: #f5ebe8;
-  --muted-foreground: #6b534e;
-  --accent: #fce8e6;
-  --accent-foreground: #1c1412;
-  --border: #edd5d0;
-  --input: #edd5d0;
-  --ring: #9f2d4a;
-  --primary: #9f2d4a;
-  --primary-foreground: #fffaf9;
-  --secondary: #f5ebe8;
-  --secondary-foreground: #3f2a27;
-  --success: #2f6b4f;
+  --popover-foreground: #171412;
+  --muted: #e8e4df;
+  --muted-foreground: #5c564f;
+  --accent: #ebe6e0;
+  --accent-foreground: #171412;
+  --border: #d4cec6;
+  --input: #d4cec6;
+  --ring: #6e1f38;
+  --primary: #6e1f38;
+  --primary-foreground: #faf7f5;
+  --secondary: #ebe6e0;
+  --secondary-foreground: #2a2622;
+  --success: #1f6b4a;
   --success-foreground: #ffffff;
-  --warning: #b45309;
+  --warning: #9a5b12;
   --warning-foreground: #ffffff;
-  --danger: #b91c1c;
+  --danger: #a11d2e;
   --danger-foreground: #ffffff;
-  --sidebar: #fffaf9;
-  --sidebar-foreground: #4a3532;
-  --sidebar-border: #edd5d0;
-  --sidebar-accent: #fce8e6;
-  --sidebar-accent-foreground: #9f2d4a;
-  --radius: 0.875rem;
-  --shadow-sm: 0 1px 2px 0 rgb(28 20 18 / 0.04);
-  --shadow: 0 1px 3px 0 rgb(28 20 18 / 0.06), 0 1px 2px -1px rgb(28 20 18 / 0.06);
-  --shadow-md: 0 4px 6px -1px rgb(28 20 18 / 0.06), 0 2px 4px -2px rgb(28 20 18 / 0.06);
-  --shadow-lg: 0 10px 15px -3px rgb(28 20 18 / 0.08), 0 4px 6px -4px rgb(28 20 18 / 0.06);
-  --glass: rgba(255, 250, 249, 0.78);
-  --glass-border: rgba(255, 255, 255, 0.45);
+  --sidebar: #ffffff;
+  --sidebar-foreground: #3d3833;
+  --sidebar-border: #d4cec6;
+  --sidebar-accent: #f0e8ea;
+  --sidebar-accent-foreground: #6e1f38;
+  --radius: 0.5rem;
+  --shadow-sm: 0 1px 0 0 rgb(23 20 18 / 0.04);
+  --shadow: none;
+  --shadow-md: none;
+  --shadow-lg: none;
+  --glass: #ffffff;
+  --glass-border: #d4cec6;
 }
 
 .dark {
-  --background: #140f0e;
-  --foreground: #faf4f2;
-  --card: #1c1514;
-  --card-foreground: #faf4f2;
-  --popover: #1c1514;
-  --popover-foreground: #faf4f2;
-  --muted: #2a1f1d;
-  --muted-foreground: #c4a8a2;
-  --accent: #2a1f1d;
-  --accent-foreground: #faf4f2;
-  --border: #3a2b28;
-  --input: #3a2b28;
-  --ring: #e8a0b0;
-  --primary: #d46a82;
-  --primary-foreground: #1c0f12;
-  --secondary: #2a1f1d;
-  --secondary-foreground: #faf4f2;
+  --background: #12100f;
+  --foreground: #f2ebe6;
+  --card: #1a1715;
+  --card-foreground: #f2ebe6;
+  --popover: #1a1715;
+  --popover-foreground: #f2ebe6;
+  --muted: #2a2522;
+  --muted-foreground: #a89f96;
+  --accent: #2a2522;
+  --accent-foreground: #f2ebe6;
+  --border: #3a332e;
+  --input: #3a332e;
+  --ring: #c97a8e;
+  --primary: #c97a8e;
+  --primary-foreground: #1a0f12;
+  --secondary: #2a2522;
+  --secondary-foreground: #f2ebe6;
   --success: #4ade80;
   --success-foreground: #052e16;
   --warning: #fbbf24;
   --warning-foreground: #422006;
   --danger: #f87171;
   --danger-foreground: #450a0a;
-  --sidebar: #120d0c;
-  --sidebar-foreground: #c4a8a2;
-  --sidebar-border: #3a2b28;
-  --sidebar-accent: rgba(212, 106, 130, 0.14);
-  --sidebar-accent-foreground: #f5c0cb;
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.35);
-  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.4);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.45), 0 4px 6px -4px rgb(0 0 0 / 0.4);
-  --glass: rgba(28, 21, 20, 0.82);
-  --glass-border: rgba(255, 255, 255, 0.06);
+  --sidebar: #161311;
+  --sidebar-foreground: #a89f96;
+  --sidebar-border: #3a332e;
+  --sidebar-accent: rgba(201, 122, 142, 0.12);
+  --sidebar-accent-foreground: #f0c4ce;
+  --shadow-sm: none;
+  --shadow: none;
+  --shadow-md: none;
+  --shadow-lg: none;
+  --glass: #1a1715;
+  --glass-border: #3a332e;
 }
 
 @theme inline {
@@ -104,9 +105,9 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent: var(--sidebar-accent);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
   --radius-xl: calc(var(--radius) + 4px);
   --font-sans: var(--font-glamo-sans);
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
@@ -126,27 +127,23 @@ body {
 }
 
 .font-display {
-  font-family: var(--font-glamo-display), Georgia, serif;
+  font-family: var(--font-glamo-display), Georgia, "Times New Roman", serif;
+  letter-spacing: -0.02em;
 }
 
+/* Flat paper workspace — no soft radial “AI SaaS” glow */
 .atmospheric-bg {
-  background-image:
-    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(159, 45, 74, 0.12), transparent),
-    radial-gradient(ellipse 55% 45% at 100% 10%, rgba(196, 92, 74, 0.08), transparent),
-    radial-gradient(ellipse 40% 30% at 0% 100%, rgba(159, 45, 74, 0.06), transparent);
+  background-color: var(--background);
+  background-image: none;
 }
 
 .dark .atmospheric-bg {
-  background-image:
-    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(212, 106, 130, 0.16), transparent),
-    radial-gradient(ellipse 55% 45% at 100% 10%, rgba(212, 106, 130, 0.08), transparent),
-    radial-gradient(ellipse 40% 30% at 0% 100%, rgba(196, 92, 74, 0.06), transparent);
+  background-color: var(--background);
+  background-image: none;
 }
 
 .glass {
   background: var(--glass);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--glass-border);
 }
 
@@ -162,7 +159,7 @@ body {
 
 .scrollbar-thin::-webkit-scrollbar-thumb {
   background: var(--border);
-  border-radius: 9999px;
+  border-radius: 2px;
 }
 
 @media print {

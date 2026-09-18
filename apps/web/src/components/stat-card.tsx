@@ -1,8 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { TrendingDown, TrendingUp } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { StatCardProps } from "./page-header";
 
@@ -10,45 +8,35 @@ export function StatCard({ title, value, change, icon: Icon, subtitle, className
   const positive = change !== undefined && change >= 0;
 
   return (
-    <Card className={cn("overflow-hidden", className)}>
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between">
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-muted-foreground">{title}</p>
-            <motion.p
-              className="text-2xl font-semibold tracking-tight"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, ease: "easeOut" }}
+    <div
+      className={cn(
+        "border border-border bg-card p-4",
+        className,
+      )}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 space-y-1">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            {title}
+          </p>
+          <p className="text-2xl font-semibold tabular-nums tracking-tight text-foreground">
+            {value}
+          </p>
+          {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+          {change !== undefined && (
+            <div
+              className={cn(
+                "inline-flex items-center gap-1 text-xs font-medium",
+                positive ? "text-success" : "text-danger",
+              )}
             >
-              {value}
-            </motion.p>
-            {subtitle && (
-              <p className="text-xs text-muted-foreground">{subtitle}</p>
-            )}
-            {change !== undefined && (
-              <div
-                className={cn(
-                  "inline-flex items-center gap-1 text-xs font-medium",
-                  positive ? "text-success" : "text-danger"
-                )}
-              >
-                {positive ? (
-                  <TrendingUp className="h-3 w-3" />
-                ) : (
-                  <TrendingDown className="h-3 w-3" />
-                )}
-                {Math.abs(change).toFixed(1)}% vs yesterday
-              </div>
-            )}
-          </div>
-          {Icon && (
-            <div className="rounded-xl bg-primary/10 p-2.5">
-              <Icon className="h-5 w-5 text-primary" />
+              {positive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+              {Math.abs(change).toFixed(1)}% vs yesterday
             </div>
           )}
         </div>
-      </CardContent>
-    </Card>
+        {Icon && <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />}
+      </div>
+    </div>
   );
 }
