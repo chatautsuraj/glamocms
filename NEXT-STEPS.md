@@ -18,6 +18,7 @@
 8. **Mobile PWA** for counter + camera scan offline-ish.
 
 ## Deploy notes
-- Vercel project: **glamocms** → `glamocms.vercel.app` (Next `apps/web`).
-- Set `GLAMO_API_URL` + `GLAMO_API_KEY` in Vercel env to your hosted Nest API.
-- Until API is public, local: web `:3002`, API `:3001`.
+- **Live:** https://glamocms.vercel.app — GitHub https://github.com/chatautsuraj/glamocms
+- Vercel Root Directory: `apps/web`, framework Next.js.
+- Set `GLAMO_API_URL` + `GLAMO_API_KEY` in Vercel env when Nest API is hosted (Railway/Render/Fly + Postgres).
+- Local: web `:3000`/`:3002`, API `:3001`.
