@@ -265,7 +265,8 @@ export default function GallaPage() {
       const q = code.toLowerCase();
       const hit =
         gallaProducts.find((p) => p.sku.toLowerCase() === q) ||
-        gallaProducts.find((p) => p.barcode.toLowerCase() === q) ||
+        gallaProducts.find((p) => (p.barcode || "").toLowerCase() === q) ||
+        gallaProducts.find((p) => p.sku.replace(/[\s-]/g, "").toLowerCase() === q.replace(/[\s-]/g, "")) ||
         gallaProducts.find((p) => p.sku.toLowerCase().includes(q));
       if (!hit) {
         toast.error(`No product for barcode ${code}`);
@@ -464,6 +465,7 @@ export default function GallaPage() {
           qty: item.qty,
           unitPrice: item.price,
           name: item.name,
+          currentStock: stockOf(item.productId),
         })),
       });
       setSessionSales((s) => s + total);

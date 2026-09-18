@@ -100,6 +100,7 @@ export default function InventoryPage() {
         productId: target.id,
         qty: delta,
         reason: delta > 0 ? "receive" : "adjust_out",
+        currentStock: target.stock,
       });
       toast.success(delta > 0 ? `Received +${delta}` : `Removed ${Math.abs(delta)}`);
       setTarget(null);
@@ -115,7 +116,7 @@ export default function InventoryPage() {
     <div className="space-y-6">
       <PageHeader
         title="Inventory"
-        description="Stock levels from the shared Glamo backend — adjustments go through InventoryService only"
+        description="Stock levels shared with Products — add opening stock when creating a SKU, adjust here anytime"
         actions={
           <div className="flex flex-wrap gap-2">
             <Link href="/inventory/barcodes">

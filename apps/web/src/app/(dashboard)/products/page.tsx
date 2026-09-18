@@ -101,7 +101,7 @@ export default function ProductsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Products"
-        description="Glamo catalog — Nest API when available, bundled catalog offline"
+        description="Glamo catalog — opening stock syncs to Inventory; Nest API when available"
         actions={
           <Button
             onClick={() => {

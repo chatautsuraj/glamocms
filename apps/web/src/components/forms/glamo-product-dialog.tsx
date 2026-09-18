@@ -83,6 +83,7 @@ export function GlamoProductDialog({ open, onOpenChange, edit, onSaved }: Props)
         sku: sku.trim(),
         price: Number(price),
         mrp: Number(mrp || price),
+        stock: Number(stock) || 0,
         category: category.trim() || undefined,
         brand: brand.trim() || undefined,
         size: size.trim() || undefined,
@@ -92,14 +93,13 @@ export function GlamoProductDialog({ open, onOpenChange, edit, onSaved }: Props)
         galla,
         vatApplicable,
         isTester,
-        ...(edit ? {} : { stock: Number(stock) || 0 }),
       };
       if (edit) {
         await commerceClient.updateProduct(edit.id, payload);
-        toast.success("Product updated");
+        toast.success("Product updated · inventory synced");
       } else {
         await commerceClient.createProduct(payload);
-        toast.success("Product created");
+        toast.success("Product created with opening stock · inventory synced");
       }
       onOpenChange(false);
       onSaved();
@@ -115,7 +115,9 @@ export function GlamoProductDialog({ open, onOpenChange, edit, onSaved }: Props)
       <DialogContent className="relative max-h-[90vh] overflow-y-auto" onClose={() => onOpenChange(false)}>
         <DialogHeader>
           <DialogTitle>{edit ? "Edit product" : "Add product"}</DialogTitle>
-          <DialogDescription>Saved to Glamo shared catalog (Nest API)</DialogDescription>
+          <DialogDescription>
+            Opening stock is saved with the product and appears in Inventory immediately
+          </DialogDescription>
         </DialogHeader>
         <form className="space-y-3" onSubmit={submit}>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -139,12 +141,17 @@ export function GlamoProductDialog({ open, onOpenChange, edit, onSaved }: Props)
               <Label>MRP</Label>
               <Input type="number" min={0} value={mrp} onChange={(e) => setMrp(e.target.value)} />
             </div>
-            {!edit && (
-              <div className="space-y-1">
-                <Label>Opening stock</Label>
-                <Input type="number" min={0} value={stock} onChange={(e) => setStock(e.target.value)} />
-              </div>
-            )}
+            <div className="space-y-1">
+              <Label>{edit ? "Stock on hand" : "Opening stock"}</Label>
+              <Input
+                type="number"
+                min={0}
+                step={1}
+                value={stock}
+                onChange={(e) => setStock(e.target.value)}
+                required
+              />
+            </div>
             <div className="space-y-1">
               <Label>Reorder at</Label>
               <Input type="number" min={0} value={reorderAt} onChange={(e) => setReorderAt(e.target.value)} />

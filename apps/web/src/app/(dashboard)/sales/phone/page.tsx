@@ -137,7 +137,16 @@ export default function PhoneOrderPage() {
         customer: { name: n, phone: p },
         deliveryAddress: addr,
         deliveryNotes: notes.trim() || `Phone order · ${p}`,
-        items: cart.map((l) => ({ productId: l.productId, qty: l.qty })),
+        items: cart.map((l) => {
+          const product = products.find((p) => p.id === l.productId);
+          return {
+            productId: l.productId,
+            qty: l.qty,
+            unitPrice: l.price,
+            name: l.name,
+            currentStock: product?.stock,
+          };
+        }),
       });
       syncCallerToAppStore({ name: n, phone: p, area: addr || "Phone" });
       downloadStoreBillPdf({

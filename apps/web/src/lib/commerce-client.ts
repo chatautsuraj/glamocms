@@ -5,13 +5,20 @@
 
 import {
   isApiOfflineError,
+  localAdjustStockFromCurrent,
   localAnalytics,
   localCreateCustomer,
   localCreateOrder,
+  localCreateProduct,
+  localDeleteProduct,
   localListCustomers,
   localListOrders,
+  localMirrorOrder,
+  localUpdateProduct,
+  mergeProductsWithLocal,
   type LocalCustomerInput,
   type LocalOrderInput,
+  type LocalProductInput,
 } from "@/lib/local-commerce";
 
 async function bff<T>(path: string, init?: RequestInit): Promise<T> {
@@ -105,30 +112,134 @@ export type AnalyticsSummary = {
   recentOrders: ApiOrder[];
 };
 
-export const commerceClient = {
-  listProducts: (q?: string) =>
-    bff<{ products: ApiProduct[] }>(
-      `/api/commerce/products${q ? `?q=${encodeURIComponent(q)}` : ""}`,
-    ),
-  getProduct: (id: string) => bff<{ product: ApiProduct }>(`/api/commerce/products/${id}`),
-  createProduct: (body: Record<string, unknown>) =>
-    bff<{ product: ApiProduct }>("/api/commerce/products", {
-      method: "POST",
-      body: JSON.stringify(body),
-    }),
-  updateProduct: (id: string, body: Record<string, unknown>) =>
-    bff<{ product: ApiProduct }>(`/api/commerce/products/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify(body),
-    }),
-  deleteProduct: (id: string) =>
-    bff<{ ok: boolean }>(`/api/commerce/products/${id}`, { method: "DELETE" }),
+function toLocalProductInput(body: Record<string, unknown>): LocalProductInput {
+  return {
+    name: String(body.name ?? "").trim(),
+    sku: String(body.sku ?? "").trim(),
+    price: Number(body.price) || 0,
+    mrp: body.mrp != null ? Number(body.mrp) : undefined,
+    stock: body.stock != null ? Number(body.stock) : undefined,
+    category: body.category != null ? String(body.category) : undefined,
+    brand: body.brand != null ? String(body.brand) : undefined,
+    size: body.size != null ? String(body.size) : undefined,
+    shade: body.shade != null ? String(body.shade) : undefined,
+    images: Array.isArray(body.images) ? (body.images as string[]) : undefined,
+    reorderAt: body.reorderAt != null ? Number(body.reorderAt) : undefined,
+    galla: body.galla !== false,
+    vatApplicable: body.vatApplicable === true,
+    isTester: body.isTester === true,
+  };
+}
 
-  adjustStock: (body: { productId: string; qty: number; reason?: string }) =>
-    bff<{ product: ApiProduct }>("/api/commerce/inventory/adjust", {
-      method: "POST",
-      body: JSON.stringify(body),
-    }),
+export const commerceClient = {
+  listProducts: async (q?: string) => {
+    let remote: ApiProduct[] = [];
+    try {
+      const res = await bff<{ products: ApiProduct[] }>(
+        `/api/commerce/products${q ? `?q=${encodeURIComponent(q)}` : ""}`,
+      );
+      remote = Array.isArray(res.products) ? res.products : [];
+    } catch {
+      /* API offline — local + empty catalog handled by merge */
+    }
+    let products = mergeProductsWithLocal(remote);
+    if (q?.trim()) {
+      const needle = q.trim().toLowerCase();
+      products = products.filter(
+        (p) =>
+          p.name.toLowerCase().includes(needle) ||
+          p.sku.toLowerCase().includes(needle) ||
+          (p.brand ?? "").toLowerCase().includes(needle),
+      );
+    }
+    return { products };
+  },
+  getProduct: async (id: string) => {
+    try {
+      return await bff<{ product: ApiProduct }>(`/api/commerce/products/${id}`);
+    } catch (e) {
+      if (!isApiOfflineError(e)) throw e;
+      const hit = mergeProductsWithLocal([]).find((p) => p.id === id || p.sku === id);
+      if (!hit) throw e;
+      return { product: hit };
+    }
+  },
+  createProduct: async (body: Record<string, unknown>) => {
+    let remote: ApiProduct | null = null;
+    try {
+      const res = await bff<{ product: ApiProduct }>("/api/commerce/products", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+      remote = res.product ?? null;
+    } catch (e) {
+      if (!isApiOfflineError(e)) throw e;
+    }
+    const local = localCreateProduct(toLocalProductInput(body));
+    return { product: remote ?? local };
+  },
+  updateProduct: async (id: string, body: Record<string, unknown>) => {
+    let remote: ApiProduct | null = null;
+    try {
+      const res = await bff<{ product: ApiProduct }>(`/api/commerce/products/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      });
+      remote = res.product ?? null;
+    } catch (e) {
+      if (!isApiOfflineError(e)) throw e;
+    }
+
+    let base = remote;
+    if (!base) {
+      let catalog: ApiProduct[] = [];
+      try {
+        const res = await bff<{ products: ApiProduct[] }>("/api/commerce/products");
+        catalog = Array.isArray(res.products) ? res.products : [];
+      } catch {
+        /* offline catalog empty — merge still has local */
+      }
+      base = mergeProductsWithLocal(catalog).find((p) => p.id === id) ?? null;
+    }
+
+    const input = toLocalProductInput({
+      ...body,
+      sku: body.sku ?? base?.sku ?? id,
+      name: body.name ?? base?.name ?? id,
+      price: body.price ?? base?.price ?? 0,
+    });
+    const local = localUpdateProduct(id, input, base);
+    if (!local && !remote) throw new Error("Failed to update product");
+    return { product: remote ?? local! };
+  },
+  deleteProduct: async (id: string) => {
+    try {
+      await bff<{ ok: boolean }>(`/api/commerce/products/${id}`, { method: "DELETE" });
+    } catch (e) {
+      if (!isApiOfflineError(e)) throw e;
+    }
+    localDeleteProduct(id);
+    return { ok: true };
+  },
+
+  adjustStock: async (body: {
+    productId: string;
+    qty: number;
+    reason?: string;
+    currentStock?: number;
+  }) => {
+    try {
+      return await bff<{ product: ApiProduct }>("/api/commerce/inventory/adjust", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+    } catch (e) {
+      if (!isApiOfflineError(e)) throw e;
+      const current = body.currentStock ?? 0;
+      const product = localAdjustStockFromCurrent(body.productId, current, body.qty);
+      return { product };
+    }
+  },
 
   listCustomers: async (phone?: string) => {
     let remote: ApiCustomer[] = [];
@@ -197,10 +308,12 @@ export const commerceClient = {
   getOrder: (id: string) => bff<{ order: ApiOrder }>(`/api/commerce/orders/${id}`),
   createOrder: async (body: Record<string, unknown>) => {
     try {
-      return await bff<{ ok: boolean; order: ApiOrder }>("/api/commerce/orders", {
+      const res = await bff<{ ok: boolean; order: ApiOrder }>("/api/commerce/orders", {
         method: "POST",
         body: JSON.stringify(body),
       });
+      if (res.order) localMirrorOrder(res.order);
+      return res;
     } catch (e) {
       if (!isApiOfflineError(e)) throw e;
       const order = localCreateOrder(body as LocalOrderInput);

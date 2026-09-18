@@ -1,6 +1,6 @@
 /**
  * Browser local commerce store — used when Nest API is offline (e.g. Vercel).
- * Persists customers + orders in localStorage so POS / analytics / sales still work.
+ * Persists customers, orders, products + stock so Products / Inventory / POS / All sales work.
  */
 
 import type { AnalyticsSummary, ApiCustomer, ApiOrder, ApiProduct } from "@/lib/commerce-client";
@@ -10,10 +10,13 @@ const KEY = "glamo-local-commerce-v1";
 type LocalStore = {
   customers: ApiCustomer[];
   orders: ApiOrder[];
+  products: ApiProduct[];
+  /** Absolute stock for catalog products adjusted locally */
+  stockOverrides: Record<string, number>;
 };
 
 function empty(): LocalStore {
-  return { customers: [], orders: [] };
+  return { customers: [], orders: [], products: [], stockOverrides: {} };
 }
 
 function read(): LocalStore {
@@ -21,10 +24,15 @@ function read(): LocalStore {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return empty();
-    const parsed = JSON.parse(raw) as LocalStore;
+    const parsed = JSON.parse(raw) as Partial<LocalStore>;
     return {
       customers: Array.isArray(parsed.customers) ? parsed.customers : [],
       orders: Array.isArray(parsed.orders) ? parsed.orders : [],
+      products: Array.isArray(parsed.products) ? parsed.products : [],
+      stockOverrides:
+        parsed.stockOverrides && typeof parsed.stockOverrides === "object"
+          ? parsed.stockOverrides
+          : {},
     };
   } catch {
     return empty();
@@ -94,6 +102,239 @@ export function localCreateCustomer(input: LocalCustomerInput): ApiCustomer {
   return customer;
 }
 
+export type LocalProductInput = {
+  name: string;
+  sku: string;
+  price: number;
+  mrp?: number;
+  stock?: number;
+  category?: string;
+  brand?: string;
+  size?: string;
+  shade?: string;
+  images?: string[];
+  reorderAt?: number;
+  galla?: boolean;
+  vatApplicable?: boolean;
+  isTester?: boolean;
+};
+
+/** Merge catalog/API products with locally created products and stock overrides. */
+export function mergeProductsWithLocal(remote: ApiProduct[]): ApiProduct[] {
+  const store = read();
+  const map = new Map<string, ApiProduct>();
+  const skuOwner = new Map<string, string>();
+
+  for (const p of remote) {
+    const override = store.stockOverrides[p.id];
+    map.set(p.id, {
+      ...p,
+      stock: typeof override === "number" ? override : p.stock,
+    });
+    skuOwner.set(p.sku.toLowerCase(), p.id);
+  }
+
+  for (const p of store.products) {
+    const skuKey = p.sku.toLowerCase();
+    const oldId = skuOwner.get(skuKey);
+    if (oldId && oldId !== p.id) map.delete(oldId);
+    map.set(p.id, p);
+    skuOwner.set(skuKey, p.id);
+  }
+
+  return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export function localCreateProduct(input: LocalProductInput): ApiProduct {
+  const store = read();
+  const sku = input.sku.trim();
+  const existing = store.products.find((p) => p.sku.toLowerCase() === sku.toLowerCase());
+  if (existing) {
+    const updated: ApiProduct = {
+      ...existing,
+      name: input.name.trim() || existing.name,
+      price: Number(input.price) || existing.price,
+      mrp: input.mrp ?? existing.mrp,
+      stock: input.stock != null ? Math.max(0, Math.floor(Number(input.stock))) : existing.stock,
+      category: input.category?.trim() || existing.category,
+      brand: input.brand?.trim() || existing.brand,
+      size: input.size?.trim() || existing.size,
+      shade: input.shade?.trim() || existing.shade,
+      images: input.images?.length ? input.images : existing.images,
+      reorderAt: input.reorderAt ?? existing.reorderAt,
+      galla: input.galla ?? existing.galla,
+      vatApplicable: input.vatApplicable ?? existing.vatApplicable,
+      isTester: input.isTester ?? existing.isTester,
+      updatedAt: new Date().toISOString(),
+    };
+    store.products = store.products.map((p) => (p.id === existing.id ? updated : p));
+    write(store);
+    return updated;
+  }
+
+  const product: ApiProduct = {
+    id: uid("prod"),
+    name: input.name.trim(),
+    sku,
+    price: Number(input.price) || 0,
+    mrp: input.mrp ?? Number(input.price) || 0,
+    stock: Math.max(0, Math.floor(Number(input.stock) || 0)),
+    category: input.category?.trim() || null,
+    brand: input.brand?.trim() || null,
+    size: input.size?.trim() || null,
+    shade: input.shade?.trim() || null,
+    images: input.images ?? [],
+    batchNumber: null,
+    expiresOn: null,
+    isTester: input.isTester === true,
+    reorderAt: input.reorderAt ?? 5,
+    galla: input.galla !== false,
+    vatApplicable: input.vatApplicable === true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  store.products = [product, ...store.products];
+  write(store);
+  return product;
+}
+
+export function localUpdateProduct(
+  id: string,
+  patch: Partial<LocalProductInput> & { stock?: number },
+  base?: ApiProduct | null,
+): ApiProduct | null {
+  const store = read();
+  const idx = store.products.findIndex((p) => p.id === id);
+  if (idx >= 0) {
+    const existing = store.products[idx];
+    const updated: ApiProduct = {
+      ...existing,
+      name: patch.name?.trim() || existing.name,
+      sku: patch.sku?.trim() || existing.sku,
+      price: patch.price != null ? Number(patch.price) : existing.price,
+      mrp: patch.mrp != null ? Number(patch.mrp) : existing.mrp,
+      stock: patch.stock != null ? Math.max(0, Math.floor(Number(patch.stock))) : existing.stock,
+      category: patch.category !== undefined ? patch.category.trim() || null : existing.category,
+      brand: patch.brand !== undefined ? patch.brand.trim() || null : existing.brand,
+      size: patch.size !== undefined ? patch.size.trim() || null : existing.size,
+      shade: patch.shade !== undefined ? patch.shade.trim() || null : existing.shade,
+      images: patch.images ?? existing.images,
+      reorderAt: patch.reorderAt ?? existing.reorderAt,
+      galla: patch.galla ?? existing.galla,
+      vatApplicable: patch.vatApplicable ?? existing.vatApplicable,
+      isTester: patch.isTester ?? existing.isTester,
+      updatedAt: new Date().toISOString(),
+    };
+    store.products[idx] = updated;
+    write(store);
+    return updated;
+  }
+
+  if (base) {
+    const updated: ApiProduct = {
+      ...base,
+      name: patch.name?.trim() || base.name,
+      price: patch.price != null ? Number(patch.price) : base.price,
+      mrp: patch.mrp != null ? Number(patch.mrp) : base.mrp,
+      stock: patch.stock != null ? Math.max(0, Math.floor(Number(patch.stock))) : base.stock,
+      category: patch.category !== undefined ? patch.category.trim() || null : base.category,
+      brand: patch.brand !== undefined ? patch.brand.trim() || null : base.brand,
+      size: patch.size !== undefined ? patch.size.trim() || null : base.size,
+      shade: patch.shade !== undefined ? patch.shade.trim() || null : base.shade,
+      images: patch.images ?? base.images,
+      reorderAt: patch.reorderAt ?? base.reorderAt,
+      galla: patch.galla ?? base.galla,
+      vatApplicable: patch.vatApplicable ?? base.vatApplicable,
+      isTester: patch.isTester ?? base.isTester,
+      updatedAt: new Date().toISOString(),
+    };
+    if (patch.stock != null) {
+      store.stockOverrides[id] = updated.stock;
+    }
+    // Shadow-copy catalog edits so they survive reload
+    store.products = [updated, ...store.products.filter((p) => p.id !== id)];
+    write(store);
+    return updated;
+  }
+
+  if (patch.stock != null) {
+    store.stockOverrides[id] = Math.max(0, Math.floor(Number(patch.stock)));
+    write(store);
+  }
+  return null;
+}
+
+export function localDeleteProduct(id: string): boolean {
+  const store = read();
+  const before = store.products.length;
+  store.products = store.products.filter((p) => p.id !== id);
+  delete store.stockOverrides[id];
+  write(store);
+  return store.products.length < before;
+}
+
+export function localSetStock(productId: string, absoluteStock: number, baseProduct?: ApiProduct): ApiProduct {
+  const store = read();
+  const stock = Math.max(0, Math.floor(absoluteStock));
+  const idx = store.products.findIndex((p) => p.id === productId);
+  if (idx >= 0) {
+    const updated = { ...store.products[idx], stock, updatedAt: new Date().toISOString() };
+    store.products[idx] = updated;
+    write(store);
+    return updated;
+  }
+  store.stockOverrides[productId] = stock;
+  write(store);
+  if (baseProduct) return { ...baseProduct, stock };
+  return {
+    id: productId,
+    name: productId,
+    sku: productId,
+    price: 0,
+    stock,
+    category: null,
+    images: [],
+    brand: null,
+    shade: null,
+    batchNumber: null,
+    expiresOn: null,
+    isTester: false,
+  };
+}
+
+export function localAdjustStockFromCurrent(
+  productId: string,
+  currentStock: number,
+  delta: number,
+  baseProduct?: ApiProduct,
+): ApiProduct {
+  return localSetStock(productId, Math.max(0, currentStock + delta), baseProduct);
+}
+
+function localAdjustStockRelative(productId: string, qty: number, knownStock?: number) {
+  const store = read();
+  const idx = store.products.findIndex((p) => p.id === productId);
+  if (idx >= 0) {
+    const p = store.products[idx];
+    store.products[idx] = {
+      ...p,
+      stock: Math.max(0, p.stock + qty),
+      updatedAt: new Date().toISOString(),
+    };
+    write(store);
+    return;
+  }
+  if (typeof store.stockOverrides[productId] === "number") {
+    store.stockOverrides[productId] = Math.max(0, store.stockOverrides[productId] + qty);
+    write(store);
+    return;
+  }
+  if (typeof knownStock === "number") {
+    store.stockOverrides[productId] = Math.max(0, knownStock + qty);
+    write(store);
+  }
+}
+
 export function localListOrders(params?: {
   channel?: string;
   fulfillmentStatus?: string;
@@ -120,6 +361,8 @@ export type LocalOrderInput = {
     qty: number;
     unitPrice?: number;
     name?: string;
+    /** Known on-hand stock before this sale (catalog SKUs). */
+    currentStock?: number;
   }>;
 };
 
@@ -143,6 +386,9 @@ export function localCreateOrder(input: LocalOrderInput): ApiOrder {
     });
     const refreshed = read();
     store.customers = refreshed.customers;
+    store.products = refreshed.products;
+    store.stockOverrides = refreshed.stockOverrides;
+    store.orders = refreshed.orders;
     customerId = created.id;
     customer = { id: created.id, name: created.name, phone: created.phone };
   }
@@ -173,8 +419,7 @@ export function localCreateOrder(input: LocalOrderInput): ApiOrder {
   });
 
   const amount =
-    input.amount ??
-    items.reduce((s, i) => s + Number(i.lineTotal), 0);
+    input.amount ?? items.reduce((s, i) => s + Number(i.lineTotal), 0);
 
   const order: ApiOrder = {
     id: uid("ord"),
@@ -196,7 +441,22 @@ export function localCreateOrder(input: LocalOrderInput): ApiOrder {
 
   store.orders = [order, ...store.orders];
   write(store);
+
+  for (const line of input.items ?? []) {
+    const qty = Number(line.qty) || 0;
+    if (qty > 0) {
+      localAdjustStockRelative(line.productId, -qty, line.currentStock);
+    }
+  }
+
   return order;
+}
+
+export function localMirrorOrder(order: ApiOrder): void {
+  const store = read();
+  if (store.orders.some((o) => o.id === order.id)) return;
+  store.orders = [order, ...store.orders];
+  write(store);
 }
 
 export function localAnalytics(lowStockCount = 0): AnalyticsSummary {
@@ -248,11 +508,16 @@ export function isApiOfflineError(err: unknown): boolean {
   return (
     s.includes("fetch failed") ||
     s.includes("failed to") ||
+    s.includes("order failed") ||
+    s.includes("stock adjust failed") ||
     s.includes("econnrefused") ||
     s.includes("upstream") ||
     s.includes("502") ||
+    s.includes("503") ||
     s.includes("500") ||
     s.includes("network") ||
-    s.includes("offline")
+    s.includes("offline") ||
+    s.includes("nest api") ||
+    s.includes("request failed")
   );
 }
