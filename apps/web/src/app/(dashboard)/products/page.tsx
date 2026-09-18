@@ -101,7 +101,7 @@ export default function ProductsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Products"
-        description="Glamo catalog — saved to the shared backend (source of truth)"
+        description="Glamo catalog — Nest API when available, bundled catalog offline"
         actions={
           <Button
             onClick={() => {
@@ -116,7 +116,7 @@ export default function ProductsPage() {
 
       {error && (
         <p className="rounded-lg border border-danger/30 bg-danger/5 px-3 py-2 text-sm text-danger">
-          {error} — is the API running on :3001?
+          {error}
         </p>
       )}
 
