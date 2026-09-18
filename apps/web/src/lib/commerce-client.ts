@@ -224,15 +224,7 @@ export const commerceClient = {
     } catch {
       /* offline */
     }
-    let lowStockCount = remote?.lowStockCount ?? 0;
-    if (!remote) {
-      try {
-        const { products } = await bff<{ products: ApiProduct[] }>("/api/commerce/products");
-        lowStockCount = products.filter((p) => p.stock <= (p.reorderAt ?? 5)).length;
-      } catch {
-        /* ignore */
-      }
-    }
+    const lowStockCount = remote?.lowStockCount ?? 0;
     const local = localAnalytics(lowStockCount);
     if (!remote) return { analytics: local };
 
@@ -250,7 +242,7 @@ export const commerceClient = {
         weekSales: remote.weekSales + local.weekSales,
         orderCount: remote.orderCount + local.orderCount,
         pendingDeliveries: remote.pendingDeliveries + local.pendingDeliveries,
-        lowStockCount: Math.max(remote.lowStockCount, local.lowStockCount),
+        lowStockCount: remote.lowStockCount || local.lowStockCount,
         paidOrderCount: remote.paidOrderCount + local.paidOrderCount,
         byFulfillment,
         byChannel,

@@ -8,12 +8,16 @@ import "./globals.css";
 const outfit = Outfit({
   variable: "--font-glamo-sans",
   subsets: ["latin"],
+  display: "swap",
+  preload: true,
 });
 
 const cormorant = Cormorant_Garamond({
   variable: "--font-glamo-display",
   subsets: ["latin"],
-  weight: ["500", "600", "700"],
+  weight: ["600", "700"],
+  display: "swap",
+  preload: true,
 });
 
 export const metadata: Metadata = {

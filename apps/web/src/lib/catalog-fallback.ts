@@ -46,10 +46,18 @@ function toApi(row: CatalogRow): ApiProduct {
 }
 
 let cache: ApiProduct[] | null = null;
+let lowStockCache: number | null = null;
+
+function ensureCache() {
+  if (!cache) {
+    cache = rows.map(toApi);
+    lowStockCache = cache.filter((p) => p.stock <= (p.reorderAt ?? 5)).length;
+  }
+}
 
 export function getFallbackProducts(opts?: { q?: string; category?: string }): ApiProduct[] {
-  if (!cache) cache = rows.map(toApi);
-  let list = cache;
+  ensureCache();
+  let list = cache!;
   const q = opts?.q?.trim().toLowerCase();
   if (q) {
     list = list.filter(
@@ -68,11 +76,13 @@ export function getFallbackProducts(opts?: { q?: string; category?: string }): A
 }
 
 export function getFallbackProduct(id: string): ApiProduct | null {
-  if (!cache) cache = rows.map(toApi);
-  return (
-    cache.find((p) => p.id === id || p.sku === id) ??
-    null
-  );
+  ensureCache();
+  return cache!.find((p) => p.id === id || p.sku === id) ?? null;
+}
+
+export function getFallbackLowStockCount(): number {
+  ensureCache();
+  return lowStockCache ?? 0;
 }
 
 export function shouldUseCatalogFallback(apiError: unknown): boolean {

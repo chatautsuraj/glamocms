@@ -1,36 +1,75 @@
-const API_URL = process.env.GLAMO_API_URL ?? "http://127.0.0.1:3001/v1";
+const RAW_URL = process.env.GLAMO_API_URL?.trim() ?? "";
 const API_KEY = process.env.GLAMO_API_KEY ?? "pos-local-dev";
 
+/** On Vercel with no remote API URL, never dial localhost (causes multi-second hangs). */
+function resolveApiUrl(): string | null {
+  if (RAW_URL) {
+    if (
+      process.env.VERCEL === "1" &&
+      (RAW_URL.includes("127.0.0.1") || RAW_URL.includes("localhost"))
+    ) {
+      return null;
+    }
+    return RAW_URL.replace(/\/$/, "");
+  }
+  if (process.env.VERCEL === "1") return null;
+  return "http://127.0.0.1:3001/v1";
+}
+
+const UPSTREAM_MS = Number(process.env.GLAMO_API_TIMEOUT_MS ?? 600);
+
 export function getGlamoApiConfig() {
-  return { API_URL, API_KEY };
+  return { API_URL: resolveApiUrl(), API_KEY };
+}
+
+export function isRemoteApiConfigured() {
+  return Boolean(resolveApiUrl());
 }
 
 export async function glamoApi<T = unknown>(
   path: string,
   init?: RequestInit,
 ): Promise<{ ok: true; data: T } | { ok: false; status: number; error: unknown }> {
-  const { API_URL: base, API_KEY: key } = getGlamoApiConfig();
+  const base = resolveApiUrl();
+  if (!base) {
+    return { ok: false, status: 503, error: "fetch failed" };
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), UPSTREAM_MS);
   try {
     const res = await fetch(`${base}${path}`, {
       ...init,
+      signal: controller.signal,
       headers: {
         "Content-Type": "application/json",
-        "X-API-Key": key,
+        "X-API-Key": API_KEY,
         ...(init?.headers ?? {}),
       },
       cache: "no-store",
     });
     const text = await res.text();
-    const data = text ? JSON.parse(text) : null;
+    let data: unknown = null;
+    if (text) {
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = text;
+      }
+    }
     if (!res.ok) {
       return { ok: false, status: res.status, error: data ?? text };
     }
     return { ok: true, data: data as T };
   } catch (e) {
-    return {
-      ok: false,
-      status: 500,
-      error: e instanceof Error ? e.message : "Upstream error",
-    };
+    const msg =
+      e instanceof Error
+        ? e.name === "AbortError"
+          ? "fetch failed"
+          : e.message
+        : "Upstream error";
+    return { ok: false, status: 500, error: msg };
+  } finally {
+    clearTimeout(timer);
   }
 }

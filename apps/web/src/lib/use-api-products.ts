@@ -11,7 +11,7 @@ import {
 export type UiProduct = ReturnType<typeof apiProductToUi>;
 
 let cache: { at: number; products: ApiProduct[] } | null = null;
-const CACHE_MS = 30_000;
+const CACHE_MS = 5 * 60_000; // 5 min — catalog rarely changes on Vercel fallback
 
 export function useApiProducts() {
   const [products, setProducts] = useState<UiProduct[]>(() =>
@@ -28,7 +28,8 @@ export function useApiProducts() {
       setLoading(false);
       return;
     }
-    setLoading(true);
+    // Keep showing cached products while refreshing (no blank flash)
+    if (!cache) setLoading(true);
     setError(null);
     try {
       const { products: list } = await commerceClient.listProducts();

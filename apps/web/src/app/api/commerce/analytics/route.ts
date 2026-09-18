@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
-import { glamoApi } from "@/lib/server-api";
-import { getFallbackProducts, shouldUseCatalogFallback } from "@/lib/catalog-fallback";
+import { glamoApi, isRemoteApiConfigured } from "@/lib/server-api";
+import { getFallbackLowStockCount, shouldUseCatalogFallback } from "@/lib/catalog-fallback";
 
-/** Empty analytics shell when Nest is offline — browser may merge local sales. */
+export const runtime = "nodejs";
+export const revalidate = 60;
+
 function emptyAnalytics(lowStockCount = 0) {
   return {
     todaySales: 0,
@@ -18,13 +20,25 @@ function emptyAnalytics(lowStockCount = 0) {
 }
 
 export async function GET() {
+  if (!isRemoteApiConfigured()) {
+    return NextResponse.json(
+      {
+        analytics: emptyAnalytics(getFallbackLowStockCount()),
+        source: "catalog-fallback",
+      },
+      {
+        headers: {
+          "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+        },
+      },
+    );
+  }
+
   const result = await glamoApi("/analytics/summary");
   if (!result.ok) {
     if (shouldUseCatalogFallback(result.error)) {
-      const products = getFallbackProducts();
-      const lowStockCount = products.filter((p) => p.stock <= (p.reorderAt ?? 5)).length;
       return NextResponse.json({
-        analytics: emptyAnalytics(lowStockCount),
+        analytics: emptyAnalytics(getFallbackLowStockCount()),
         source: "catalog-fallback",
       });
     }

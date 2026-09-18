@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { glamoApi } from "@/lib/server-api";
+import { glamoApi, isRemoteApiConfigured } from "@/lib/server-api";
+
+export const runtime = "nodejs";
 
 export async function GET(req: NextRequest) {
+  if (!isRemoteApiConfigured()) {
+    return NextResponse.json({ orders: [], source: "offline" });
+  }
   const sp = req.nextUrl.searchParams;
   const qs = sp.toString();
   const result = await glamoApi(`/orders${qs ? `?${qs}` : ""}`);
   if (!result.ok) {
-    return NextResponse.json({ error: "Failed to list orders", detail: result.error }, { status: result.status });
+    return NextResponse.json(
+      { error: "Failed to list orders", detail: result.error },
+      { status: result.status },
+    );
   }
   return NextResponse.json({ orders: result.data });
 }
@@ -20,6 +28,13 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   const body = await req.json();
+
+  if (!isRemoteApiConfigured()) {
+    return NextResponse.json(
+      { error: "API order failed", detail: "fetch failed" },
+      { status: 503 },
+    );
+  }
 
   let items: { productId: string; qty: number }[] = [];
 

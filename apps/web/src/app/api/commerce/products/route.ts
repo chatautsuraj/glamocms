@@ -1,13 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
-import { glamoApi } from "@/lib/server-api";
+import { glamoApi, isRemoteApiConfigured } from "@/lib/server-api";
 import {
   getFallbackProducts,
   shouldUseCatalogFallback,
 } from "@/lib/catalog-fallback";
 
+export const runtime = "nodejs";
+export const revalidate = 120;
+
+const CACHE_HEADERS = {
+  "Cache-Control": "public, s-maxage=120, stale-while-revalidate=600",
+  "X-Glamo-Source": "catalog-fallback",
+};
+
 export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams.get("q") ?? undefined;
   const category = req.nextUrl.searchParams.get("category") ?? undefined;
+
+  // Fast path on Vercel: no Nest → serve catalog immediately (no timeout wait).
+  if (!isRemoteApiConfigured()) {
+    const products = getFallbackProducts({ q, category });
+    return NextResponse.json({ products, source: "catalog-fallback" }, { headers: CACHE_HEADERS });
+  }
+
   const sp = new URLSearchParams();
   if (q) sp.set("q", q);
   if (category) sp.set("category", category);
@@ -18,12 +33,7 @@ export async function GET(req: NextRequest) {
       const products = getFallbackProducts({ q, category });
       return NextResponse.json(
         { products, source: "catalog-fallback" },
-        {
-          headers: {
-            "X-Glamo-Source": "catalog-fallback",
-            "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
-          },
-        },
+        { headers: CACHE_HEADERS },
       );
     }
     return NextResponse.json(
@@ -31,7 +41,10 @@ export async function GET(req: NextRequest) {
       { status: result.status },
     );
   }
-  return NextResponse.json({ products: result.data });
+  return NextResponse.json(
+    { products: result.data },
+    { headers: { "Cache-Control": "private, max-age=30" } },
+  );
 }
 
 export async function POST(req: NextRequest) {
