@@ -159,15 +159,19 @@ export const commerceClient = {
     };
   },
   createCustomer: async (body: LocalCustomerInput) => {
+    // Always persist locally so Customers / Phone order work without Nest.
+    let remote: ApiCustomer | null = null;
     try {
-      return await bff<{ customer: ApiCustomer }>("/api/commerce/customers", {
+      const res = await bff<{ customer: ApiCustomer }>("/api/commerce/customers", {
         method: "POST",
         body: JSON.stringify(body),
       });
+      remote = res.customer ?? null;
     } catch (e) {
       if (!isApiOfflineError(e)) throw e;
-      return { customer: localCreateCustomer(body) };
     }
+    const local = localCreateCustomer(body);
+    return { customer: remote ?? local };
   },
 
   listOrders: async (params?: { channel?: string; fulfillmentStatus?: string }) => {

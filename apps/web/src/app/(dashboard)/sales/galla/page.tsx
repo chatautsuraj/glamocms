@@ -34,6 +34,7 @@ import {
 import { useApiProducts } from "@/lib/use-api-products";
 import { commerceClient } from "@/lib/commerce-client";
 import { paymentQrImageUrl, issueStoreBill } from "@/lib/print-bill";
+import { syncCallerToAppStore } from "@/lib/sync-caller";
 import { useActiveTenantId, useVatEnabled } from "@/lib/use-entitlements";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -289,12 +290,21 @@ export default function GallaPage() {
       return;
     }
     try {
+      const name = custName.trim();
+      const phone = custPhone.trim();
+      const address = custAddress.trim();
       const { customer: created } = await commerceClient.createCustomer({
-        name: custName.trim(),
-        phone: custPhone.trim(),
-        sourceChannel: "store",
-        deliveryAddress: custAddress.trim() || undefined,
+        name,
+        phone,
+        // Phone channel so they appear under Phone order → Recent callers
+        sourceChannel: "phone",
+        deliveryAddress: address || undefined,
         notes: custNotes.trim() || undefined,
+      });
+      syncCallerToAppStore({
+        name,
+        phone,
+        area: address || "Walk-in / Phone",
       });
       await reloadCustomers();
       setCustomerId(created.id);
@@ -303,7 +313,7 @@ export default function GallaPage() {
       setCustPhone("");
       setCustAddress("");
       setCustNotes("");
-      toast.success("Customer saved");
+      toast.success("Caller saved · Customers & Phone order");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not save customer");
     }

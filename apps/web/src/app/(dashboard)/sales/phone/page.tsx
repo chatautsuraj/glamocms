@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { commerceClient, type ApiCustomer, type ApiOrder } from "@/lib/commerce-client";
 import { useApiProducts } from "@/lib/use-api-products";
+import { syncCallerToAppStore } from "@/lib/sync-caller";
 import { formatNPR } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -88,12 +89,21 @@ export default function PhoneOrderPage() {
     }
     setSaving(true);
     try {
+      const n = name.trim();
+      const p = phone.trim();
       await commerceClient.createCustomer({
-        name: name.trim(),
-        phone: phone.trim(),
+        name: n,
+        phone: p,
         sourceChannel: "phone",
+        deliveryAddress: address.trim() || undefined,
+        notes: notes.trim() || undefined,
       });
-      toast.success("Caller saved to customers");
+      syncCallerToAppStore({
+        name: n,
+        phone: p,
+        area: address.trim() || "Phone",
+      });
+      toast.success("Caller saved · Customers & Phone order");
       await reloadCustomers();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not save customer");
@@ -117,19 +127,23 @@ export default function PhoneOrderPage() {
     }
     setSaving(true);
     try {
+      const n = name.trim();
+      const p = phone.trim();
+      const addr = address.trim();
       const { order } = await commerceClient.createOrder({
         channel: "phone",
         paymentStatus: "unpaid",
         fulfillmentStatus: "confirmed",
-        customer: { name: name.trim(), phone: phone.trim() },
-        deliveryAddress: address.trim(),
-        deliveryNotes: notes.trim() || `Phone order · ${phone.trim()}`,
+        customer: { name: n, phone: p },
+        deliveryAddress: addr,
+        deliveryNotes: notes.trim() || `Phone order · ${p}`,
         items: cart.map((l) => ({ productId: l.productId, qty: l.qty })),
       });
+      syncCallerToAppStore({ name: n, phone: p, area: addr || "Phone" });
       downloadStoreBillPdf({
         orderId: order.id,
-        customerName: name.trim(),
-        customerPhone: phone.trim(),
+        customerName: n,
+        customerPhone: p,
         method: "PHONE / COD",
         channel: "phone",
         lines: cart.map((l) => ({
