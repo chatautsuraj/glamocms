@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useMemo } from "react";
 import {
   BarChart3,
   Barcode,
@@ -19,7 +20,13 @@ import {
   Users,
   Zap,
 } from "lucide-react";
+import { hrefToFeature } from "@/lib/features";
 import { NAV_SECTIONS } from "@/lib/mock-data";
+import {
+  useCanAccessAdmin,
+  useEffectiveFeatures,
+  useStoreUser,
+} from "@/lib/use-entitlements";
 import { cn } from "@/lib/utils";
 import { Tooltip } from "@/components/ui/tooltip";
 
@@ -47,6 +54,27 @@ type SidebarProps = {
 
 export function Sidebar({ collapsed, mobileOpen = false, onToggle }: SidebarProps) {
   const pathname = usePathname();
+  const effective = useEffectiveFeatures();
+  const storeUser = useStoreUser();
+  const canAdmin = useCanAccessAdmin();
+  const privileged =
+    storeUser?.role === "OWNER" ||
+    storeUser?.role === "ADMIN" ||
+    storeUser?.role === "PLATFORM_ADMIN";
+
+  const sections = useMemo(() => {
+    const canSee = (href: string) => {
+      const feature = hrefToFeature(href);
+      if (!feature || feature === "dashboard") return true;
+      if (feature === "admin") return canAdmin;
+      if (privileged) return true;
+      return effective.includes(feature);
+    };
+    return NAV_SECTIONS.map((section) => ({
+      ...section,
+      items: section.items.filter((item) => canSee(item.href)),
+    })).filter((section) => section.items.length > 0);
+  }, [effective, canAdmin, privileged]);
 
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === href;
@@ -102,7 +130,7 @@ export function Sidebar({ collapsed, mobileOpen = false, onToggle }: SidebarProp
       </div>
 
       <nav className="flex-1 overflow-y-auto p-3 scrollbar-thin">
-        {NAV_SECTIONS.map((section) => (
+        {sections.map((section) => (
           <div key={section.title} className="mb-4">
             {!collapsed && (
               <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">

@@ -8,9 +8,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { CreateBranchDialog, InviteUserDialog } from "@/components/forms/create-dialogs";
+import {
+  CreateBranchDialog,
+  EditUserAccessDialog,
+  InviteUserDialog,
+} from "@/components/forms/create-dialogs";
 import { COMPANY } from "@/lib/mock-data";
-import { roleDisplayLabel, userCanDeleteRecords, userCanEditRecords } from "@/lib/features";
+import {
+  featureLabel,
+  roleDisplayLabel,
+  STORE_ACCESS_FEATURES,
+  userCanDeleteRecords,
+  userCanEditRecords,
+} from "@/lib/features";
 import { useAppStore } from "@/lib/store";
 import { useCanManageTenantUsers, useCurrentTenant, useVatEnabled } from "@/lib/use-entitlements";
 import { useTenantBranches } from "@/lib/use-tenant-data";
@@ -31,6 +41,7 @@ export default function SettingsPage() {
   );
   const [inviteOpen, setInviteOpen] = useState(false);
   const [branchOpen, setBranchOpen] = useState(false);
+  const [accessUserId, setAccessUserId] = useState<string | null>(null);
   const [company, setCompany] = useState({
     name: tenant?.name ?? COMPANY.name,
     shortName: tenant?.shortName ?? COMPANY.shortName,
@@ -148,25 +159,22 @@ export default function SettingsPage() {
                 <Input defaultValue={`${(VAT_RATE * 100).toFixed(0)}%`} readOnly />
               </div>
               <div className="space-y-2">
-                <Label>VAT Registration</Label>
+                <Label>VAT Registration Number</Label>
                 <Input
                   value={vatForm.registration}
-                  onChange={(e) => setVatForm((v) => ({ ...v, registration: e.target.value }))}
+                  onChange={(e) => setVatForm((f) => ({ ...f, registration: e.target.value }))}
                 />
               </div>
-              <div className="space-y-2 sm:col-span-2">
+              <div className="space-y-2">
                 <Label>Invoice Prefix</Label>
                 <Input
                   value={vatForm.invoicePrefix}
-                  onChange={(e) => setVatForm((v) => ({ ...v, invoicePrefix: e.target.value }))}
+                  onChange={(e) => setVatForm((f) => ({ ...f, invoicePrefix: e.target.value }))}
                 />
               </div>
-              <div className="rounded-xl bg-muted/50 p-4 sm:col-span-2 text-sm">
-                <p className="font-medium">Fiscal year</p>
-                <p className="text-muted-foreground">Shrawan 2082 – Ashadh 2083 (Nepali BS)</p>
-              </div>
-              <Button
-                onClick={() => {
+              <div className="sm:col-span-2">
+                <Button
+                  onClick={() => {
                   if (!vatForm.registration.trim()) {
                     toast.error("VAT registration number is required");
                     return;
@@ -176,6 +184,7 @@ export default function SettingsPage() {
               >
                 Update VAT Settings
               </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -189,7 +198,7 @@ export default function SettingsPage() {
                 <CardDescription>
                   {users.length} active users
                   {canManageUsers
-                    ? " — create staff with email and password"
+                    ? " — create staff and choose which modules they can open"
                     : " — ask your owner to add users"}
                 </CardDescription>
               </div>
@@ -204,6 +213,13 @@ export default function SettingsPage() {
                 {users.map((u) => {
                   const privileged =
                     u.role === "OWNER" || u.role === "ADMIN" || u.role === "PLATFORM_ADMIN";
+                  const modules =
+                    privileged || u.enabledFeatures == null
+                      ? "Full access"
+                      : u.enabledFeatures
+                          .filter((k) => STORE_ACCESS_FEATURES.includes(k))
+                          .map((k) => featureLabel(k))
+                          .join(", ") || "No modules";
                   return (
                     <div
                       key={u.id}
@@ -216,44 +232,54 @@ export default function SettingsPage() {
                         <div>
                           <p className="font-medium">{u.name}</p>
                           <p className="text-xs text-muted-foreground">{u.email}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">{modules}</p>
                         </div>
                       </div>
                       <div className="flex flex-wrap items-center gap-3">
                         <Badge variant="muted">{roleDisplayLabel(u.role)}</Badge>
                         <Badge variant="success">{u.status}</Badge>
                         {canManageUsers && (
-                          <div className="flex flex-wrap gap-3 text-xs">
-                            <label className="flex items-center gap-1.5">
-                              <Checkbox
-                                checked={userCanEditRecords(u)}
-                                disabled={privileged}
-                                onChange={(e) => {
-                                  updateUser(u.id, { canEdit: e.target.checked });
-                                  toast.success(
-                                    e.target.checked
-                                      ? `Edit enabled for ${u.name}`
-                                      : `Edit disabled for ${u.name}`
-                                  );
-                                }}
-                              />
-                              Edit
-                            </label>
-                            <label className="flex items-center gap-1.5">
-                              <Checkbox
-                                checked={userCanDeleteRecords(u)}
-                                disabled={privileged}
-                                onChange={(e) => {
-                                  updateUser(u.id, { canDelete: e.target.checked });
-                                  toast.success(
-                                    e.target.checked
-                                      ? `Delete enabled for ${u.name}`
-                                      : `Delete disabled for ${u.name}`
-                                  );
-                                }}
-                              />
-                              Delete
-                            </label>
-                          </div>
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setAccessUserId(u.id)}
+                            >
+                              Access
+                            </Button>
+                            <div className="flex flex-wrap gap-3 text-xs">
+                              <label className="flex items-center gap-1.5">
+                                <Checkbox
+                                  checked={userCanEditRecords(u)}
+                                  disabled={privileged}
+                                  onChange={(e) => {
+                                    updateUser(u.id, { canEdit: e.target.checked });
+                                    toast.success(
+                                      e.target.checked
+                                        ? `Edit enabled for ${u.name}`
+                                        : `Edit disabled for ${u.name}`
+                                    );
+                                  }}
+                                />
+                                Edit
+                              </label>
+                              <label className="flex items-center gap-1.5">
+                                <Checkbox
+                                  checked={userCanDeleteRecords(u)}
+                                  disabled={privileged}
+                                  onChange={(e) => {
+                                    updateUser(u.id, { canDelete: e.target.checked });
+                                    toast.success(
+                                      e.target.checked
+                                        ? `Delete enabled for ${u.name}`
+                                        : `Delete disabled for ${u.name}`
+                                    );
+                                  }}
+                                />
+                                Delete
+                              </label>
+                            </div>
+                          </>
                         )}
                       </div>
                     </div>
@@ -300,6 +326,13 @@ export default function SettingsPage() {
         open={inviteOpen}
         onOpenChange={setInviteOpen}
         tenantId={tenant?.id}
+      />
+      <EditUserAccessDialog
+        open={!!accessUserId}
+        onOpenChange={(v) => {
+          if (!v) setAccessUserId(null);
+        }}
+        userId={accessUserId}
       />
       <CreateBranchDialog open={branchOpen} onOpenChange={setBranchOpen} />
     </div>

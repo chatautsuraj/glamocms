@@ -42,7 +42,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
     title: "Commerce",
     features: [
       { key: "sales", label: "Sales" },
-      { key: "galla", label: "Beauty Counter / POS" },
+      { key: "galla", label: "POS / Phone / All sales" },
       { key: "orders", label: "Orders" },
       { key: "customers", label: "Customers" },
     ],
@@ -87,6 +87,20 @@ export const STARTER_TENANT_FEATURES: FeatureKey[] = [
   "products",
   "inventory",
   "analytics",
+  "settings",
+];
+
+/** Modules an owner can grant to staff in Settings. */
+export const STORE_ACCESS_FEATURES: FeatureKey[] = [
+  "dashboard",
+  "analytics",
+  "galla",
+  "sales",
+  "orders",
+  "customers",
+  "products",
+  "inventory",
+  "settings",
 ];
 
 /** Removed modules — filtered out of persisted feature lists. */
@@ -96,13 +110,11 @@ const REMOVED_FEATURES = new Set([
   "sales-team",
   "salesperson",
   "finance",
-  // Keep "sales" — powers All sales + Phone order (not the old invoices module)
   "notifications",
   "purchase",
   "suppliers",
   "expenses",
   "reports",
-  "settings",
   "admin",
 ]);
 

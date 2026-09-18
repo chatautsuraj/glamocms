@@ -1860,7 +1860,7 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: "glamo-nepal-store-v1",
-      version: 3,
+      version: 4,
       migrate: (persisted, fromVersion) => {
         const state = persisted as
           | {
@@ -1877,9 +1877,15 @@ export const useAppStore = create<AppState>()(
               tenants: state.tenants.map((t) => {
                 const normalized =
                   normalizeFeatureList(t.enabledFeatures) ?? [...STARTER_TENANT_FEATURES];
-                // v3: restore All sales / Phone order after "sales" was wrongly stripped
+                // Restore modules stripped by older builds
                 const ensured = new Set(normalized);
-                for (const key of ["sales", "galla", "orders", "analytics"] as FeatureKey[]) {
+                for (const key of [
+                  "sales",
+                  "galla",
+                  "orders",
+                  "analytics",
+                  "settings",
+                ] as FeatureKey[]) {
                   ensured.add(key);
                 }
                 return {

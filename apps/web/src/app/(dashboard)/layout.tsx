@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/providers/auth-provider";
 import { AppShell } from "@/components/layout/app-shell";
+import { FeatureGuard } from "@/components/feature-guard";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function DashboardLayout({
@@ -32,5 +33,9 @@ export default function DashboardLayout({
 
   if (!user) return null;
 
-  return <AppShell>{children}</AppShell>;
+  return (
+    <AppShell>
+      <FeatureGuard>{children}</FeatureGuard>
+    </AppShell>
+  );
 }

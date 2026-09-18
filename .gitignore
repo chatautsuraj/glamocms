@@ -35,3 +35,4 @@ apps/api/dev.db
 # Misc
 coverage/
 .turbo/
+.env*

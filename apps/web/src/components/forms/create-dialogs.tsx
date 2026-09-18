@@ -30,7 +30,7 @@ import { commerceClient } from "@/lib/commerce-client";
 import { invalidateProductCache } from "@/lib/use-api-products";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { featureLabel, type FeatureKey } from "@/lib/features";
+import { featureLabel, STORE_ACCESS_FEATURES, type FeatureKey } from "@/lib/features";
 import { Badge } from "@/components/ui/badge";
 
 type FieldError = Record<string, string>;
@@ -3026,6 +3026,8 @@ export function InviteUserDialog({
   const [showPass, setShowPass] = useState(false);
   const [canEdit, setCanEdit] = useState(true);
   const [canDelete, setCanDelete] = useState(false);
+  const [inheritFeatures, setInheritFeatures] = useState(true);
+  const [selectedFeatures, setSelectedFeatures] = useState<FeatureKey[]>([...STORE_ACCESS_FEATURES]);
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -3040,6 +3042,8 @@ export function InviteUserDialog({
     setShowPass(false);
     setCanEdit(true);
     setCanDelete(false);
+    setInheritFeatures(true);
+    setSelectedFeatures([...STORE_ACCESS_FEATURES]);
   };
 
   const submit = (e: FormEvent) => {
@@ -3049,6 +3053,9 @@ export function InviteUserDialog({
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) next.email = "Enter a valid email";
     if (form.password.length < 6) next.password = "Password must be at least 6 characters";
     if (form.password !== form.confirm) next.confirm = "Passwords do not match";
+    if (!inheritFeatures && selectedFeatures.length === 0) {
+      next.features = "Select at least one module";
+    }
     setErrors(next);
     if (Object.keys(next).length) return;
 
@@ -3061,6 +3068,7 @@ export function InviteUserDialog({
         password: form.password,
         tenantId,
         managedTenantIds: [],
+        enabledFeatures: privileged || inheritFeatures ? null : selectedFeatures,
         canEdit: privileged ? true : canEdit,
         canDelete: privileged ? true : canDelete,
       });
@@ -3074,6 +3082,8 @@ export function InviteUserDialog({
     }
   };
 
+  const privilegedRole = form.role === "OWNER" || form.role === "ADMIN";
+
   return (
     <FormDialogShell
       open={open}
@@ -3082,7 +3092,8 @@ export function InviteUserDialog({
         onOpenChange(v);
       }}
       title="Create User"
-      description="Add a team member with email, password, and edit/delete access"
+      description="Add a team member with email, password, and module access"
+      wide
     >
       <form onSubmit={submit} className="space-y-4">
         <div className="space-y-2">
@@ -3101,7 +3112,7 @@ export function InviteUserDialog({
             type="email"
             value={form.email}
             onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-            placeholder="hari@himalayanbeauty.example"
+            placeholder="hari@glamonepal.com"
           />
           <ErrorText message={errors.email} />
         </div>
@@ -3129,23 +3140,170 @@ export function InviteUserDialog({
           <div className="flex flex-wrap gap-4">
             <label className="flex items-center gap-2 text-sm">
               <Checkbox
-                checked={form.role === "OWNER" || form.role === "ADMIN" || canEdit}
-                disabled={form.role === "OWNER" || form.role === "ADMIN"}
+                checked={privilegedRole || canEdit}
+                disabled={privilegedRole}
                 onChange={(e) => setCanEdit(e.target.checked)}
               />
               Can edit
             </label>
             <label className="flex items-center gap-2 text-sm">
               <Checkbox
-                checked={form.role === "OWNER" || form.role === "ADMIN" || canDelete}
-                disabled={form.role === "OWNER" || form.role === "ADMIN"}
+                checked={privilegedRole || canDelete}
+                disabled={privilegedRole}
                 onChange={(e) => setCanDelete(e.target.checked)}
               />
               Can delete
             </label>
           </div>
         </div>
+        <div className="space-y-3 rounded-xl border border-border p-4">
+          <p className="text-sm font-medium">Module access</p>
+          <p className="text-xs text-muted-foreground">
+            {privilegedRole
+              ? "Owners and admins always get full store access."
+              : "Choose which screens this user can open."}
+          </p>
+          {!privilegedRole && (
+            <>
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox
+                  checked={inheritFeatures}
+                  onChange={(e) => setInheritFeatures(e.target.checked)}
+                />
+                Full access (all modules)
+              </label>
+              {!inheritFeatures && (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {STORE_ACCESS_FEATURES.map((key) => (
+                    <label key={key} className="flex items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={selectedFeatures.includes(key)}
+                        onChange={(e) => {
+                          setSelectedFeatures((prev) =>
+                            e.target.checked
+                              ? [...prev, key]
+                              : prev.filter((f) => f !== key)
+                          );
+                        }}
+                      />
+                      {featureLabel(key)}
+                    </label>
+                  ))}
+                </div>
+              )}
+              <ErrorText message={errors.features} />
+            </>
+          )}
+        </div>
         <FormActions onCancel={() => onOpenChange(false)} label="Create User" />
+      </form>
+    </FormDialogShell>
+  );
+}
+
+export function EditUserAccessDialog({
+  open,
+  onOpenChange,
+  userId,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  userId: string | null;
+}) {
+  const users = useAppStore((s) => s.users);
+  const setUserFeatures = useAppStore((s) => s.setUserFeatures);
+  const user = users.find((u) => u.id === userId) ?? null;
+  const privileged =
+    user?.role === "OWNER" || user?.role === "ADMIN" || user?.role === "PLATFORM_ADMIN";
+
+  const [inheritFeatures, setInheritFeatures] = useState(true);
+  const [selectedFeatures, setSelectedFeatures] = useState<FeatureKey[]>([...STORE_ACCESS_FEATURES]);
+
+  useEffect(() => {
+    if (!open || !user) return;
+    if (user.enabledFeatures == null) {
+      setInheritFeatures(true);
+      setSelectedFeatures([...STORE_ACCESS_FEATURES]);
+    } else {
+      setInheritFeatures(false);
+      setSelectedFeatures(
+        STORE_ACCESS_FEATURES.filter((k) => user.enabledFeatures!.includes(k))
+      );
+    }
+  }, [open, user]);
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    if (!user || privileged) {
+      onOpenChange(false);
+      return;
+    }
+    if (!inheritFeatures && selectedFeatures.length === 0) {
+      toast.error("Select at least one module");
+      return;
+    }
+    setUserFeatures(user.id, inheritFeatures ? null : selectedFeatures);
+    toast.success("Access updated", {
+      description: inheritFeatures
+        ? `${user.name} has full module access`
+        : `${user.name} · ${selectedFeatures.length} modules`,
+    });
+    onOpenChange(false);
+  };
+
+  return (
+    <FormDialogShell
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Module access"
+      description={
+        user
+          ? privileged
+            ? `${user.name} is an owner/admin and always has full access`
+            : `Choose which modules ${user.name} can open`
+          : "Choose modules"
+      }
+      wide
+    >
+      <form onSubmit={submit} className="space-y-4">
+        {privileged ? (
+          <p className="text-sm text-muted-foreground">
+            Owners and admins inherit every store module. Change their role if you need limited access.
+          </p>
+        ) : (
+          <div className="space-y-3 rounded-xl border border-border p-4">
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox
+                checked={inheritFeatures}
+                onChange={(e) => setInheritFeatures(e.target.checked)}
+              />
+              Full access (all modules)
+            </label>
+            {!inheritFeatures && (
+              <div className="grid gap-2 sm:grid-cols-2">
+                {STORE_ACCESS_FEATURES.map((key) => (
+                  <label key={key} className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={selectedFeatures.includes(key)}
+                      onChange={(e) => {
+                        setSelectedFeatures((prev) =>
+                          e.target.checked
+                            ? [...prev, key]
+                            : prev.filter((f) => f !== key)
+                        );
+                      }}
+                    />
+                    {featureLabel(key)}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        <FormActions
+          onCancel={() => onOpenChange(false)}
+          label={privileged ? "Close" : "Save access"}
+        />
       </form>
     </FormDialogShell>
   );
