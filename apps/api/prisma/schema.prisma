@@ -1,0 +1,97 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum OrderChannel {
+  store
+  website
+  whatsapp
+  phone
+}
+
+enum PaymentStatus {
+  unpaid
+  paid
+  partial
+  cancelled
+}
+
+enum FulfillmentStatus {
+  pending
+  confirmed
+  packed
+  out_for_delivery
+  delivered
+  cancelled
+}
+
+model Product {
+  id          String      @id @default(cuid())
+  name        String
+  sku         String      @unique
+  price       Decimal
+  stock       Int         @default(0)
+  category    String?
+  images      String      @default("[]")
+  brand       String?
+  shade       String?
+  batchNumber String?
+  expiresOn   DateTime?
+  isTester    Boolean     @default(false)
+  size        String?
+  mrp         Decimal?
+  reorderAt   Int         @default(5)
+  galla       Boolean     @default(true)
+  vatApplicable Boolean   @default(false)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  orderItems  OrderItem[]
+}
+
+model Customer {
+  id            String        @id @default(cuid())
+  name          String
+  phone         String?
+  email         String?
+  sourceChannel OrderChannel?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  orders        Order[]
+
+  @@index([phone])
+}
+
+model Order {
+  id                   String            @id @default(cuid())
+  customerId           String?
+  customer             Customer?         @relation(fields: [customerId], references: [id])
+  amount               Decimal
+  paymentStatus        PaymentStatus     @default(unpaid)
+  fulfillmentStatus    FulfillmentStatus @default(pending)
+  channel              OrderChannel
+  deliveryAssignee     String?
+  deliveryAddress      String?
+  deliveryNotes        String?
+  deliveryScheduledAt  DateTime?
+  deliveryPartner      String?
+  deliveryExternalId   String?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  items                OrderItem[]
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  qty       Int
+  unitPrice Decimal
+  lineTotal Decimal
+}

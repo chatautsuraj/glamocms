@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+
+# Env
+.env
+.env*.local
+!.env.example
+
+# Debug / OS
+npm-debug.log*
+.DS_Store
+Thumbs.db
+*.pem
+
+# Prisma
+apps/api/prisma/*.db
+apps/api/prisma/*.db-journal
+apps/api/dev.db
+
+# IDE / Vercel
+.vercel
+.idea/
+.vscode/
+*.swp
+
+# Misc
+coverage/
+.turbo/

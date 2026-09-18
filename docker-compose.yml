@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: glamo-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: glamo
+      POSTGRES_PASSWORD: glamo
+      POSTGRES_DB: glamo
+    volumes:
+      - glamo_pg_data:/var/lib/postgresql/data
+
+volumes:
+  glamo_pg_data:
