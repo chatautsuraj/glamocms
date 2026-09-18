@@ -1860,7 +1860,7 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: "glamo-nepal-store-v1",
-      version: 2,
+      version: 3,
       migrate: (persisted, fromVersion) => {
         const state = persisted as
           | {
@@ -1874,18 +1874,25 @@ export const useAppStore = create<AppState>()(
         const withVat = state.tenants
           ? {
               ...state,
-              tenants: state.tenants.map((t) => ({
-                ...t,
-                name: t.id === TENANT_HIMALAYAN ? "Glamo Nepal" : t.name,
-                shortName: t.id === TENANT_HIMALAYAN ? "Glamo Nepal" : t.shortName,
-                // v2: Glamo VAT defaults off (not all goods are VATable)
-                vatEnabled:
-                  fromVersion < 2 && t.id === TENANT_HIMALAYAN
-                    ? false
-                    : t.vatEnabled === true,
-                enabledFeatures:
-                  normalizeFeatureList(t.enabledFeatures) ?? [...STARTER_TENANT_FEATURES],
-              })),
+              tenants: state.tenants.map((t) => {
+                const normalized =
+                  normalizeFeatureList(t.enabledFeatures) ?? [...STARTER_TENANT_FEATURES];
+                // v3: restore All sales / Phone order after "sales" was wrongly stripped
+                const ensured = new Set(normalized);
+                for (const key of ["sales", "galla", "orders", "analytics"] as FeatureKey[]) {
+                  ensured.add(key);
+                }
+                return {
+                  ...t,
+                  name: t.id === TENANT_HIMALAYAN ? "Glamo Nepal" : t.name,
+                  shortName: t.id === TENANT_HIMALAYAN ? "Glamo Nepal" : t.shortName,
+                  vatEnabled:
+                    fromVersion < 2 && t.id === TENANT_HIMALAYAN
+                      ? false
+                      : t.vatEnabled === true,
+                  enabledFeatures: [...ensured],
+                };
+              }),
             }
           : state;
         const existing = withVat.products ?? [];

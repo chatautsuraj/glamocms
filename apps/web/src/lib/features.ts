@@ -80,11 +80,13 @@ export const FULL_TENANT_FEATURES: FeatureKey[] = [...TENANT_FEATURE_KEYS];
 
 export const STARTER_TENANT_FEATURES: FeatureKey[] = [
   "dashboard",
+  "sales",
   "galla",
   "orders",
   "customers",
   "products",
   "inventory",
+  "analytics",
 ];
 
 /** Removed modules — filtered out of persisted feature lists. */
@@ -94,9 +96,8 @@ const REMOVED_FEATURES = new Set([
   "sales-team",
   "salesperson",
   "finance",
-  "analytics",
+  // Keep "sales" — powers All sales + Phone order (not the old invoices module)
   "notifications",
-  "sales",
   "purchase",
   "suppliers",
   "expenses",
@@ -129,8 +130,8 @@ export function normalizeFeatureList(keys: string[] | null | undefined): Feature
 /** Longest-prefix first so /sales/galla maps to galla, not sales. */
 const HREF_FEATURE_MAP: { href: string; feature: FeatureKey }[] = [
   { href: "/sales/galla", feature: "galla" },
-  { href: "/sales/phone", feature: "sales" },
-  { href: "/sales/all", feature: "sales" },
+  { href: "/sales/phone", feature: "galla" },
+  { href: "/sales/all", feature: "galla" },
   { href: "/dashboard", feature: "dashboard" },
   { href: "/notifications", feature: "notifications" },
   { href: "/analytics", feature: "analytics" },
