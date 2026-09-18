@@ -33,7 +33,7 @@ import {
 } from "@/lib/store";
 import { useApiProducts } from "@/lib/use-api-products";
 import { commerceClient } from "@/lib/commerce-client";
-import { paymentQrImageUrl, issueStoreBill } from "@/lib/print-bill";
+import { issueStoreBill } from "@/lib/print-bill";
 import { syncCallerToAppStore } from "@/lib/sync-caller";
 import { useActiveTenantId, useVatEnabled } from "@/lib/use-entitlements";
 import { cn } from "@/lib/utils";
@@ -45,6 +45,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import fonepayQr from "@/assets/fonepay-qr.jpg";
+
+/** Bundled Fonepay merchant QR standee (Yantra Shala / Kamana Sewa). */
+const FONEPAY_QR_SRC = typeof fonepayQr === "string" ? fonepayQr : (fonepayQr as { src: string }).src;
 
 type CartItem = {
   productId: string;
@@ -71,6 +75,7 @@ export default function GallaPage() {
   const [category, setCategory] = useState("All");
   const [addQty, setAddQty] = useState("1");
   const [addPrice, setAddPrice] = useState("");
+  const [addDiscount, setAddDiscount] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customerId, setCustomerId] = useState(WALK_IN_CUSTOMER_ID);
   const [payment, setPayment] = useState<PaymentMethod>("CASH");
@@ -147,6 +152,7 @@ export default function GallaPage() {
     setSearch("");
     setAddQty("1");
     setAddPrice("");
+    setAddDiscount("");
   }, [activeTenantId]);
 
   const filteredProducts = useMemo(() => {
@@ -215,6 +221,11 @@ export default function GallaPage() {
         return;
       }
       const unitPrice = useManual ? typed : listPrice;
+      const typedDisc = Number(addDiscount);
+      const discountPercent =
+        addDiscount.trim() !== "" && Number.isFinite(typedDisc)
+          ? Math.min(100, Math.max(0, typedDisc))
+          : 0;
       setCart((prev) => {
         const existing = prev.find((i) => i.productId === product.id);
         if (existing) {
@@ -229,6 +240,7 @@ export default function GallaPage() {
                   ...i,
                   qty: nextQty,
                   ...(useManual ? { price: unitPrice, priceManual: true } : {}),
+                  ...(addDiscount.trim() !== "" ? { discountPercent } : {}),
                 }
               : i
           );
@@ -245,7 +257,7 @@ export default function GallaPage() {
             sku: product.sku,
             price: unitPrice,
             priceManual: useManual,
-            discountPercent: 0,
+            discountPercent,
             qty: qtyToAdd,
           },
         ];
@@ -253,9 +265,10 @@ export default function GallaPage() {
       setSearch("");
       setAddQty("1");
       setAddPrice("");
+      setAddDiscount("");
       scanRef.current?.focus();
     },
-    [customerId, parsedAddQty, addPrice]
+    [customerId, parsedAddQty, addPrice, addDiscount]
   );
 
   const applyScannedCode = useCallback(
@@ -294,19 +307,55 @@ export default function GallaPage() {
       const name = custName.trim();
       const phone = custPhone.trim();
       const address = custAddress.trim();
+      const notes = custNotes.trim();
       const { customer: created } = await commerceClient.createCustomer({
         name,
         phone,
-        // Phone channel so they appear under Phone order → Recent callers
         sourceChannel: "phone",
         deliveryAddress: address || undefined,
-        notes: custNotes.trim() || undefined,
+        notes: notes || undefined,
       });
       syncCallerToAppStore({
         name,
         phone,
-        area: address || "Walk-in / Phone",
+        area: address || "Phone",
       });
+
+      // Phone-channel order so the caller appears on Phone order + Orders / Delivery
+      const cartLines = cart.map((item) => ({
+        productId: item.productId,
+        qty: item.qty,
+        unitPrice:
+          item.discountPercent > 0
+            ? Math.round(item.price * (1 - Math.min(100, item.discountPercent) / 100))
+            : item.price,
+        name: item.name,
+        currentStock: stockOf(item.productId),
+      }));
+      const orderAmount = cartLines.reduce(
+        (s, l) => s + l.unitPrice * l.qty,
+        0,
+      );
+      await commerceClient.createOrder({
+        channel: "phone",
+        paymentStatus: "unpaid",
+        fulfillmentStatus: "confirmed",
+        customerId: created.id,
+        customer: { name, phone },
+        deliveryAddress: address || undefined,
+        deliveryNotes:
+          notes ||
+          (cartLines.length
+            ? `Phone order from POS · ${phone}`
+            : `Caller from POS · ${phone}`),
+        amount: orderAmount,
+        items: cartLines,
+      });
+
+      if (cartLines.length) {
+        clearCart();
+      }
+
       await reloadCustomers();
       setCustomerId(created.id);
       setCustOpen(false);
@@ -314,7 +363,11 @@ export default function GallaPage() {
       setCustPhone("");
       setCustAddress("");
       setCustNotes("");
-      toast.success("Caller saved · Customers & Phone order");
+      toast.success(
+        cartLines.length
+          ? "Caller + phone order saved · Customers, Phone order & Orders"
+          : "Caller saved · Customers, Phone order & Orders",
+      );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not save customer");
     }
@@ -389,6 +442,24 @@ export default function GallaPage() {
     );
   };
 
+  const setCartDiscount = (productId: string, raw: string) => {
+    if (raw.trim() === "") {
+      setCart((prev) =>
+        prev.map((i) => (i.productId === productId ? { ...i, discountPercent: 0 } : i))
+      );
+      return;
+    }
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < 0) return;
+    setCart((prev) =>
+      prev.map((i) =>
+        i.productId === productId
+          ? { ...i, discountPercent: Math.min(100, Math.max(0, n)) }
+          : i
+      )
+    );
+  };
+
   const clearCart = () => {
     setCart([]);
     setSplitCash("");
@@ -396,6 +467,7 @@ export default function GallaPage() {
     setSearch("");
     setAddQty("1");
     setAddPrice("");
+    setAddDiscount("");
     searchRef.current?.focus();
   };
 
@@ -463,7 +535,11 @@ export default function GallaPage() {
         items: cart.map((item) => ({
           productId: item.productId,
           qty: item.qty,
-          unitPrice: item.price,
+          // Persist effective unit after discount so order amount matches cart
+          unitPrice:
+            item.discountPercent > 0
+              ? Math.round(item.price * (1 - Math.min(100, item.discountPercent) / 100))
+              : item.price,
           name: item.name,
           currentStock: stockOf(item.productId),
         })),
@@ -537,7 +613,7 @@ export default function GallaPage() {
     <div className="space-y-4">
       <PageHeader
         title="Glamo Counter"
-        description="Scan or search · qty · optional price · F2 pay · Esc clear"
+        description="Scan or search · qty · price · discount % · F2 pay · Esc clear"
         actions={
           <Badge variant="success" className="gap-1 px-3 py-1">
             <span className="h-2 w-2 animate-pulse rounded-full bg-success" />
@@ -605,7 +681,7 @@ export default function GallaPage() {
               />
             </div>
             <div className="flex gap-2 sm:w-auto">
-              <div className="w-24">
+              <div className="w-20">
                 <Label className="sr-only">Qty to add</Label>
                 <Input
                   type="number"
@@ -618,7 +694,7 @@ export default function GallaPage() {
                   placeholder="Qty"
                 />
               </div>
-              <div className="w-28">
+              <div className="w-24">
                 <Label className="sr-only">Manual price</Label>
                 <Input
                   type="number"
@@ -631,10 +707,24 @@ export default function GallaPage() {
                   placeholder="Price"
                 />
               </div>
+              <div className="w-20">
+                <Label className="sr-only">Discount %</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={addDiscount}
+                  onChange={(e) => setAddDiscount(e.target.value)}
+                  className="h-12 text-center text-base"
+                  title="Discount percent for the next product added"
+                  aria-label="Discount percent (optional)"
+                  placeholder="Disc %"
+                />
+              </div>
             </div>
           </div>
           <p className="text-xs text-muted-foreground">
-            Leave <strong>Price</strong> blank for list price, or type a counter rate before tapping a product.
+            Optional <strong>Price</strong> and <strong>Disc %</strong> apply to the next product you add (edit again anytime in the cart).
           </p>
 
           <div className="flex flex-wrap gap-1.5">
@@ -736,7 +826,7 @@ export default function GallaPage() {
           <div className="flex-1 overflow-y-auto p-4 scrollbar-thin">
             {cart.length === 0 ? (
               <p className="py-12 text-center text-sm text-muted-foreground">
-                Cart empty — set qty (and optional price), then tap a product
+                Cart empty — set qty, price, or disc %, then tap a product
               </p>
             ) : (
               <div className="space-y-2">
@@ -745,7 +835,7 @@ export default function GallaPage() {
                   return (
                   <div
                     key={item.productId}
-                    className="flex items-center gap-2 rounded-lg bg-muted/50 p-2"
+                    className="flex flex-wrap items-center gap-2 rounded-lg bg-muted/50 p-2"
                   >
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-background">
                       {product?.image ? (
@@ -755,8 +845,11 @@ export default function GallaPage() {
                         <Package className="h-4 w-4 text-muted-foreground" />
                       )}
                     </div>
-                    <div className="min-w-0 flex-1">
+                    <div className="min-w-0 flex-1 basis-24">
                       <p className="truncate text-sm font-medium">{item.name}</p>
+                      {item.discountPercent > 0 && (
+                        <p className="text-[10px] text-primary">−{item.discountPercent}% off</p>
+                      )}
                     </div>
                     <div className="flex shrink-0 items-center gap-1">
                       <Button
@@ -798,6 +891,26 @@ export default function GallaPage() {
                         <span className="text-[10px] text-primary">manual</span>
                       )}
                     </div>
+                    <div className="flex shrink-0 flex-col items-end gap-0.5">
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={item.discountPercent || ""}
+                          onChange={(e) => setCartDiscount(item.productId, e.target.value)}
+                          onFocus={(e) => e.target.select()}
+                          className="h-8 w-16 px-1 pr-5 text-right text-sm"
+                          aria-label={`Discount % for ${item.name}`}
+                          title="Discount percent"
+                          placeholder="0"
+                        />
+                        <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
+                          %
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-muted-foreground">disc</span>
+                    </div>
                     <p className="w-16 shrink-0 text-right text-sm font-semibold">
                       {formatNPR(
                         calcLineTotal(item.qty, item.price, item.discountPercent)
@@ -828,14 +941,19 @@ export default function GallaPage() {
                 [
                   { id: "CASH" as const, icon: Banknote, label: "Cash" },
                   { id: "CREDIT" as const, icon: CreditCard, label: "Credit" },
-                  { id: "QR_ESEWA" as const, icon: QrCode, label: "QR" },
+                  { id: "QR_ESEWA" as const, icon: QrCode, label: "Fonepay" },
                   { id: "SPLIT" as const, icon: Zap, label: "Split" },
                 ] as const
               ).map((m) => (
                 <button
                   key={m.id}
                   type="button"
-                  onClick={() => setPayment(m.id)}
+                  onClick={() => {
+                    setPayment(m.id);
+                    if (m.id === "QR_ESEWA" || m.id === "SPLIT") {
+                      setQrOpen(true);
+                    }
+                  }}
                   className={cn(
                     "flex flex-col items-center gap-1 rounded-xl border p-2 text-xs transition-colors",
                     payment === m.id
@@ -862,7 +980,7 @@ export default function GallaPage() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">QR</Label>
+                  <Label className="text-xs">Fonepay</Label>
                   <Input
                     type="number"
                     min={0}
@@ -874,22 +992,26 @@ export default function GallaPage() {
               </div>
             )}
 
-            {(payment === "QR_ESEWA" || payment === "SPLIT") && total > 0 && (
+            {(payment === "QR_ESEWA" || payment === "SPLIT") && (
               <button
                 type="button"
                 onClick={() => setQrOpen(true)}
-                className="flex w-full flex-col items-center gap-2 rounded-2xl border border-primary/25 bg-primary/5 p-4 transition-colors hover:bg-primary/10"
+                className="flex w-full flex-col items-center gap-2 rounded-2xl border border-primary/25 bg-primary/5 p-3 transition-colors hover:bg-primary/10"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={paymentQrImageUrl(payment === "SPLIT" ? Number(splitQr) || total : total)}
-                  alt="Payment QR"
-                  className="h-40 w-40 rounded-xl bg-white p-2 shadow-sm"
+                  src={FONEPAY_QR_SRC}
+                  alt="Fonepay QR — Yantra Shala Solutions"
+                  className="h-auto w-full max-w-[220px] rounded-xl bg-white object-contain shadow-sm"
                 />
                 <p className="text-sm font-medium text-primary">
-                  Show QR · {formatNPR(payment === "SPLIT" ? Number(splitQr) || total : total)}
+                  {total > 0
+                    ? `Fonepay · ${formatNPR(payment === "SPLIT" ? Number(splitQr) || total : total)}`
+                    : "Fonepay QR — add items, then confirm pay"}
                 </p>
-                <p className="text-[11px] text-muted-foreground">Customer scans · then confirm pay</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Tap to enlarge · customer scans banking app / wallet
+                </p>
               </button>
             )}
 
@@ -924,21 +1046,26 @@ export default function GallaPage() {
 
       <Dialog open={qrOpen} onOpenChange={setQrOpen}>
         <DialogContent
-          className="max-w-sm text-center"
+          className="max-w-md text-center"
           onClose={() => setQrOpen(false)}
         >
           <DialogHeader className="text-center">
-            <DialogTitle>Glamo Nepal · Pay by QR</DialogTitle>
+            <DialogTitle>Pay with Fonepay</DialogTitle>
             <DialogDescription>
-              Ask the customer to scan · {formatNPR(payment === "SPLIT" ? Number(splitQr) || total : total)}
+              Amount due · {formatNPR(payment === "SPLIT" ? Number(splitQr) || total : total)}
+              <br />
+              Ask the customer to scan this QR in their banking app or digital wallet
             </DialogDescription>
           </DialogHeader>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={paymentQrImageUrl(payment === "SPLIT" ? Number(splitQr) || total : total)}
-            alt="Payment QR code"
-            className="mx-auto h-64 w-64 rounded-2xl bg-white p-3 shadow-md"
+            src={FONEPAY_QR_SRC}
+            alt="Fonepay QR — Yantra Shala Solutions · Terminal 2222520020973447"
+            className="mx-auto h-auto w-full max-w-[320px] rounded-2xl bg-white object-contain shadow-md"
           />
+          <p className="mt-2 text-xs text-muted-foreground">
+            Yantra Shala Solutions · Kamana Sewa Bikas Bank
+          </p>
           <div className="mt-4 grid grid-cols-2 gap-2">
             <Button variant="outline" onClick={() => setQrOpen(false)}>
               Cancel
@@ -962,9 +1089,10 @@ export default function GallaPage() {
       <Dialog open={custOpen} onOpenChange={setCustOpen}>
         <DialogContent onClose={() => setCustOpen(false)}>
           <DialogHeader>
-            <DialogTitle>Add caller / walk-up customer</DialogTitle>
+            <DialogTitle>Add caller</DialogTitle>
             <DialogDescription>
-              Save name + phone for this sale. Delivery address is optional.
+              Saves to Customers, creates a Phone order (and Orders / Delivery). If the cart has
+              items, they are attached to that phone order.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">

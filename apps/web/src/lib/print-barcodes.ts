@@ -40,6 +40,28 @@ function barcodeSvgMarkup(code: string): string {
   return svg.outerHTML;
 }
 
+/** SVG markup for Code128 barcodes in print HTML. */
+export function barcodeSvgForPrint(code: string, opts?: { width?: number; height?: number; barWidth?: number }) {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  const width = opts?.width ?? 220;
+  const height = opts?.height ?? 56;
+  try {
+    JsBarcode(svg, code, {
+      format: "CODE128",
+      width: opts?.barWidth ?? 1.6,
+      height: height - 8,
+      displayValue: false,
+      margin: 0,
+    });
+  } catch {
+    return `<span style="font-family:monospace;font-size:12px">${escapeHtml(code)}</span>`;
+  }
+  svg.setAttribute("class", "bc");
+  svg.setAttribute("width", String(width));
+  svg.setAttribute("height", String(height));
+  return svg.outerHTML;
+}
+
 function buildPrintHtml(labels: BarcodeLabel[]) {
   const rows = labels
     .flatMap((l) => {

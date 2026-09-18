@@ -4,9 +4,10 @@ export const COMPANY = {
   shortName: "Glamo Nepal",
   pan: "601234567",
   vat: "601234567",
-  address: "Kathmandu, Nepal",
-  phone: "+977-1-4256789",
+  address: "S.S Chowk, Madhyapur Thimi, Bagmati Province 44800",
+  phone: "981-8212188",
   email: "hello@glamonepal.com",
+  category: "Cosmetics store",
 };
 
 export const CURRENT_USER = {

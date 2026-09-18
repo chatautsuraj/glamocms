@@ -463,6 +463,59 @@ export function localMirrorOrder(order: ApiOrder): void {
   write(store);
 }
 
+export function localGetOrder(id: string): ApiOrder | null {
+  return read().orders.find((o) => o.id === id) ?? null;
+}
+
+export type LocalOrderPatch = {
+  fulfillmentStatus?: string;
+  paymentStatus?: string;
+  deliveryAssignee?: string | null;
+  deliveryAddress?: string | null;
+  deliveryNotes?: string | null;
+  deliveryScheduledAt?: string | null;
+  deliveryPartner?: string | null;
+  deliveryExternalId?: string | null;
+};
+
+export function localUpdateOrder(id: string, patch: LocalOrderPatch): ApiOrder | null {
+  const store = read();
+  const idx = store.orders.findIndex((o) => o.id === id);
+  if (idx < 0) return null;
+  const prev = store.orders[idx];
+  const next: ApiOrder = {
+    ...prev,
+    ...(patch.fulfillmentStatus != null ? { fulfillmentStatus: patch.fulfillmentStatus } : {}),
+    ...(patch.paymentStatus != null ? { paymentStatus: patch.paymentStatus } : {}),
+    ...(patch.deliveryAssignee !== undefined ? { deliveryAssignee: patch.deliveryAssignee } : {}),
+    ...(patch.deliveryAddress !== undefined ? { deliveryAddress: patch.deliveryAddress } : {}),
+    ...(patch.deliveryNotes !== undefined ? { deliveryNotes: patch.deliveryNotes } : {}),
+    ...(patch.deliveryScheduledAt !== undefined
+      ? { deliveryScheduledAt: patch.deliveryScheduledAt }
+      : {}),
+    ...(patch.deliveryPartner !== undefined ? { deliveryPartner: patch.deliveryPartner } : {}),
+    ...(patch.deliveryExternalId !== undefined
+      ? { deliveryExternalId: patch.deliveryExternalId }
+      : {}),
+  };
+  store.orders = store.orders.map((o) => (o.id === id ? next : o));
+  write(store);
+  return next;
+}
+
+export function localCancelOrder(id: string): ApiOrder | null {
+  const order = localGetOrder(id);
+  if (!order || order.fulfillmentStatus === "cancelled") return order;
+  // Restock lines
+  for (const line of order.items ?? []) {
+    const qty = Number(line.qty) || 0;
+    if (qty > 0 && line.product?.id) {
+      localAdjustStockRelative(line.product.id, qty);
+    }
+  }
+  return localUpdateOrder(id, { fulfillmentStatus: "cancelled" });
+}
+
 export function localAnalytics(lowStockCount = 0): AnalyticsSummary {
   const orders = localListOrders();
   const now = new Date();

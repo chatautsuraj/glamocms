@@ -26,7 +26,7 @@ import {
   type DatePreset,
 } from "@/lib/date-range";
 import { formatNPR } from "@/lib/format";
-import { printDeliverySequence } from "@/lib/print-delivery";
+import { printDeliveryNote, printDeliveryNotes } from "@/lib/print-delivery";
 import { toast } from "sonner";
 
 /** Prefer scheduled date for delivery runs; fall back to created. */
@@ -99,11 +99,25 @@ export default function DeliveryPage() {
           }
         }),
       );
-      const ok = printDeliverySequence({ orders: enriched, rangeLabel });
-      if (!ok) toast.error("Allow pop-ups to print delivery details");
-      else toast.success(`Printing ${enriched.length} delivery stop(s)`);
+      const ok = printDeliveryNotes({ orders: enriched, rangeLabel });
+      if (!ok) toast.error("Allow pop-ups to print delivery notes");
+      else toast.success(`Printing ${enriched.length} delivery note(s)`);
     } finally {
       setPrinting(false);
+    }
+  };
+
+  const printOneNote = async (row: ApiOrder) => {
+    try {
+      let order = row;
+      if (!row.items?.length) {
+        const res = await commerceClient.getOrder(row.id);
+        order = res.order;
+      }
+      const ok = printDeliveryNote(order);
+      if (!ok) toast.error("Allow pop-ups to print");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not print note");
     }
   };
 
@@ -151,21 +165,33 @@ export default function DeliveryPage() {
         key: "actions",
         header: "",
         cell: (r) => (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={(e) => {
-              e.stopPropagation();
-              setEdit(r);
-              setAssignee(r.deliveryAssignee ?? "");
-              setAddress(r.deliveryAddress ?? "");
-              setNotes(r.deliveryNotes ?? "");
-              setScheduled(r.deliveryScheduledAt ? r.deliveryScheduledAt.slice(0, 10) : "");
-              setStatus(r.fulfillmentStatus);
-            }}
-          >
-            Manage
-          </Button>
+          <div className="flex justify-end gap-1">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={(e) => {
+                e.stopPropagation();
+                void printOneNote(r);
+              }}
+            >
+              Note
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={(e) => {
+                e.stopPropagation();
+                setEdit(r);
+                setAssignee(r.deliveryAssignee ?? "");
+                setAddress(r.deliveryAddress ?? "");
+                setNotes(r.deliveryNotes ?? "");
+                setScheduled(r.deliveryScheduledAt ? r.deliveryScheduledAt.slice(0, 10) : "");
+                setStatus(r.fulfillmentStatus);
+              }}
+            >
+              Manage
+            </Button>
+          </div>
         ),
         className: "text-right",
       },
@@ -232,7 +258,7 @@ export default function DeliveryPage() {
               disabled={printing || !filteredOrders.length}
               onClick={() => void printFilteredDelivery()}
             >
-              {printing ? "Preparing…" : `Print delivery (${filteredOrders.length})`}
+              {printing ? "Preparing…" : `Print notes (${filteredOrders.length})`}
             </Button>
           </div>
         }

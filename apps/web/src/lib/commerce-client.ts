@@ -7,17 +7,21 @@ import {
   isApiOfflineError,
   localAdjustStockFromCurrent,
   localAnalytics,
+  localCancelOrder,
   localCreateCustomer,
   localCreateOrder,
   localCreateProduct,
   localDeleteProduct,
+  localGetOrder,
   localListCustomers,
   localListOrders,
   localMirrorOrder,
+  localUpdateOrder,
   localUpdateProduct,
   mergeProductsWithLocal,
   type LocalCustomerInput,
   type LocalOrderInput,
+  type LocalOrderPatch,
   type LocalProductInput,
 } from "@/lib/local-commerce";
 
@@ -307,7 +311,22 @@ export const commerceClient = {
       orders: [...map.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     };
   },
-  getOrder: (id: string) => bff<{ order: ApiOrder }>(`/api/commerce/orders/${id}`),
+  getOrder: async (id: string) => {
+    try {
+      const res = await bff<{ order: ApiOrder }>(`/api/commerce/orders/${id}`);
+      if (res.order) localMirrorOrder(res.order);
+      return res;
+    } catch (e) {
+      if (!isApiOfflineError(e)) {
+        const local = localGetOrder(id);
+        if (local) return { order: local };
+        throw e;
+      }
+      const order = localGetOrder(id);
+      if (!order) throw new Error("Order not found");
+      return { order };
+    }
+  },
   createOrder: async (body: Record<string, unknown>) => {
     try {
       const res = await bff<{ ok: boolean; order: ApiOrder }>("/api/commerce/orders", {
@@ -322,18 +341,102 @@ export const commerceClient = {
       return { ok: true, order };
     }
   },
-  updateOrder: (id: string, body: Record<string, unknown>) =>
-    bff<{ order: ApiOrder }>(`/api/commerce/orders/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify(body),
-    }),
-  cancelOrder: (id: string) =>
-    bff<{ order: ApiOrder }>(`/api/commerce/orders/${id}/cancel`, { method: "POST" }),
-  dispatchDelivery: (id: string, body?: Record<string, unknown>) =>
-    bff<{ order: ApiOrder; partner?: unknown }>(`/api/commerce/orders/${id}/dispatch`, {
-      method: "POST",
-      body: JSON.stringify(body ?? {}),
-    }),
+  updateOrder: async (id: string, body: Record<string, unknown>) => {
+    const patch = body as LocalOrderPatch;
+    try {
+      const res = await bff<{ order: ApiOrder }>(`/api/commerce/orders/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      });
+      if (res.order) {
+        // Keep local copy in sync (overwrite)
+        const storeOrder = localGetOrder(id);
+        if (storeOrder) localUpdateOrder(id, {
+          fulfillmentStatus: res.order.fulfillmentStatus,
+          paymentStatus: res.order.paymentStatus,
+          deliveryAssignee: res.order.deliveryAssignee,
+          deliveryAddress: res.order.deliveryAddress,
+          deliveryNotes: res.order.deliveryNotes,
+          deliveryScheduledAt: res.order.deliveryScheduledAt,
+          deliveryPartner: res.order.deliveryPartner,
+          deliveryExternalId: res.order.deliveryExternalId,
+        });
+        else localMirrorOrder(res.order);
+        return res;
+      }
+    } catch (e) {
+      if (!isApiOfflineError(e)) {
+        // Order may exist only locally
+        const local = localUpdateOrder(id, patch);
+        if (local) return { order: local };
+        throw e;
+      }
+    }
+    const order = localUpdateOrder(id, patch);
+    if (!order) throw new Error("Order not found");
+    return { order };
+  },
+  cancelOrder: async (id: string) => {
+    try {
+      const res = await bff<{ order: ApiOrder }>(`/api/commerce/orders/${id}/cancel`, {
+        method: "POST",
+      });
+      if (res.order) localUpdateOrder(id, { fulfillmentStatus: "cancelled" });
+      return res;
+    } catch (e) {
+      if (!isApiOfflineError(e)) {
+        const local = localCancelOrder(id);
+        if (local) return { order: local };
+        throw e;
+      }
+      const order = localCancelOrder(id);
+      if (!order) throw new Error("Order not found");
+      return { order };
+    }
+  },
+  dispatchDelivery: async (id: string, body?: Record<string, unknown>) => {
+    try {
+      const res = await bff<{ order: ApiOrder; partner?: unknown }>(
+        `/api/commerce/orders/${id}/dispatch`,
+        {
+          method: "POST",
+          body: JSON.stringify(body ?? {}),
+        },
+      );
+      if (res.order) {
+        localUpdateOrder(id, {
+          fulfillmentStatus: res.order.fulfillmentStatus,
+          deliveryPartner: res.order.deliveryPartner,
+          deliveryExternalId: res.order.deliveryExternalId,
+          deliveryAssignee: res.order.deliveryAssignee,
+          deliveryAddress: res.order.deliveryAddress,
+          deliveryNotes: res.order.deliveryNotes,
+          deliveryScheduledAt: res.order.deliveryScheduledAt,
+        });
+      }
+      return res;
+    } catch (e) {
+      if (!isApiOfflineError(e)) {
+        // Fall through to local stub
+      } else {
+        /* offline */
+      }
+      const tracking = `MANUAL-${Date.now().toString(36).toUpperCase()}`;
+      const order = localUpdateOrder(id, {
+        fulfillmentStatus: "out_for_delivery",
+        deliveryPartner: "manual",
+        deliveryExternalId: tracking,
+        ...(body?.deliveryAssignee != null
+          ? { deliveryAssignee: String(body.deliveryAssignee) }
+          : {}),
+        ...(body?.deliveryAddress != null
+          ? { deliveryAddress: String(body.deliveryAddress) }
+          : {}),
+      });
+      if (!order) throw e instanceof Error ? e : new Error("Order not found");
+      return { order, partner: { partner: "manual", tracking } };
+    }
+  },
 
   analytics: async () => {
     let remote: AnalyticsSummary | null = null;

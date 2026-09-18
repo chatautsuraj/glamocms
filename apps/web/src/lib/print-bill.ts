@@ -1,6 +1,8 @@
-/** Glamo POS estimate bill — thermal print + PDF download. */
+/** Glamo POS estimate bill — thermal receipt style (QTY / DESC / AMT + barcode). */
 
 import { jsPDF } from "jspdf";
+import { COMPANY } from "@/lib/mock-data";
+import { barcodeSvgForPrint } from "@/lib/print-barcodes";
 
 export type BillLine = {
   name: string;
@@ -43,28 +45,47 @@ function printTimestamp(opts: StoreBillOpts) {
       : opts.printedAt
         ? new Date(opts.printedAt)
         : new Date();
-  return d.toLocaleString("en-NP", {
-    year: "numeric",
-    month: "short",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true,
-  });
+  return {
+    date: d.toLocaleDateString("en-NP", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }),
+    time: d.toLocaleTimeString("en-NP", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    }),
+    full: d.toLocaleString("en-NP", {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: true,
+    }),
+  };
 }
 
-/** Open thermal-style estimate bill and trigger browser print (Save as PDF works too). */
+function billBarcodeCode(orderId: string) {
+  const clean = orderId.replace(/[^a-zA-Z0-9_-]/g, "");
+  return (clean || orderId).slice(0, 24);
+}
+
+/** Open thermal-style estimate bill and trigger browser print. */
 export function printStoreBill(opts: StoreBillOpts) {
-  const printedAt = printTimestamp(opts);
+  const stamp = printTimestamp(opts);
+  const code = billBarcodeCode(opts.orderId);
+  const barcode = barcodeSvgForPrint(code, { width: 200, height: 48, barWidth: 1.5 });
+
   const rows = opts.lines
     .map(
       (l) =>
         `<tr>
-          <td style="padding:4px 0;text-align:left">${escapeHtml(l.name)}</td>
-          <td style="padding:4px 0;text-align:center">${l.qty}</td>
-          <td style="padding:4px 0;text-align:right">${npr(l.unitPrice)}</td>
-          <td style="padding:4px 0;text-align:right">${npr(l.lineTotal)}</td>
+          <td class="qty">${l.qty}</td>
+          <td class="desc">${escapeHtml(l.name)}</td>
+          <td class="amt">${npr(l.lineTotal)}</td>
         </tr>`,
     )
     .join("");
@@ -72,44 +93,55 @@ export function printStoreBill(opts: StoreBillOpts) {
   const html = `<!doctype html>
 <html><head><title>Estimate ${escapeHtml(opts.orderId.slice(0, 8))}</title>
 <style>
-  body{font-family:ui-monospace,Menlo,Consolas,monospace;padding:16px;color:#111;max-width:320px;margin:0 auto}
-  h1{font-size:16px;margin:0 0 4px;text-align:center}
-  .doc{font-size:13px;font-weight:700;margin:6px 0 2px;text-align:center;letter-spacing:.04em}
-  p{margin:2px 0;font-size:12px;text-align:center}
-  table{width:100%;border-collapse:collapse;margin-top:12px;font-size:12px}
-  th{border-bottom:1px solid #000;padding:4px 0;text-align:left}
-  .tot{border-top:1px dashed #000;margin-top:8px;padding-top:8px;font-size:13px}
-  .tot div{display:flex;justify-content:space-between;margin:2px 0}
-  .big{font-weight:700;font-size:15px}
-  .note{margin-top:14px;font-size:10px;text-align:center;line-height:1.35}
+  body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;padding:14px 12px;color:#111;max-width:300px;margin:0 auto}
+  h1{font-size:18px;margin:0 0 2px;text-align:center;font-weight:700;letter-spacing:.02em}
+  .addr{margin:0;font-size:11px;text-align:center;color:#333;line-height:1.35}
+  .doc{font-size:12px;font-weight:700;margin:10px 0 6px;text-align:center;letter-spacing:.08em}
+  .row{display:flex;justify-content:space-between;font-size:11px;margin:2px 0}
+  .meta{margin:8px 0;font-size:11px}
+  table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}
+  th{border-bottom:1px dashed #000;padding:4px 0;font-size:10px;letter-spacing:.04em;text-transform:uppercase}
+  th.qty,td.qty{width:28px;text-align:left}
+  th.desc,td.desc{text-align:left}
+  th.amt,td.amt{text-align:right;white-space:nowrap}
+  td{padding:5px 0;vertical-align:top}
+  .tot{border-top:1px dashed #000;margin-top:8px;padding-top:8px}
+  .tot .amt-big{display:flex;justify-content:space-between;font-weight:700;font-size:15px;margin:4px 0}
+  .tot .small{display:flex;justify-content:space-between;font-size:11px;margin:2px 0;color:#333}
+  .note{margin-top:12px;font-size:10px;text-align:center;line-height:1.35;color:#444}
+  .bc{text-align:center;margin-top:14px}
+  .bc svg{display:inline-block}
+  .bc-code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10px;margin-top:2px;letter-spacing:.04em}
   @media print{body{padding:0}}
 </style></head><body>
-  <h1>Glamo Nepal</h1>
-  <p>Teku / Kathmandu</p>
+  <h1>${escapeHtml(COMPANY.name)}</h1>
+  <p class="addr">${escapeHtml(COMPANY.category ?? "Cosmetics store")}</p>
+  <p class="addr">${escapeHtml(COMPANY.address)}</p>
+  <p class="addr">${escapeHtml(COMPANY.phone)}</p>
   <p class="doc">ESTIMATE BILL</p>
-  <p>Print time: ${escapeHtml(printedAt)}</p>
-  <p>Ref: ${escapeHtml(opts.orderId.slice(0, 12))}…</p>
-  ${opts.channel ? `<p>Channel: ${escapeHtml(opts.channel)}</p>` : ""}
-  <p>Customer: ${escapeHtml(opts.customerName)}</p>
-  ${opts.customerPhone ? `<p>Phone: ${escapeHtml(opts.customerPhone)}</p>` : ""}
-  <p>Pay: ${escapeHtml(opts.method)}</p>
+  <div class="row"><span>${escapeHtml(stamp.date)}</span><span>${escapeHtml(stamp.time)}</span></div>
+  <div class="meta">
+    <div class="row"><span>Ref ${escapeHtml(opts.orderId.slice(0, 12))}</span><span>${escapeHtml(opts.channel ?? "store")}</span></div>
+    <div class="row"><span>${escapeHtml(opts.customerName)}</span><span>${escapeHtml(opts.method)}</span></div>
+    ${opts.customerPhone ? `<div class="row"><span>Tel ${escapeHtml(opts.customerPhone)}</span><span></span></div>` : ""}
+  </div>
   <table>
-    <thead><tr><th>Item</th><th>Qty</th><th>Rate</th><th>Amt</th></tr></thead>
+    <thead><tr><th class="qty">Qty</th><th class="desc">Desc</th><th class="amt">Amt</th></tr></thead>
     <tbody>${rows}</tbody>
   </table>
   <div class="tot">
-    <div><span>Subtotal</span><span>${npr(opts.subtotal)}</span></div>
-    ${opts.vatEnabled && opts.vat > 0 ? `<div><span>VAT</span><span>${npr(opts.vat)}</span></div>` : ""}
-    <div class="big"><span>EST. TOTAL</span><span>${npr(opts.total)}</span></div>
+    <div class="amt-big"><span>Amt</span><span>${npr(opts.total)}</span></div>
+    <div class="small"><span>Subtotal</span><span>${npr(opts.subtotal)}</span></div>
+    ${opts.vatEnabled && opts.vat > 0 ? `<div class="small"><span>VAT</span><span>${npr(opts.vat)}</span></div>` : ""}
+    <div class="amt-big"><span>Balance</span><span>${npr(opts.total)}</span></div>
   </div>
   <p class="note">This is an estimate bill — not a tax invoice.<br/>Thank you</p>
+  <div class="bc">${barcode}<div class="bc-code">${escapeHtml(code)}</div></div>
   <script>window.onload=function(){window.print();}</script>
 </body></html>`;
 
-  // Avoid noopener — some browsers then block document.write / print.
   const w = window.open("", "_blank", "width=400,height=640");
   if (!w) {
-    // Iframe fallback when popups blocked
     const iframe = document.createElement("iframe");
     iframe.style.cssText =
       "position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0";
@@ -140,7 +172,7 @@ export function printStoreBill(opts: StoreBillOpts) {
 
 /** Download a PDF estimate bill for the sale. */
 export function downloadStoreBillPdf(opts: StoreBillOpts) {
-  const printedAt = printTimestamp(opts);
+  const stamp = printTimestamp(opts);
   const doc = new jsPDF({ unit: "mm", format: [80, 210] });
   const w = 80;
   let y = 8;
@@ -157,13 +189,24 @@ export function downloadStoreBillPdf(opts: StoreBillOpts) {
   };
 
   doc.setFont("helvetica", "bold");
-  center("Glamo Nepal", 12);
+  center(COMPANY.name, 12);
   doc.setFont("helvetica", "normal");
-  center("Teku / Kathmandu", 8);
+  center(COMPANY.category ?? "Cosmetics store", 7);
+  // Split long address for 80mm thermal width
+  const addr = COMPANY.address;
+  if (addr.length > 32) {
+    const cut = addr.lastIndexOf(",", 32);
+    const i = cut > 10 ? cut + 1 : 32;
+    center(addr.slice(0, i).trim(), 7);
+    center(addr.slice(i).trim(), 7);
+  } else {
+    center(addr, 7);
+  }
+  center(COMPANY.phone, 8);
   doc.setFont("helvetica", "bold");
   center("ESTIMATE BILL", 10);
   doc.setFont("helvetica", "normal");
-  center(`Print time: ${printedAt}`, 7);
+  center(`${stamp.date}  ${stamp.time}`, 7);
   y += 1;
   doc.setDrawColor(0);
   doc.line(4, y, w - 4, y);
@@ -179,11 +222,11 @@ export function downloadStoreBillPdf(opts: StoreBillOpts) {
   y += 5;
 
   doc.setFont("helvetica", "bold");
-  line("Item", "Amt");
+  line("Qty  Desc", "Amt");
   doc.setFont("helvetica", "normal");
   for (const l of opts.lines) {
-    const name = l.name.length > 18 ? `${l.name.slice(0, 17)}…` : l.name;
-    line(`${name} x${l.qty}`, npr(l.lineTotal));
+    const name = l.name.length > 16 ? `${l.name.slice(0, 15)}…` : l.name;
+    line(`${l.qty}  ${name}`, npr(l.lineTotal));
     if (y > 185) {
       doc.addPage([80, 210]);
       y = 8;
@@ -195,7 +238,7 @@ export function downloadStoreBillPdf(opts: StoreBillOpts) {
   line("Subtotal", npr(opts.subtotal));
   if (opts.vatEnabled && opts.vat > 0) line("VAT", npr(opts.vat));
   doc.setFont("helvetica", "bold");
-  line("EST. TOTAL", npr(opts.total));
+  line("BALANCE", npr(opts.total));
   doc.setFont("helvetica", "normal");
   y += 4;
   center("Estimate — not a tax invoice", 7);

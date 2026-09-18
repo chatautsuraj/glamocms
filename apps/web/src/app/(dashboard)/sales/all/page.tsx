@@ -25,7 +25,7 @@ import {
   resolveDateRange,
   type DatePreset,
 } from "@/lib/date-range";
-import { printDeliverySequence } from "@/lib/print-delivery";
+import { printDeliveryNote, printDeliveryNotes } from "@/lib/print-delivery";
 import { useApiProducts } from "@/lib/use-api-products";
 import { formatNPR } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -117,11 +117,25 @@ export default function SalesByChannelPage() {
           }
         }),
       );
-      const ok = printDeliverySequence({ orders: enriched, rangeLabel });
-      if (!ok) toast.error("Allow pop-ups to print delivery details");
-      else toast.success(`Printing ${enriched.length} delivery stop(s)`);
+      const ok = printDeliveryNotes({ orders: enriched, rangeLabel });
+      if (!ok) toast.error("Allow pop-ups to print delivery notes");
+      else toast.success(`Printing ${enriched.length} delivery note(s)`);
     } finally {
       setPrinting(false);
+    }
+  };
+
+  const printOneNote = async (row: ApiOrder) => {
+    try {
+      let order = row;
+      if (!row.items?.length) {
+        const res = await commerceClient.getOrder(row.id);
+        order = res.order;
+      }
+      const ok = printDeliveryNote(order);
+      if (!ok) toast.error("Allow pop-ups to print");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not print note");
     }
   };
 
@@ -233,6 +247,23 @@ export default function SalesByChannelPage() {
       className: "text-right",
       sortValue: (r) => Number(r.amount),
     },
+    {
+      key: "actions",
+      header: "",
+      cell: (r) => (
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={(e) => {
+            e.stopPropagation();
+            void printOneNote(r);
+          }}
+        >
+          Note
+        </Button>
+      ),
+      className: "text-right",
+    },
   ];
 
   return (
@@ -250,7 +281,7 @@ export default function SalesByChannelPage() {
               disabled={printing || !filteredOrders.length}
               onClick={() => void printFilteredDelivery()}
             >
-              {printing ? "Preparing…" : `Print delivery (${filteredOrders.length})`}
+              {printing ? "Preparing…" : `Print notes (${filteredOrders.length})`}
             </Button>
             <Button variant="outline" onClick={() => setLogOpen(true)}>
               Log website / WhatsApp

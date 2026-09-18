@@ -15,7 +15,7 @@ import {
   type DatePreset,
 } from "@/lib/date-range";
 import { formatNPR } from "@/lib/format";
-import { printDeliverySequence } from "@/lib/print-delivery";
+import { printDeliveryNote, printDeliveryNotes } from "@/lib/print-delivery";
 import { toast } from "sonner";
 
 const FULFILLMENT = [
@@ -84,11 +84,25 @@ export default function OrdersPage() {
           }
         }),
       );
-      const ok = printDeliverySequence({ orders: enriched, rangeLabel });
-      if (!ok) toast.error("Allow pop-ups to print delivery details");
-      else toast.success(`Printing ${enriched.length} delivery stop(s)`);
+      const ok = printDeliveryNotes({ orders: enriched, rangeLabel });
+      if (!ok) toast.error("Allow pop-ups to print delivery notes");
+      else toast.success(`Printing ${enriched.length} delivery note(s)`);
     } finally {
       setPrinting(false);
+    }
+  };
+
+  const printOneNote = async (row: ApiOrder) => {
+    try {
+      let order = row;
+      if (!row.items?.length) {
+        const res = await commerceClient.getOrder(row.id);
+        order = res.order;
+      }
+      const ok = printDeliveryNote(order);
+      if (!ok) toast.error("Allow pop-ups to print");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not print note");
     }
   };
 
@@ -167,24 +181,36 @@ export default function OrdersPage() {
         header: "",
         cell: (r) =>
           r.fulfillmentStatus === "cancelled" ? null : (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="text-danger"
-              onClick={async (e) => {
-                e.stopPropagation();
-                if (!confirm("Cancel order and restock items?")) return;
-                try {
-                  await commerceClient.cancelOrder(r.id);
-                  toast.success("Order cancelled — stock restored");
-                  await reload();
-                } catch (err) {
-                  toast.error(err instanceof Error ? err.message : "Cancel failed");
-                }
-              }}
-            >
-              Cancel
-            </Button>
+            <div className="flex justify-end gap-1">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void printOneNote(r);
+                }}
+              >
+                Note
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-danger"
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  if (!confirm("Cancel order and restock items?")) return;
+                  try {
+                    await commerceClient.cancelOrder(r.id);
+                    toast.success("Order cancelled — stock restored");
+                    await reload();
+                  } catch (err) {
+                    toast.error(err instanceof Error ? err.message : "Cancel failed");
+                  }
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
           ),
         className: "text-right",
       },
@@ -207,7 +233,7 @@ export default function OrdersPage() {
               disabled={printing || !filteredOrders.length}
               onClick={() => void printFilteredDelivery()}
             >
-              {printing ? "Preparing…" : `Print delivery (${filteredOrders.filter((o) => o.fulfillmentStatus !== "cancelled").length})`}
+              {printing ? "Preparing…" : `Print notes (${filteredOrders.filter((o) => o.fulfillmentStatus !== "cancelled").length})`}
             </Button>
           </div>
         }

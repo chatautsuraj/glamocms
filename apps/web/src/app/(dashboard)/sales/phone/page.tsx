@@ -91,20 +91,33 @@ export default function PhoneOrderPage() {
     try {
       const n = name.trim();
       const p = phone.trim();
-      await commerceClient.createCustomer({
+      const addr = address.trim();
+      const { customer: created } = await commerceClient.createCustomer({
         name: n,
         phone: p,
         sourceChannel: "phone",
-        deliveryAddress: address.trim() || undefined,
+        deliveryAddress: addr || undefined,
         notes: notes.trim() || undefined,
       });
       syncCallerToAppStore({
         name: n,
         phone: p,
-        area: address.trim() || "Phone",
+        area: addr || "Phone",
       });
-      toast.success("Caller saved · Customers & Phone order");
+      await commerceClient.createOrder({
+        channel: "phone",
+        paymentStatus: "unpaid",
+        fulfillmentStatus: "confirmed",
+        customerId: created.id,
+        customer: { name: n, phone: p },
+        deliveryAddress: addr || undefined,
+        deliveryNotes: notes.trim() || `Caller · ${p}`,
+        amount: 0,
+        items: [],
+      });
+      toast.success("Caller saved · Customers, Phone order & Orders");
       await reloadCustomers();
+      await reloadPhoneOrders();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not save customer");
     } finally {
