@@ -1,6 +1,18 @@
 /**
  * Browser → Next BFF client for Glamo commerce CMS/POS.
+ * Falls back to localStorage when Nest API is unreachable (e.g. Vercel without hosted API).
  */
+
+import {
+  isApiOfflineError,
+  localAnalytics,
+  localCreateCustomer,
+  localCreateOrder,
+  localListCustomers,
+  localListOrders,
+  type LocalCustomerInput,
+  type LocalOrderInput,
+} from "@/lib/local-commerce";
 
 async function bff<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
@@ -75,6 +87,8 @@ export type ApiCustomer = {
   phone: string | null;
   email: string | null;
   sourceChannel: string | null;
+  deliveryAddress?: string | null;
+  notes?: string | null;
   createdAt?: string;
   _count?: { orders: number };
 };
@@ -116,34 +130,79 @@ export const commerceClient = {
       body: JSON.stringify(body),
     }),
 
-  listCustomers: (phone?: string) =>
-    bff<{ customers: ApiCustomer[] }>(
-      `/api/commerce/customers${phone ? `?phone=${encodeURIComponent(phone)}` : ""}`,
-    ),
-  createCustomer: (body: {
-    name: string;
-    phone?: string;
-    email?: string;
-    sourceChannel?: string;
-  }) =>
-    bff<{ customer: ApiCustomer }>("/api/commerce/customers", {
-      method: "POST",
-      body: JSON.stringify(body),
-    }),
+  listCustomers: async (phone?: string) => {
+    let remote: ApiCustomer[] = [];
+    try {
+      const res = await bff<{ customers: ApiCustomer[] }>(
+        `/api/commerce/customers${phone ? `?phone=${encodeURIComponent(phone)}` : ""}`,
+      );
+      remote = Array.isArray(res.customers) ? res.customers : [];
+    } catch {
+      /* API offline */
+    }
+    const local = localListCustomers(phone);
+    const map = new Map<string, ApiCustomer>();
+    for (const c of remote) map.set(c.id, c);
+    for (const c of local) {
+      if (!map.has(c.id)) map.set(c.id, c);
+      else if (c.phone && !remote.some((r) => r.phone === c.phone)) map.set(c.id, c);
+    }
+    // Also include local by phone if remote empty
+    for (const c of local) {
+      const dup = [...map.values()].find((x) => x.phone && c.phone && x.phone === c.phone);
+      if (!dup) map.set(c.id, c);
+    }
+    return {
+      customers: [...map.values()].sort((a, b) =>
+        String(b.createdAt ?? "").localeCompare(String(a.createdAt ?? "")),
+      ),
+    };
+  },
+  createCustomer: async (body: LocalCustomerInput) => {
+    try {
+      return await bff<{ customer: ApiCustomer }>("/api/commerce/customers", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+    } catch (e) {
+      if (!isApiOfflineError(e)) throw e;
+      return { customer: localCreateCustomer(body) };
+    }
+  },
 
-  listOrders: (params?: { channel?: string; fulfillmentStatus?: string }) => {
-    const sp = new URLSearchParams();
-    if (params?.channel) sp.set("channel", params.channel);
-    if (params?.fulfillmentStatus) sp.set("fulfillmentStatus", params.fulfillmentStatus);
-    const q = sp.toString();
-    return bff<{ orders: ApiOrder[] }>(`/api/commerce/orders${q ? `?${q}` : ""}`);
+  listOrders: async (params?: { channel?: string; fulfillmentStatus?: string }) => {
+    let remote: ApiOrder[] = [];
+    try {
+      const sp = new URLSearchParams();
+      if (params?.channel) sp.set("channel", params.channel);
+      if (params?.fulfillmentStatus) sp.set("fulfillmentStatus", params.fulfillmentStatus);
+      const q = sp.toString();
+      const res = await bff<{ orders: ApiOrder[] }>(`/api/commerce/orders${q ? `?${q}` : ""}`);
+      remote = Array.isArray(res.orders) ? res.orders : [];
+    } catch {
+      /* API offline */
+    }
+    const local = localListOrders(params);
+    const map = new Map<string, ApiOrder>();
+    for (const o of remote) map.set(o.id, o);
+    for (const o of local) map.set(o.id, o);
+    return {
+      orders: [...map.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    };
   },
   getOrder: (id: string) => bff<{ order: ApiOrder }>(`/api/commerce/orders/${id}`),
-  createOrder: (body: Record<string, unknown>) =>
-    bff<{ ok: boolean; order: ApiOrder }>("/api/commerce/orders", {
-      method: "POST",
-      body: JSON.stringify(body),
-    }),
+  createOrder: async (body: Record<string, unknown>) => {
+    try {
+      return await bff<{ ok: boolean; order: ApiOrder }>("/api/commerce/orders", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+    } catch (e) {
+      if (!isApiOfflineError(e)) throw e;
+      const order = localCreateOrder(body as LocalOrderInput);
+      return { ok: true, order };
+    }
+  },
   updateOrder: (id: string, body: Record<string, unknown>) =>
     bff<{ order: ApiOrder }>(`/api/commerce/orders/${id}`, {
       method: "PATCH",
@@ -157,7 +216,48 @@ export const commerceClient = {
       body: JSON.stringify(body ?? {}),
     }),
 
-  analytics: () => bff<{ analytics: AnalyticsSummary }>("/api/commerce/analytics"),
+  analytics: async () => {
+    let remote: AnalyticsSummary | null = null;
+    try {
+      const res = await bff<{ analytics: AnalyticsSummary }>("/api/commerce/analytics");
+      remote = res.analytics;
+    } catch {
+      /* offline */
+    }
+    let lowStockCount = remote?.lowStockCount ?? 0;
+    if (!remote) {
+      try {
+        const { products } = await bff<{ products: ApiProduct[] }>("/api/commerce/products");
+        lowStockCount = products.filter((p) => p.stock <= (p.reorderAt ?? 5)).length;
+      } catch {
+        /* ignore */
+      }
+    }
+    const local = localAnalytics(lowStockCount);
+    if (!remote) return { analytics: local };
+
+    const byChannel = { ...remote.byChannel };
+    for (const [k, v] of Object.entries(local.byChannel)) {
+      byChannel[k] = (byChannel[k] ?? 0) + v;
+    }
+    const byFulfillment = { ...remote.byFulfillment };
+    for (const [k, v] of Object.entries(local.byFulfillment)) {
+      byFulfillment[k] = (byFulfillment[k] ?? 0) + v;
+    }
+    return {
+      analytics: {
+        todaySales: remote.todaySales + local.todaySales,
+        weekSales: remote.weekSales + local.weekSales,
+        orderCount: remote.orderCount + local.orderCount,
+        pendingDeliveries: remote.pendingDeliveries + local.pendingDeliveries,
+        lowStockCount: Math.max(remote.lowStockCount, local.lowStockCount),
+        paidOrderCount: remote.paidOrderCount + local.paidOrderCount,
+        byFulfillment,
+        byChannel,
+        recentOrders: [...local.recentOrders, ...remote.recentOrders].slice(0, 10),
+      },
+    };
+  },
 };
 
 /** Map API product → shape expected by existing Beauty UI components */

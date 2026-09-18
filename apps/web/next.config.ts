@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   compress: true,
   experimental: {
-    optimizePackageImports: ["lucide-react", "recharts", "framer-motion", "date-fns", "jspdf"],
+    optimizePackageImports: ["lucide-react", "recharts", "framer-motion", "date-fns", "jspdf", "jsbarcode"],
   },
   images: {
     remotePatterns: [],

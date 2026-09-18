@@ -45,7 +45,7 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <PageHeader
         title={`Namaste${user?.name ? `, ${user.name.split(" ")[0]}` : ""}`}
-        description="Glamo Nepal — live numbers from the shared backend"
+        description="Glamo Nepal — sales, stock, and orders at a glance"
         actions={
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => void reload()}>
@@ -61,8 +61,8 @@ export default function DashboardPage() {
       />
 
       {error && (
-        <p className="rounded-lg border border-danger/30 bg-danger/5 px-3 py-2 text-sm text-danger">
-          {error} — start the API on :3001
+        <p className="rounded-lg border border-warning/30 bg-warning/5 px-3 py-2 text-sm text-warning">
+          {error}
         </p>
       )}
 
@@ -89,7 +89,10 @@ export default function DashboardPage() {
                 {k}: {v}
               </Badge>
             ))}
-            {!analytics && <p className="text-sm text-muted-foreground">Loading…</p>}
+            {analytics && Object.keys(analytics.byFulfillment).length === 0 && (
+              <p className="text-sm text-muted-foreground">No orders yet</p>
+            )}
+            {!analytics && !error && <p className="text-sm text-muted-foreground">Loading…</p>}
           </CardContent>
         </Card>
         <Card>
@@ -99,9 +102,17 @@ export default function DashboardPage() {
           <CardContent className="flex flex-wrap gap-2">
             {Object.entries(analytics?.byChannel ?? {}).map(([k, v]) => (
               <Badge key={k} variant="success">
-                {k}: {v}
+                {k}: {formatNPR(v)}
               </Badge>
             ))}
+            {analytics && Object.keys(analytics.byChannel).length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                No sales yet —{" "}
+                <Link href="/sales/all" className="text-primary underline">
+                  view all sales
+                </Link>
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -109,8 +120,8 @@ export default function DashboardPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-base">Recent orders</CardTitle>
-          <Link href="/orders" className="text-sm text-primary inline-flex items-center gap-1">
-            View all <ArrowUpRight className="h-3.5 w-3.5" />
+          <Link href="/sales/all" className="text-sm text-primary inline-flex items-center gap-1">
+            All sales <ArrowUpRight className="h-3.5 w-3.5" />
           </Link>
         </CardHeader>
         <CardContent className="space-y-2">

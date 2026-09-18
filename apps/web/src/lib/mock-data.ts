@@ -218,8 +218,10 @@ export const NAV_SECTIONS = [
     items: [
       { href: "/sales/galla", label: "POS Counter", icon: "Zap" },
       { href: "/sales/phone", label: "Phone order", icon: "Phone" },
+      { href: "/sales/all", label: "All sales", icon: "Receipt" },
       { href: "/orders", label: "Orders", icon: "ShoppingCart" },
       { href: "/delivery", label: "Delivery", icon: "Truck" },
+      { href: "/analytics", label: "Analytics", icon: "BarChart3" },
     ],
   },
   {

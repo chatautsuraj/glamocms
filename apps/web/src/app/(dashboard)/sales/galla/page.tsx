@@ -84,8 +84,18 @@ export default function GallaPage() {
   const [custOpen, setCustOpen] = useState(false);
   const [custName, setCustName] = useState("");
   const [custPhone, setCustPhone] = useState("");
+  const [custAddress, setCustAddress] = useState("");
+  const [custNotes, setCustNotes] = useState("");
   const [apiCustomers, setApiCustomers] = useState<
-    Array<{ id: string; name: string; phone: string | null; area?: string; outstanding?: number; creditLimit?: number }>
+    Array<{
+      id: string;
+      name: string;
+      phone: string | null;
+      area?: string;
+      outstanding?: number;
+      creditLimit?: number;
+      deliveryAddress?: string | null;
+    }>
   >([]);
   const searchRef = useRef<HTMLInputElement>(null);
   const scanRef = useRef<HTMLInputElement>(null);
@@ -98,9 +108,10 @@ export default function GallaPage() {
           id: c.id,
           name: c.name,
           phone: c.phone,
-          area: "Phone",
+          area: c.deliveryAddress || "Phone",
           outstanding: 0,
           creditLimit: 0,
+          deliveryAddress: c.deliveryAddress,
         })),
       );
     } catch {
@@ -282,12 +293,16 @@ export default function GallaPage() {
         name: custName.trim(),
         phone: custPhone.trim(),
         sourceChannel: "store",
+        deliveryAddress: custAddress.trim() || undefined,
+        notes: custNotes.trim() || undefined,
       });
       await reloadCustomers();
       setCustomerId(created.id);
       setCustOpen(false);
       setCustName("");
       setCustPhone("");
+      setCustAddress("");
+      setCustNotes("");
       toast.success("Customer saved");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not save customer");
@@ -423,13 +438,22 @@ export default function GallaPage() {
       const { order } = await commerceClient.createOrder({
         channel: "store",
         paymentStatus: isCredit ? "unpaid" : "paid",
+        fulfillmentStatus: isCredit ? "confirmed" : "fulfilled",
+        customerId: customer.id !== WALK_IN_CUSTOMER_ID ? customer.id : undefined,
         customer: {
           name: customer.name,
           ...(customer.phone && customer.phone !== "—" ? { phone: customer.phone } : {}),
         },
+        deliveryAddress:
+          "deliveryAddress" in customer && customer.deliveryAddress
+            ? customer.deliveryAddress
+            : undefined,
+        amount: total,
         items: cart.map((item) => ({
           productId: item.productId,
           qty: item.qty,
+          unitPrice: item.price,
+          name: item.name,
         })),
       });
       setSessionSales((s) => s + total);
@@ -927,16 +951,39 @@ export default function GallaPage() {
         <DialogContent onClose={() => setCustOpen(false)}>
           <DialogHeader>
             <DialogTitle>Add caller / walk-up customer</DialogTitle>
-            <DialogDescription>Save name + phone right away for this sale</DialogDescription>
+            <DialogDescription>
+              Save name + phone for this sale. Delivery address is optional.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1">
-              <Label>Name</Label>
+              <Label>Name *</Label>
               <Input value={custName} onChange={(e) => setCustName(e.target.value)} autoFocus />
             </div>
             <div className="space-y-1">
-              <Label>Phone</Label>
-              <Input value={custPhone} onChange={(e) => setCustPhone(e.target.value)} placeholder="98XXXXXXXX" />
+              <Label>Phone *</Label>
+              <Input
+                value={custPhone}
+                onChange={(e) => setCustPhone(e.target.value)}
+                placeholder="98XXXXXXXX"
+                inputMode="tel"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Delivery address (optional)</Label>
+              <Input
+                value={custAddress}
+                onChange={(e) => setCustAddress(e.target.value)}
+                placeholder="Area, landmark, city"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Notes (optional)</Label>
+              <Input
+                value={custNotes}
+                onChange={(e) => setCustNotes(e.target.value)}
+                placeholder="COD, call before arrival…"
+              />
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setCustOpen(false)}>

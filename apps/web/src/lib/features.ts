@@ -129,6 +129,8 @@ export function normalizeFeatureList(keys: string[] | null | undefined): Feature
 /** Longest-prefix first so /sales/galla maps to galla, not sales. */
 const HREF_FEATURE_MAP: { href: string; feature: FeatureKey }[] = [
   { href: "/sales/galla", feature: "galla" },
+  { href: "/sales/phone", feature: "sales" },
+  { href: "/sales/all", feature: "sales" },
   { href: "/dashboard", feature: "dashboard" },
   { href: "/notifications", feature: "notifications" },
   { href: "/analytics", feature: "analytics" },

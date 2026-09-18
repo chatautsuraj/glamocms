@@ -29,7 +29,11 @@ export async function POST(req: NextRequest) {
     body: JSON.stringify(payload),
   });
   if (!result.ok) {
-    return NextResponse.json({ error: "Failed to create customer", detail: result.error }, { status: result.status });
+    // Client will fall back to localStorage; still return structured error
+    return NextResponse.json(
+      { error: "Failed to create customer", detail: result.error },
+      { status: result.status },
+    );
   }
   return NextResponse.json({ customer: result.data });
 }

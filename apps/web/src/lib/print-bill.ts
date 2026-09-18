@@ -82,8 +82,33 @@ export function printStoreBill(opts: StoreBillOpts) {
   <script>window.onload=function(){window.print();}</script>
 </body></html>`;
 
-  const w = window.open("", "_blank", "noopener,noreferrer,width=400,height=640");
-  if (!w) return false;
+  // Avoid noopener — some browsers then block document.write / print.
+  const w = window.open("", "_blank", "width=400,height=640");
+  if (!w) {
+    // Iframe fallback when popups blocked
+    const iframe = document.createElement("iframe");
+    iframe.style.cssText =
+      "position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0";
+    document.body.appendChild(iframe);
+    const doc = iframe.contentDocument;
+    if (!doc) {
+      iframe.remove();
+      return false;
+    }
+    doc.open();
+    doc.write(html);
+    doc.close();
+    setTimeout(() => {
+      try {
+        iframe.contentWindow?.print();
+      } catch {
+        /* ignore */
+      }
+      setTimeout(() => iframe.remove(), 800);
+    }, 200);
+    return true;
+  }
+  w.document.open();
   w.document.write(html);
   w.document.close();
   return true;

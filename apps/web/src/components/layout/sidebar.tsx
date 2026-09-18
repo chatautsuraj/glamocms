@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  BarChart3,
   Barcode,
   Boxes,
   ChevronLeft,
@@ -10,6 +11,7 @@ import {
   LayoutDashboard,
   Package,
   Phone,
+  Receipt,
   Settings,
   Shield,
   ShoppingCart,
@@ -25,6 +27,8 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   LayoutDashboard,
   Zap,
   Phone,
+  Receipt,
+  BarChart3,
   ShoppingCart,
   Truck,
   Package,
