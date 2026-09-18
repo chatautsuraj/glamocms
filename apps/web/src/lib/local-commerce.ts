@@ -48,6 +48,35 @@ function uid(prefix: string) {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
+/** DDMMYYYY in local time. */
+export function orderDateStamp(d = new Date()): string {
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = String(d.getFullYear());
+  return `${dd}${mm}${yyyy}`;
+}
+
+/**
+ * Order number: O + daily serial (3 digits) + DDMMYYYY
+ * e.g. O00118092026
+ */
+export function nextLocalOrderNumber(existing: { id: string }[], d = new Date()): string {
+  const datePart = orderDateStamp(d);
+  const re = new RegExp(`^O(\\d+)${datePart}$`, "i");
+  let max = 0;
+  for (const o of existing) {
+    const m = String(o.id).match(re);
+    if (m) max = Math.max(max, parseInt(m[1], 10) || 0);
+  }
+  const serial = String(max + 1).padStart(3, "0");
+  return `O${serial}${datePart}`;
+}
+
+/** Safe filename from order number. */
+export function orderNumberFileSlug(orderId: string): string {
+  return String(orderId).replace(/[^a-zA-Z0-9_-]/g, "") || "order";
+}
+
 export type LocalCustomerInput = {
   name: string;
   phone?: string;
@@ -426,7 +455,7 @@ export function localCreateOrder(input: LocalOrderInput): ApiOrder {
     input.amount ?? items.reduce((s, i) => s + Number(i.lineTotal), 0);
 
   const order: ApiOrder = {
-    id: uid("ord"),
+    id: nextLocalOrderNumber(store.orders),
     customerId,
     amount,
     paymentStatus: input.paymentStatus ?? "paid",

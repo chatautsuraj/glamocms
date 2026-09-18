@@ -123,7 +123,7 @@ export default function DeliveryPage() {
 
   const columns: Column<ApiOrder>[] = useMemo(
     () => [
-      { key: "id", header: "Order", cell: (r) => <span className="font-mono text-xs">{r.id.slice(0, 10)}…</span> },
+      { key: "id", header: "Order", cell: (r) => <span className="font-mono text-xs">{r.id}</span> },
       { key: "customer", header: "Customer", cell: (r) => (
         <div>
           <p>{r.customer?.name ?? "—"}</p>

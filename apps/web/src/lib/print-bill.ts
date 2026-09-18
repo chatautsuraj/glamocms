@@ -2,6 +2,7 @@
 
 import { jsPDF } from "jspdf";
 import { COMPANY } from "@/lib/mock-data";
+import { orderNumberFileSlug } from "@/lib/local-commerce";
 import { barcodeSvgForPrint } from "@/lib/print-barcodes";
 
 export type BillLine = {
@@ -91,7 +92,7 @@ export function printStoreBill(opts: StoreBillOpts) {
     .join("");
 
   const html = `<!doctype html>
-<html><head><title>Estimate ${escapeHtml(opts.orderId.slice(0, 8))}</title>
+<html><head><title>Estimate ${escapeHtml(opts.orderId)}</title>
 <style>
   body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;padding:14px 12px;color:#111;max-width:300px;margin:0 auto}
   h1{font-size:18px;margin:0 0 2px;text-align:center;font-weight:700;letter-spacing:.02em}
@@ -121,7 +122,7 @@ export function printStoreBill(opts: StoreBillOpts) {
   <p class="doc">ESTIMATE BILL</p>
   <div class="row"><span>${escapeHtml(stamp.date)}</span><span>${escapeHtml(stamp.time)}</span></div>
   <div class="meta">
-    <div class="row"><span>Ref ${escapeHtml(opts.orderId.slice(0, 12))}</span><span>${escapeHtml(opts.channel ?? "store")}</span></div>
+    <div class="row"><span>Order ${escapeHtml(opts.orderId)}</span><span>${escapeHtml(opts.channel ?? "store")}</span></div>
     <div class="row"><span>${escapeHtml(opts.customerName)}</span><span>${escapeHtml(opts.method)}</span></div>
     ${opts.customerPhone ? `<div class="row"><span>Tel ${escapeHtml(opts.customerPhone)}</span><span></span></div>` : ""}
   </div>
@@ -212,7 +213,7 @@ export function downloadStoreBillPdf(opts: StoreBillOpts) {
   doc.line(4, y, w - 4, y);
   y += 5;
 
-  line("Ref", opts.orderId.slice(0, 12));
+  line("Order", opts.orderId);
   if (opts.channel) line("Channel", opts.channel);
   line("Customer", opts.customerName.slice(0, 22));
   if (opts.customerPhone) line("Phone", opts.customerPhone);
@@ -244,7 +245,7 @@ export function downloadStoreBillPdf(opts: StoreBillOpts) {
   center("Estimate — not a tax invoice", 7);
   center("Thank you", 9);
 
-  doc.save(`glamo-estimate-${opts.orderId.slice(0, 8)}.pdf`);
+  doc.save(`glamo-estimate-${orderNumberFileSlug(opts.orderId)}.pdf`);
   return true;
 }
 

@@ -198,7 +198,7 @@ export default function SalesByChannelPage() {
     {
       key: "id",
       header: "Sale #",
-      cell: (r) => <span className="font-mono text-xs">{r.id.slice(0, 12)}…</span>,
+      cell: (r) => <span className="font-mono text-xs">{r.id}</span>,
     },
     {
       key: "channel",

@@ -546,7 +546,7 @@ export default function GallaPage() {
       });
       setSessionSales((s) => s + total);
       setSessionCount((c) => c + 1);
-      toast.success(`Sale complete — ${order.id.slice(0, 8)}…`, {
+      toast.success(`Sale complete — ${order.id}`, {
         description: `${cart.length} lines · ${formatNPR(total)} via ${payment}`,
       });
       issueStoreBill({

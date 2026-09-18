@@ -111,7 +111,7 @@ export default function OrdersPage() {
       {
         key: "id",
         header: "Order",
-        cell: (r) => <span className="font-mono text-xs">{r.id.slice(0, 10)}…</span>,
+        cell: (r) => <span className="font-mono text-xs">{r.id}</span>,
       },
       {
         key: "customer",

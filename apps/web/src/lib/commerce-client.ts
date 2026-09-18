@@ -19,6 +19,7 @@ import {
   localUpdateOrder,
   localUpdateProduct,
   mergeProductsWithLocal,
+  nextLocalOrderNumber,
   type LocalCustomerInput,
   type LocalOrderInput,
   type LocalOrderPatch,
@@ -333,7 +334,15 @@ export const commerceClient = {
         method: "POST",
         body: JSON.stringify(body),
       });
-      if (res.order) localMirrorOrder(res.order);
+      if (res.order) {
+        // Keep Glamo number format for bills/PDF even when API returns its own id
+        const numbered: ApiOrder = {
+          ...res.order,
+          id: nextLocalOrderNumber(localListOrders()),
+        };
+        localMirrorOrder(numbered);
+        return { ok: true, order: numbered };
+      }
       return res;
     } catch (e) {
       if (!isApiOfflineError(e)) throw e;

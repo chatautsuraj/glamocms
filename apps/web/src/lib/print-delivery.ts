@@ -5,6 +5,21 @@ import { COMPANY } from "@/lib/mock-data";
 import { barcodeSvgForPrint } from "@/lib/print-barcodes";
 import { formatNPR } from "@/lib/format";
 
+/** Inline logo so print popups work without fetching /public. */
+function glamoLogoSvg(uid: string, size = 72): string {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="${size}" height="${size}" role="img" aria-label="Glamo Nepal">
+  <defs>
+    <linearGradient id="${uid}" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#9f2d4a"/>
+      <stop offset="100%" stop-color="#c45c4a"/>
+    </linearGradient>
+  </defs>
+  <circle cx="60" cy="60" r="56" fill="url(#${uid})"/>
+  <circle cx="60" cy="60" r="44" fill="none" stroke="#f7e6d8" stroke-width="3"/>
+  <text x="60" y="78" text-anchor="middle" font-family="Georgia,'Times New Roman',serif" font-size="64" font-weight="700" fill="#ffffff">G</text>
+</svg>`;
+}
+
 function escapeHtml(s: string) {
   return s
     .replace(/&/g, "&amp;")
@@ -14,8 +29,10 @@ function escapeHtml(s: string) {
 }
 
 function shortOrderRef(id: string) {
+  // New format O00118092026 — show full number; legacy ids stay shortened
+  if (/^O\d{3}\d{8}$/i.test(id)) return id.toUpperCase();
   const clean = id.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
-  return clean.slice(-10) || id.slice(0, 10).toUpperCase();
+  return clean.slice(-12) || id.slice(0, 12).toUpperCase();
 }
 
 function barcodeValue(id: string) {
@@ -95,17 +112,23 @@ function notePageHtml(order: ApiOrder, index: number, total: number): string {
         .join("")
     : `<tr><td colspan="6" class="muted">No line items on this order</td></tr>`;
 
+  const logoId = `g${index}_${String(order.id).replace(/[^a-zA-Z0-9]/g, "").slice(-8)}`;
+
   return `
   <section class="note">
     <header class="top">
-      <div>
+      <div class="title-block">
         <h1>Delivery note</h1>
         ${total > 1 ? `<p class="batch">Stop ${index + 1} of ${total}</p>` : ""}
       </div>
       <div class="brand">
-        <strong>${escapeHtml(COMPANY.name)}</strong>
-        <span>${escapeHtml(COMPANY.address)}</span>
-        <span>${escapeHtml(COMPANY.phone)}</span>
+        <div class="logo">${glamoLogoSvg(`${logoId}_a`, 72)}</div>
+        <div class="brand-text">
+          <strong>${escapeHtml(COMPANY.name)}</strong>
+          <span>${escapeHtml(COMPANY.category ?? "Cosmetics store")}</span>
+          <span>${escapeHtml(COMPANY.address)}</span>
+          <span>${escapeHtml(COMPANY.phone)}</span>
+        </div>
       </div>
     </header>
 
@@ -136,11 +159,16 @@ function notePageHtml(order: ApiOrder, index: number, total: number): string {
       </div>
       <div class="box">
         <h3>Source (from)</h3>
-        <p><strong>${escapeHtml(COMPANY.name)}</strong></p>
-        <p>${escapeHtml(COMPANY.category ?? "Cosmetics store")}</p>
-        <p>${escapeHtml(COMPANY.address)}</p>
-        <p>Tel: ${escapeHtml(COMPANY.phone)}</p>
-        <p>${escapeHtml(COMPANY.email)}</p>
+        <div class="source-brand">
+          <div class="logo-sm">${glamoLogoSvg(`${logoId}_b`, 40)}</div>
+          <div>
+            <p><strong>${escapeHtml(COMPANY.name)}</strong></p>
+            <p>${escapeHtml(COMPANY.category ?? "Cosmetics store")}</p>
+            <p>${escapeHtml(COMPANY.address)}</p>
+            <p>Tel: ${escapeHtml(COMPANY.phone)}</p>
+            <p>${escapeHtml(COMPANY.email)}</p>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -175,9 +203,13 @@ const STYLES = `
   h1{font-size:28px;margin:0;font-weight:700;letter-spacing:-.02em}
   h2{font-size:15px;margin:14px 0 8px;font-weight:700}
   h3{font-size:13px;margin:0 0 8px;font-weight:700}
-  .brand{text-align:right;font-size:12px;line-height:1.4;color:#333}
-  .brand strong{display:block;font-size:14px;color:#111}
-  .brand span{display:block}
+  .brand{display:flex;align-items:center;gap:12px;text-align:right;font-size:12px;line-height:1.4;color:#333}
+  .brand-text{text-align:right}
+  .brand-text strong{display:block;font-size:14px;color:#111}
+  .brand-text span{display:block}
+  .logo svg{display:block;width:72px;height:72px}
+  .logo-sm svg{display:block;width:40px;height:40px}
+  .source-brand{display:flex;gap:10px;align-items:flex-start}
   .batch{margin:4px 0 0;font-size:12px;color:#555}
   hr{border:none;border-top:1px solid #222;margin:14px 0}
   .meta-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;font-size:13px;margin-bottom:12px}

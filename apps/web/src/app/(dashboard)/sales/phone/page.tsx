@@ -179,7 +179,7 @@ export default function PhoneOrderPage() {
         total,
         vatEnabled: false,
       });
-      toast.success(`Phone order recorded · ${order.id.slice(0, 8)}…`);
+      toast.success(`Phone order recorded · ${order.id}`);
       setCart([]);
       setNotes("");
       setAddress("");
@@ -349,7 +349,7 @@ export default function PhoneOrderPage() {
           <ul className="space-y-2 text-sm">
             {phoneOrders.map((o) => (
               <li key={o.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-2">
-                <span className="font-mono text-xs">{o.id.slice(0, 10)}…</span>
+                <span className="font-mono text-xs">{o.id}</span>
                 <span>{o.customer?.name ?? "—"}{o.customer?.phone ? ` · ${o.customer.phone}` : ""}</span>
                 <Badge variant="muted">{o.fulfillmentStatus}</Badge>
                 <span className="font-medium text-primary">{formatNPR(Number(o.amount))}</span>
