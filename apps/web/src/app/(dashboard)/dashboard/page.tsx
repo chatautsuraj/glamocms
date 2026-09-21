@@ -151,9 +151,9 @@ export default function DashboardPage() {
       </Card>
 
       <div className="flex flex-wrap gap-2">
-        <Link href="/delivery">
+        <Link href="/orders">
           <Button variant="outline">
-            <Truck className="h-4 w-4" /> Delivery
+            <Truck className="h-4 w-4" /> Orders / delivery
           </Button>
         </Link>
         <Link href="/products">

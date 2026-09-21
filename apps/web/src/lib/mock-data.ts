@@ -218,10 +218,8 @@ export const NAV_SECTIONS = [
     title: "Sales",
     items: [
       { href: "/sales/galla", label: "POS Counter", icon: "Zap" },
-      { href: "/sales/phone", label: "Phone order", icon: "Phone" },
       { href: "/sales/all", label: "All sales", icon: "Receipt" },
       { href: "/orders", label: "Orders", icon: "ShoppingCart" },
-      { href: "/delivery", label: "Delivery", icon: "Truck" },
       { href: "/analytics", label: "Analytics", icon: "BarChart3" },
     ],
   },
@@ -230,8 +228,8 @@ export const NAV_SECTIONS = [
     items: [
       { href: "/products", label: "Products", icon: "Package" },
       { href: "/inventory", label: "Inventory", icon: "Boxes" },
-      { href: "/inventory/barcodes", label: "Barcodes", icon: "Barcode" },
       { href: "/customers", label: "Customers", icon: "Users" },
+      { href: "/reports", label: "Reports", icon: "FileBarChart" },
     ],
   },
   {

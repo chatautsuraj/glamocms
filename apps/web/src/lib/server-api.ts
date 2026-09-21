@@ -16,7 +16,7 @@ function resolveApiUrl(): string | null {
   return "http://127.0.0.1:3001/v1";
 }
 
-const UPSTREAM_MS = Number(process.env.GLAMO_API_TIMEOUT_MS ?? 600);
+const UPSTREAM_MS = Number(process.env.GLAMO_API_TIMEOUT_MS ?? (process.env.GLAMO_API_URL ? 8000 : 600));
 
 export function getGlamoApiConfig() {
   return { API_URL: resolveApiUrl(), API_KEY };

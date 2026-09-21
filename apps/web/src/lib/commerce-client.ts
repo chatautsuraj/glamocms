@@ -8,14 +8,23 @@ import {
   localAdjustStockFromCurrent,
   localAnalytics,
   localCancelOrder,
+  localConfirmPayment,
   localCreateCustomer,
   localCreateOrder,
   localCreateProduct,
+  localCreateReturn,
   localDeleteProduct,
   localGetOrder,
   localListCustomers,
   localListOrders,
+  localListPurchaseReceipts,
+  localListReturns,
   localMirrorOrder,
+  localReceivePurchase,
+  localRetailReport,
+  localTillClose,
+  localTillOpen,
+  localTillStatus,
   localUpdateOrder,
   localUpdateProduct,
   mergeProductsWithLocal,
@@ -480,6 +489,128 @@ export const commerceClient = {
         recentOrders: [...local.recentOrders, ...remote.recentOrders].slice(0, 10),
       },
     };
+  },
+
+  tillStatus: async () => {
+    try {
+      const res = await bff<{ current: unknown; shifts: unknown[]; source?: string }>(
+        "/api/commerce/till",
+      );
+      if (res.source === "offline") return localTillStatus();
+      return { current: res.current ?? null, shifts: Array.isArray(res.shifts) ? res.shifts : [] };
+    } catch {
+      return localTillStatus();
+    }
+  },
+  tillOpen: async (body: { cashierName: string; openingFloat?: number; notes?: string }) => {
+    try {
+      return await bff<{ shift: unknown }>("/api/commerce/till", {
+        method: "POST",
+        body: JSON.stringify({ action: "open", ...body }),
+      });
+    } catch (e) {
+      if (!isApiOfflineError(e)) throw e;
+      return { shift: localTillOpen(body) };
+    }
+  },
+  tillClose: async (body: { id: string; closingCash: number; notes?: string }) => {
+    try {
+      return await bff<{ shift: unknown }>("/api/commerce/till", {
+        method: "POST",
+        body: JSON.stringify({ action: "close", ...body }),
+      });
+    } catch (e) {
+      if (!isApiOfflineError(e)) throw e;
+      return { shift: localTillClose(body) };
+    }
+  },
+
+  listReturns: async () => {
+    try {
+      const res = await bff<{ returns: unknown[]; source?: string }>("/api/commerce/returns");
+      if (res.source === "offline") return { returns: localListReturns() };
+      const remote = Array.isArray(res.returns) ? res.returns : [];
+      const local = localListReturns();
+      const ids = new Set(remote.map((r) => (r as { id?: string }).id));
+      return {
+        returns: [...remote, ...local.filter((r) => !ids.has(r.id))],
+      };
+    } catch {
+      return { returns: localListReturns() };
+    }
+  },
+  createReturn: async (body: {
+    orderId: string;
+    reason?: string;
+    items?: Array<{ productId: string; qty: number }>;
+  }) => {
+    try {
+      return await bff<{ return: unknown }>("/api/commerce/returns", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+    } catch (e) {
+      if (!isApiOfflineError(e)) throw e;
+      return { return: localCreateReturn(body) };
+    }
+  },
+
+  listPurchaseReceipts: async () => {
+    try {
+      const res = await bff<{ receipts: unknown[]; source?: string }>("/api/commerce/purchase");
+      if (res.source === "offline") return { receipts: localListPurchaseReceipts() };
+      const remote = Array.isArray(res.receipts) ? res.receipts : [];
+      const local = localListPurchaseReceipts();
+      const ids = new Set(remote.map((r) => (r as { id?: string }).id));
+      return {
+        receipts: [...remote, ...local.filter((r) => !ids.has(r.id))],
+      };
+    } catch {
+      return { receipts: localListPurchaseReceipts() };
+    }
+  },
+  receivePurchase: async (body: {
+    supplierName: string;
+    reference?: string;
+    notes?: string;
+    lines: Array<{ productId: string; qty: number; unitCost?: number }>;
+  }) => {
+    try {
+      return await bff<{ receipt: unknown }>("/api/commerce/purchase", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+    } catch (e) {
+      if (!isApiOfflineError(e)) throw e;
+      return { receipt: localReceivePurchase(body) };
+    }
+  },
+
+  confirmPayment: async (body: {
+    orderId?: string;
+    provider?: string;
+    externalRef?: string;
+    amount?: number;
+  }) => {
+    try {
+      return await bff<{ payment: unknown }>("/api/commerce/payments", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+    } catch (e) {
+      if (!isApiOfflineError(e)) throw e;
+      return { payment: localConfirmPayment(body) };
+    }
+  },
+
+  retailReport: async (kind: "margin" | "cashier", days = 30) => {
+    try {
+      return await bff<{ report: unknown; kind: string }>(
+        `/api/commerce/reports?kind=${kind}&days=${days}`,
+      );
+    } catch {
+      return { report: localRetailReport(kind, days), kind };
+    }
   },
 };
 

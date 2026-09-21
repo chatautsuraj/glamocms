@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { ArrowRight, Eye, EyeOff, Lock, Mail, Sparkles } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
+import { commerceClient } from "@/lib/commerce-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,6 +31,18 @@ export default function LoginPage() {
       toast.success("Welcome to Glamo Nepal");
       const users = (await import("@/lib/store")).useAppStore.getState().users;
       const matched = users.find((u) => u.email === email.trim().toLowerCase());
+      try {
+        const till = await commerceClient.tillStatus();
+        if (!till.current) {
+          await commerceClient.tillOpen({
+            cashierName: matched?.name || email.split("@")[0] || "Cashier",
+            openingFloat: 0,
+          });
+          toast.message("Till opened for this shift");
+        }
+      } catch {
+        /* till is optional until first POS sale */
+      }
       router.push(matched ? postLoginPath(matched) : "/dashboard");
     } else {
       toast.error("Invalid email or password");

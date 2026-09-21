@@ -83,7 +83,7 @@ export default function AnalyticsPage() {
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2">
             {Object.keys(analytics?.byChannel ?? {}).length === 0 ? (
-              <p className="text-sm text-muted-foreground">No channel sales yet — use POS or Phone order</p>
+              <p className="text-sm text-muted-foreground">No channel sales yet — use POS or Orders</p>
             ) : (
               Object.entries(analytics?.byChannel ?? {}).map(([k, v]) => (
                 <Badge key={k} variant="success">

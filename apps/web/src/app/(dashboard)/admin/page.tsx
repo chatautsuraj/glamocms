@@ -145,12 +145,9 @@ export default function AdminPage() {
               <Boxes className="h-4 w-4" /> Inventory
             </Button>
           </Link>
-          <Link href="/inventory/barcodes">
-            <Button variant="outline">Barcodes</Button>
-          </Link>
-          <Link href="/delivery">
+          <Link href="/orders">
             <Button variant="outline">
-              <Truck className="h-4 w-4" /> Delivery
+              <Truck className="h-4 w-4" /> Orders
             </Button>
           </Link>
           <Link href="/customers">

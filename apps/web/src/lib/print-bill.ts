@@ -25,6 +25,9 @@ export type StoreBillOpts = {
   vatEnabled: boolean;
   /** Override print timestamp (defaults to now). */
   printedAt?: Date | string;
+  /** Tax invoice (Nepal VAT / PAN) vs estimate bill */
+  invoiceType?: "estimate" | "tax";
+  buyerPan?: string;
 };
 
 function npr(n: number) {
@@ -74,11 +77,16 @@ function billBarcodeCode(orderId: string) {
   return (clean || orderId).slice(0, 24);
 }
 
-/** Open thermal-style estimate bill and trigger browser print. */
+/** Open thermal-style estimate or tax invoice and trigger browser print. */
 export function printStoreBill(opts: StoreBillOpts) {
   const stamp = printTimestamp(opts);
   const code = billBarcodeCode(opts.orderId);
   const barcode = barcodeSvgForPrint(code, { width: 200, height: 48, barWidth: 1.5 });
+  const isTax = opts.invoiceType === "tax";
+  const docTitle = isTax ? "TAX INVOICE" : "ESTIMATE BILL";
+  const note = isTax
+    ? `Tax invoice · Seller PAN ${COMPANY.pan}${opts.buyerPan ? ` · Buyer PAN ${escapeHtml(opts.buyerPan)}` : ""}<br/>VAT as applicable (IRD / Nepal). Thank you`
+    : "This is an estimate bill — not a tax invoice.<br/>Thank you";
 
   const rows = opts.lines
     .map(
@@ -92,7 +100,7 @@ export function printStoreBill(opts: StoreBillOpts) {
     .join("");
 
   const html = `<!doctype html>
-<html><head><title>Estimate ${escapeHtml(opts.orderId)}</title>
+<html><head><title>${escapeHtml(docTitle)} ${escapeHtml(opts.orderId)}</title>
 <style>
   body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;padding:14px 12px;color:#111;max-width:300px;margin:0 auto}
   h1{font-size:18px;margin:0 0 2px;text-align:center;font-weight:700;letter-spacing:.02em}
@@ -114,17 +122,20 @@ export function printStoreBill(opts: StoreBillOpts) {
   .bc svg{display:inline-block}
   .bc-code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10px;margin-top:2px;letter-spacing:.04em}
   @media print{body{padding:0}}
+  @page{size:80mm auto;margin:2mm}
 </style></head><body>
   <h1>${escapeHtml(COMPANY.name)}</h1>
   <p class="addr">${escapeHtml(COMPANY.category ?? "Cosmetics store")}</p>
   <p class="addr">${escapeHtml(COMPANY.address)}</p>
   <p class="addr">${escapeHtml(COMPANY.phone)}</p>
-  <p class="doc">ESTIMATE BILL</p>
+  <p class="addr">PAN ${escapeHtml(COMPANY.pan)}${COMPANY.vat ? ` · VAT ${escapeHtml(COMPANY.vat)}` : ""}</p>
+  <p class="doc">${docTitle}</p>
   <div class="row"><span>${escapeHtml(stamp.date)}</span><span>${escapeHtml(stamp.time)}</span></div>
   <div class="meta">
     <div class="row"><span>Order ${escapeHtml(opts.orderId)}</span><span>${escapeHtml(opts.channel ?? "store")}</span></div>
     <div class="row"><span>${escapeHtml(opts.customerName)}</span><span>${escapeHtml(opts.method)}</span></div>
     ${opts.customerPhone ? `<div class="row"><span>Tel ${escapeHtml(opts.customerPhone)}</span><span></span></div>` : ""}
+    ${isTax && opts.buyerPan ? `<div class="row"><span>Buyer PAN</span><span>${escapeHtml(opts.buyerPan)}</span></div>` : ""}
   </div>
   <table>
     <thead><tr><th class="qty">Qty</th><th class="desc">Desc</th><th class="amt">Amt</th></tr></thead>
@@ -133,10 +144,10 @@ export function printStoreBill(opts: StoreBillOpts) {
   <div class="tot">
     <div class="amt-big"><span>Amt</span><span>${npr(opts.total)}</span></div>
     <div class="small"><span>Subtotal</span><span>${npr(opts.subtotal)}</span></div>
-    ${opts.vatEnabled && opts.vat > 0 ? `<div class="small"><span>VAT</span><span>${npr(opts.vat)}</span></div>` : ""}
+    ${(isTax || opts.vatEnabled) && opts.vat > 0 ? `<div class="small"><span>VAT 13%</span><span>${npr(opts.vat)}</span></div>` : ""}
     <div class="amt-big"><span>Balance</span><span>${npr(opts.total)}</span></div>
   </div>
-  <p class="note">This is an estimate bill — not a tax invoice.<br/>Thank you</p>
+  <p class="note">${note}</p>
   <div class="bc">${barcode}<div class="bc-code">${escapeHtml(code)}</div></div>
   <script>window.onload=function(){window.print();}</script>
 </body></html>`;
@@ -237,15 +248,23 @@ export function downloadStoreBillPdf(opts: StoreBillOpts) {
   doc.line(4, y, w - 4, y);
   y += 5;
   line("Subtotal", npr(opts.subtotal));
-  if (opts.vatEnabled && opts.vat > 0) line("VAT", npr(opts.vat));
+  if ((opts.invoiceType === "tax" || opts.vatEnabled) && opts.vat > 0) line("VAT 13%", npr(opts.vat));
   doc.setFont("helvetica", "bold");
   line("BALANCE", npr(opts.total));
   doc.setFont("helvetica", "normal");
   y += 4;
-  center("Estimate — not a tax invoice", 7);
+  if (opts.invoiceType === "tax") {
+    center(`PAN ${COMPANY.pan}`, 7);
+    if (opts.buyerPan) center(`Buyer PAN ${opts.buyerPan}`, 7);
+    center("Tax invoice", 7);
+  } else {
+    center("Estimate — not a tax invoice", 7);
+  }
   center("Thank you", 9);
 
-  doc.save(`glamo-estimate-${orderNumberFileSlug(opts.orderId)}.pdf`);
+  doc.save(
+    `glamo-${opts.invoiceType === "tax" ? "tax" : "estimate"}-${orderNumberFileSlug(opts.orderId)}.pdf`,
+  );
   return true;
 }
 

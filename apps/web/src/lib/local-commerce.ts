@@ -7,16 +7,72 @@ import type { AnalyticsSummary, ApiCustomer, ApiOrder, ApiProduct } from "@/lib/
 
 const KEY = "glamo-local-commerce-v1";
 
+type LocalTillShift = {
+  id: string;
+  cashierName: string;
+  openedAt: string;
+  closedAt?: string | null;
+  openingFloat: number;
+  closingCash?: number | null;
+  expectedCash?: number | null;
+  status: string;
+  notes?: string | null;
+};
+
+type LocalSaleReturn = {
+  id: string;
+  orderId: string;
+  amount: number;
+  reason?: string;
+  createdAt: string;
+  lines?: Array<{ productId: string; qty: number }>;
+};
+
+type LocalPurchaseReceipt = {
+  id: string;
+  supplierName: string;
+  reference?: string | null;
+  notes?: string | null;
+  createdAt: string;
+  lines: Array<{ productId: string; qty: number; unitCost: number; product?: { name: string } }>;
+};
+
+type LocalPayment = {
+  id: string;
+  orderId?: string;
+  provider: string;
+  externalRef?: string;
+  amount: number;
+  status: string;
+  createdAt: string;
+};
+
 type LocalStore = {
   customers: ApiCustomer[];
   orders: ApiOrder[];
   products: ApiProduct[];
   /** Absolute stock for catalog products adjusted locally */
   stockOverrides: Record<string, number>;
+  /** Last purchase cost by product id (for local margin reports) */
+  costOverrides: Record<string, number>;
+  tillShifts: LocalTillShift[];
+  returns: LocalSaleReturn[];
+  purchaseReceipts: LocalPurchaseReceipt[];
+  payments: LocalPayment[];
 };
 
 function empty(): LocalStore {
-  return { customers: [], orders: [], products: [], stockOverrides: {} };
+  return {
+    customers: [],
+    orders: [],
+    products: [],
+    stockOverrides: {},
+    costOverrides: {},
+    tillShifts: [],
+    returns: [],
+    purchaseReceipts: [],
+    payments: [],
+  };
 }
 
 function read(): LocalStore {
@@ -33,6 +89,14 @@ function read(): LocalStore {
         parsed.stockOverrides && typeof parsed.stockOverrides === "object"
           ? parsed.stockOverrides
           : {},
+      costOverrides:
+        parsed.costOverrides && typeof parsed.costOverrides === "object"
+          ? parsed.costOverrides
+          : {},
+      tillShifts: Array.isArray(parsed.tillShifts) ? parsed.tillShifts : [],
+      returns: Array.isArray(parsed.returns) ? parsed.returns : [],
+      purchaseReceipts: Array.isArray(parsed.purchaseReceipts) ? parsed.purchaseReceipts : [],
+      payments: Array.isArray(parsed.payments) ? parsed.payments : [],
     };
   } catch {
     return empty();
@@ -588,6 +652,282 @@ export function localAnalytics(lowStockCount = 0): AnalyticsSummary {
   };
 }
 
+/** —— Till / returns / purchase / payments / reports (browser-only until Nest is hosted) —— */
+
+export function localTillStatus() {
+  const shifts = [...read().tillShifts].sort((a, b) => b.openedAt.localeCompare(a.openedAt));
+  const current = shifts.find((s) => s.status === "open") ?? null;
+  return { current, shifts };
+}
+
+export function localTillOpen(dto: {
+  cashierName: string;
+  openingFloat?: number;
+  notes?: string;
+}) {
+  const store = read();
+  if (store.tillShifts.some((s) => s.status === "open")) {
+    throw new Error("A till shift is already open — close it first");
+  }
+  const shift: LocalTillShift = {
+    id: uid("till"),
+    cashierName: dto.cashierName.trim() || "Cashier",
+    openedAt: new Date().toISOString(),
+    openingFloat: Number(dto.openingFloat) || 0,
+    status: "open",
+    notes: dto.notes ?? null,
+  };
+  store.tillShifts = [shift, ...store.tillShifts];
+  write(store);
+  return shift;
+}
+
+export function localTillClose(dto: { id: string; closingCash: number; notes?: string }) {
+  const store = read();
+  const shift = store.tillShifts.find((s) => s.id === dto.id);
+  if (!shift) throw new Error("Till shift not found");
+  if (shift.status !== "open") throw new Error("Shift already closed");
+
+  const since = new Date(shift.openedAt).getTime();
+  const salesCash = store.orders
+    .filter(
+      (o) =>
+        o.channel === "store" &&
+        new Date(o.createdAt).getTime() >= since &&
+        o.fulfillmentStatus !== "cancelled" &&
+        (o.paymentStatus === "paid" || o.paymentStatus === "partial"),
+    )
+    .reduce((s, o) => s + Number(o.amount), 0);
+  const expected = shift.openingFloat + salesCash;
+  const closed: LocalTillShift = {
+    ...shift,
+    status: "closed",
+    closedAt: new Date().toISOString(),
+    closingCash: Number(dto.closingCash) || 0,
+    expectedCash: expected,
+    notes: [shift.notes, dto.notes].filter(Boolean).join(" | ") || null,
+  };
+  store.tillShifts = store.tillShifts.map((s) => (s.id === dto.id ? closed : s));
+  write(store);
+  return closed;
+}
+
+export function localListReturns() {
+  return [...read().returns].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+export function localCreateReturn(dto: {
+  orderId: string;
+  reason?: string;
+  items?: Array<{ productId: string; qty: number }>;
+}) {
+  const store = read();
+  const order = store.orders.find((o) => o.id === dto.orderId);
+  if (!order) throw new Error("Order not found");
+  if (order.fulfillmentStatus === "cancelled") {
+    throw new Error("Cannot return a cancelled order");
+  }
+
+  const lines =
+    dto.items?.length
+      ? dto.items
+      : (order.items ?? []).map((i) => ({
+          productId: i.product?.id ?? "",
+          qty: i.qty,
+        })).filter((l) => l.productId);
+
+  let amount = 0;
+  for (const line of lines) {
+    const sold = order.items?.find((i) => i.product?.id === line.productId);
+    const unit = Number(sold?.unitPrice ?? 0);
+    amount += unit * line.qty;
+    localAdjustStockRelative(line.productId, line.qty);
+  }
+
+  const row: LocalSaleReturn = {
+    id: uid("ret"),
+    orderId: order.id,
+    amount,
+    reason: dto.reason,
+    createdAt: new Date().toISOString(),
+    lines,
+  };
+
+  const refreshed = read();
+  refreshed.returns = [row, ...refreshed.returns];
+  write(refreshed);
+
+  const full =
+    lines.length === (order.items?.length ?? 0) &&
+    lines.every((l) => {
+      const sold = order.items?.find((i) => i.product?.id === l.productId);
+      return sold && l.qty === sold.qty;
+    });
+  if (full) {
+    localUpdateOrder(order.id, {
+      fulfillmentStatus: "cancelled",
+      paymentStatus: "cancelled",
+      deliveryNotes: [order.deliveryNotes, `Returned: ${row.id}`].filter(Boolean).join(" | "),
+    });
+  } else {
+    localUpdateOrder(order.id, {
+      deliveryNotes: [order.deliveryNotes, `Partial return ${row.id}`].filter(Boolean).join(" | "),
+    });
+  }
+  return row;
+}
+
+export function localListPurchaseReceipts() {
+  return [...read().purchaseReceipts].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+export function localReceivePurchase(dto: {
+  supplierName: string;
+  reference?: string;
+  notes?: string;
+  lines: Array<{ productId: string; qty: number; unitCost?: number }>;
+}) {
+  if (!dto.lines?.length) throw new Error("At least one line required");
+  const store = read();
+  const lines = dto.lines.map((l) => {
+    const product =
+      store.products.find((p) => p.id === l.productId) ||
+      mergeProductsWithLocal([]).find((p) => p.id === l.productId);
+    localAdjustStockRelative(l.productId, l.qty, product?.stock);
+    if (l.unitCost != null && l.unitCost > 0) {
+      const s = read();
+      s.costOverrides[l.productId] = Number(l.unitCost);
+      write(s);
+    }
+    return {
+      productId: l.productId,
+      qty: l.qty,
+      unitCost: Number(l.unitCost) || 0,
+      product: { name: product?.name ?? l.productId },
+    };
+  });
+
+  const receipt: LocalPurchaseReceipt = {
+    id: uid("po"),
+    supplierName: dto.supplierName.trim(),
+    reference: dto.reference ?? null,
+    notes: dto.notes ?? null,
+    createdAt: new Date().toISOString(),
+    lines,
+  };
+  const next = read();
+  next.purchaseReceipts = [receipt, ...next.purchaseReceipts];
+  write(next);
+  return receipt;
+}
+
+export function localConfirmPayment(dto: {
+  orderId?: string;
+  provider?: string;
+  externalRef?: string;
+  amount?: number;
+}) {
+  const store = read();
+  let amount = dto.amount ?? 0;
+  if (dto.orderId) {
+    const order = store.orders.find((o) => o.id === dto.orderId);
+    if (order) {
+      if (!amount) amount = Number(order.amount);
+      localUpdateOrder(dto.orderId, { paymentStatus: "paid" });
+    }
+  }
+  const payment: LocalPayment = {
+    id: uid("pay"),
+    orderId: dto.orderId,
+    provider: dto.provider ?? "fonepay",
+    externalRef: dto.externalRef,
+    amount,
+    status: "confirmed",
+    createdAt: new Date().toISOString(),
+  };
+  const next = read();
+  next.payments = [payment, ...next.payments];
+  write(next);
+  return payment;
+}
+
+export function localRetailReport(kind: "margin" | "cashier", days = 30) {
+  const since = Date.now() - Math.min(Math.max(days, 1), 365) * 86400000;
+  const store = read();
+  const orders = store.orders.filter(
+    (o) =>
+      new Date(o.createdAt).getTime() >= since &&
+      o.fulfillmentStatus !== "cancelled" &&
+      o.paymentStatus !== "cancelled",
+  );
+
+  if (kind === "cashier") {
+    const shifts = store.tillShifts
+      .filter((s) => new Date(s.openedAt).getTime() >= since)
+      .map((s) => ({
+        ...s,
+        variance:
+          s.closingCash != null && s.expectedCash != null
+            ? Number(s.closingCash) - Number(s.expectedCash)
+            : null,
+      }));
+    const byDay = new Map<string, { count: number; amount: number; paid: number }>();
+    for (const o of orders.filter((x) => x.channel === "store")) {
+      const day = o.createdAt.slice(0, 10);
+      const row = byDay.get(day) ?? { count: 0, amount: 0, paid: 0 };
+      row.count += 1;
+      row.amount += Number(o.amount);
+      if (o.paymentStatus === "paid" || o.paymentStatus === "partial") row.paid += Number(o.amount);
+      byDay.set(day, row);
+    }
+    return {
+      days,
+      shifts,
+      daily: [...byDay.entries()]
+        .map(([date, v]) => ({ date, ...v }))
+        .sort((a, b) => b.date.localeCompare(a.date)),
+    };
+  }
+
+  const bySku = new Map<
+    string,
+    { productId: string; sku: string; name: string; qty: number; revenue: number; cost: number; margin: number }
+  >();
+  for (const o of orders) {
+    for (const item of o.items ?? []) {
+      const pid = item.product?.id ?? "";
+      if (!pid) continue;
+      const row = bySku.get(pid) ?? {
+        productId: pid,
+        sku: item.product?.sku ?? pid,
+        name: item.product?.name ?? pid,
+        qty: 0,
+        revenue: 0,
+        cost: 0,
+        margin: 0,
+      };
+      const rev = Number(item.lineTotal);
+      const unitCost = store.costOverrides[pid] ?? 0;
+      row.qty += item.qty;
+      row.revenue += rev;
+      row.cost += unitCost * item.qty;
+      row.margin = row.revenue - row.cost;
+      bySku.set(pid, row);
+    }
+  }
+  const rows = [...bySku.values()].sort((a, b) => b.margin - a.margin);
+  const totals = rows.reduce(
+    (s, r) => ({
+      revenue: s.revenue + r.revenue,
+      cost: s.cost + r.cost,
+      margin: s.margin + r.margin,
+      qty: s.qty + r.qty,
+    }),
+    { revenue: 0, cost: 0, margin: 0, qty: 0 },
+  );
+  return { days, since: new Date(since).toISOString(), totals, rows };
+}
+
 export function isApiOfflineError(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err ?? "");
   const s = msg.toLowerCase();
@@ -604,6 +944,13 @@ export function isApiOfflineError(err: unknown): boolean {
     s.includes("network") ||
     s.includes("offline") ||
     s.includes("nest api") ||
-    s.includes("request failed")
+    s.includes("request failed") ||
+    s.includes("api offline") ||
+    s.includes("open till failed") ||
+    s.includes("close till failed") ||
+    s.includes("return failed") ||
+    s.includes("receive failed") ||
+    s.includes("payment confirm failed") ||
+    s.includes("report failed")
   );
 }

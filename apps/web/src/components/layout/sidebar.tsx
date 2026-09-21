@@ -5,18 +5,16 @@ import { usePathname } from "next/navigation";
 import { useMemo } from "react";
 import {
   BarChart3,
-  Barcode,
   Boxes,
   ChevronLeft,
   ChevronRight,
+  FileBarChart,
   LayoutDashboard,
   Package,
-  Phone,
   Receipt,
   Settings,
   Shield,
   ShoppingCart,
-  Truck,
   Users,
   Zap,
 } from "lucide-react";
@@ -33,17 +31,15 @@ import { Tooltip } from "@/components/ui/tooltip";
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   LayoutDashboard,
   Zap,
-  Phone,
   Receipt,
   BarChart3,
   ShoppingCart,
-  Truck,
   Package,
   Boxes,
-  Barcode,
   Users,
   Shield,
   Settings,
+  FileBarChart,
 };
 
 type SidebarProps = {

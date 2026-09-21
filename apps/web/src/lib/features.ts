@@ -42,8 +42,8 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
     title: "Commerce",
     features: [
       { key: "sales", label: "Sales" },
-      { key: "galla", label: "POS / Phone / All sales" },
-      { key: "orders", label: "Orders" },
+      { key: "galla", label: "POS Counter" },
+      { key: "orders", label: "Orders (phone + delivery)" },
       { key: "customers", label: "Customers" },
     ],
   },
@@ -51,14 +51,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
     title: "Catalog & Stock",
     features: [
       { key: "products", label: "Products" },
-      { key: "inventory", label: "Inventory" },
-    ],
-  },
-  {
-    title: "Supply",
-    features: [
-      { key: "purchase", label: "Purchase" },
-      { key: "suppliers", label: "Suppliers" },
+      { key: "inventory", label: "Inventory (receive + barcodes)" },
     ],
   },
   {
@@ -86,6 +79,7 @@ export const STARTER_TENANT_FEATURES: FeatureKey[] = [
   "customers",
   "products",
   "inventory",
+  "reports",
   "analytics",
   "settings",
 ];
@@ -100,6 +94,7 @@ export const STORE_ACCESS_FEATURES: FeatureKey[] = [
   "customers",
   "products",
   "inventory",
+  "reports",
   "settings",
 ];
 
@@ -111,10 +106,9 @@ const REMOVED_FEATURES = new Set([
   "salesperson",
   "finance",
   "notifications",
-  "purchase",
   "suppliers",
   "expenses",
-  "reports",
+  "purchase",
   "admin",
 ]);
 
@@ -142,15 +136,17 @@ export function normalizeFeatureList(keys: string[] | null | undefined): Feature
 /** Longest-prefix first so /sales/galla maps to galla, not sales. */
 const HREF_FEATURE_MAP: { href: string; feature: FeatureKey }[] = [
   { href: "/sales/galla", feature: "galla" },
-  { href: "/sales/phone", feature: "galla" },
+  { href: "/sales/phone", feature: "orders" },
   { href: "/sales/all", feature: "galla" },
+  { href: "/sales/till", feature: "galla" },
+  { href: "/sales/returns", feature: "galla" },
   { href: "/dashboard", feature: "dashboard" },
   { href: "/notifications", feature: "notifications" },
   { href: "/analytics", feature: "analytics" },
   { href: "/customers", feature: "customers" },
   { href: "/inventory", feature: "inventory" },
-  { href: "/suppliers", feature: "suppliers" },
-  { href: "/purchase", feature: "purchase" },
+  { href: "/suppliers", feature: "inventory" },
+  { href: "/purchase", feature: "inventory" },
   { href: "/products", feature: "products" },
   { href: "/settings", feature: "settings" },
   { href: "/expenses", feature: "expenses" },

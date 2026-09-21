@@ -11,4 +11,8 @@ export class AdjustStockDto {
   @IsOptional()
   @IsString()
   reason?: string;
+
+  @IsOptional()
+  @IsString()
+  note?: string;
 }

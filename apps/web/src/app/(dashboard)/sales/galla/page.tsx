@@ -17,6 +17,7 @@ import {
   Trash2,
   UserPlus,
   Zap,
+  RotateCcw,
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -32,10 +33,11 @@ import {
   WALK_IN_CUSTOMER_ID,
 } from "@/lib/store";
 import { useApiProducts } from "@/lib/use-api-products";
-import { commerceClient } from "@/lib/commerce-client";
+import { commerceClient, type ApiOrder } from "@/lib/commerce-client";
 import { issueStoreBill } from "@/lib/print-bill";
+import { kickCashDrawerHint } from "@/lib/print-hardware";
 import { syncCallerToAppStore } from "@/lib/sync-caller";
-import { useActiveTenantId, useVatEnabled } from "@/lib/use-entitlements";
+import { useActiveTenantId, useStoreUser, useVatEnabled } from "@/lib/use-entitlements";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
@@ -66,6 +68,7 @@ type PaymentMethod = "CASH" | "CREDIT" | "QR_ESEWA" | "SPLIT";
 export default function GallaPage() {
   const activeTenantId = useActiveTenantId();
   const vatEnabled = useVatEnabled();
+  const storeUser = useStoreUser();
   const { products, reload: reloadProducts } = useApiProducts();
   const walkIn = useMemo(
     () => getWalkInCustomer(activeTenantId ?? "glamo"),
@@ -85,7 +88,23 @@ export default function GallaPage() {
   const [sessionCount, setSessionCount] = useState(0);
   const [paying, setPaying] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
+  const [taxInvoice, setTaxInvoice] = useState(false);
+  const [buyerPan, setBuyerPan] = useState("");
   const [scan, setScan] = useState("");
+  const [tillOpen, setTillOpen] = useState(false);
+  const [tillCloseOpen, setTillCloseOpen] = useState(false);
+  const [returnOpen, setReturnOpen] = useState(false);
+  const [tillCurrent, setTillCurrent] = useState<{
+    id: string;
+    cashierName: string;
+    openingFloat: number | string;
+    status: string;
+  } | null>(null);
+  const [tillFloat, setTillFloat] = useState("0");
+  const [tillClosing, setTillClosing] = useState("");
+  const [returnOrderId, setReturnOrderId] = useState("");
+  const [returnReason, setReturnReason] = useState("");
+  const [recentSales, setRecentSales] = useState<ApiOrder[]>([]);
   const [camOpen, setCamOpen] = useState(false);
   const [custOpen, setCustOpen] = useState(false);
   const [custName, setCustName] = useState("");
@@ -125,9 +144,38 @@ export default function GallaPage() {
     }
   }, []);
 
+  const reloadTill = useCallback(async () => {
+    try {
+      const res = await commerceClient.tillStatus();
+      const current = res.current as {
+        id: string;
+        cashierName: string;
+        openingFloat: number | string;
+        status: string;
+      } | null;
+      setTillCurrent(current?.status === "open" ? current : null);
+    } catch {
+      setTillCurrent(null);
+    }
+  }, []);
+
+  const reloadRecentSales = useCallback(async () => {
+    try {
+      const { orders } = await commerceClient.listOrders({ channel: "store" });
+      setRecentSales(orders.filter((o) => o.fulfillmentStatus !== "cancelled").slice(0, 20));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   useEffect(() => {
     void reloadCustomers();
-  }, [reloadCustomers]);
+    void reloadTill();
+    void reloadRecentSales();
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("return") === "1") {
+      setReturnOpen(true);
+    }
+  }, [reloadCustomers, reloadTill, reloadRecentSales]);
 
   const customerList = useMemo(() => [walkIn, ...apiCustomers], [walkIn, apiCustomers]);
   const customer =
@@ -365,8 +413,8 @@ export default function GallaPage() {
       setCustNotes("");
       toast.success(
         cartLines.length
-          ? "Caller + phone order saved · Customers, Phone order & Orders"
-          : "Caller saved · Customers, Phone order & Orders",
+          ? "Caller + phone order saved · Customers & Orders"
+          : "Caller saved · Customers & Orders",
       );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not save customer");
@@ -521,7 +569,7 @@ export default function GallaPage() {
       const { order } = await commerceClient.createOrder({
         channel: "store",
         paymentStatus: isCredit ? "unpaid" : "paid",
-        fulfillmentStatus: isCredit ? "confirmed" : "fulfilled",
+        fulfillmentStatus: isCredit ? "confirmed" : "delivered",
         customerId: customer.id !== WALK_IN_CUSTOMER_ID ? customer.id : undefined,
         customer: {
           name: customer.name,
@@ -544,11 +592,28 @@ export default function GallaPage() {
           currentStock: stockOf(item.productId),
         })),
       });
+
+      if (needsQr) {
+        try {
+          await commerceClient.confirmPayment({
+            orderId: order.id,
+            provider: "fonepay",
+            amount: payment === "SPLIT" ? qrAmt || total : total,
+            externalRef: `POS-${Date.now()}`,
+          });
+        } catch {
+          /* offline / API optional — sale already paid locally */
+        }
+      }
+
       setSessionSales((s) => s + total);
       setSessionCount((c) => c + 1);
       toast.success(`Sale complete — ${order.id}`, {
         description: `${cart.length} lines · ${formatNPR(total)} via ${payment}`,
       });
+      if (payment === "CASH" || payment === "SPLIT") {
+        toast.message(kickCashDrawerHint().message);
+      }
       issueStoreBill({
         orderId: order.id,
         customerName: customer.name,
@@ -560,10 +625,13 @@ export default function GallaPage() {
         vat,
         total,
         vatEnabled: vatEnabled && vat > 0,
+        invoiceType: taxInvoice ? "tax" : "estimate",
+        buyerPan: taxInvoice ? buyerPan.trim() || undefined : undefined,
       });
       setQrOpen(false);
       clearCart();
       await reloadProducts();
+      await reloadRecentSales();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not complete the sale");
     } finally {
@@ -582,7 +650,10 @@ export default function GallaPage() {
     splitQr,
     products,
     reloadProducts,
+    reloadRecentSales,
     qrOpen,
+    taxInvoice,
+    buyerPan,
   ]);
 
   useEffect(() => {
@@ -615,10 +686,24 @@ export default function GallaPage() {
         title="Glamo Counter"
         description="Scan or search · qty · price · discount % · F2 pay · Esc clear"
         actions={
-          <Badge variant="success" className="gap-1 px-3 py-1">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-success" />
-            Session active
-          </Badge>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant={tillCurrent ? "success" : "muted"} className="gap-1 px-3 py-1">
+              <span className={`h-2 w-2 rounded-full ${tillCurrent ? "animate-pulse bg-success" : "bg-muted-foreground"}`} />
+              {tillCurrent ? `Till · ${tillCurrent.cashierName}` : "Till closed"}
+            </Badge>
+            {tillCurrent ? (
+              <Button size="sm" variant="outline" onClick={() => setTillCloseOpen(true)}>
+                Close till
+              </Button>
+            ) : (
+              <Button size="sm" variant="outline" onClick={() => setTillOpen(true)}>
+                Open till
+              </Button>
+            )}
+            <Button size="sm" variant="outline" onClick={() => { setReturnOpen(true); void reloadRecentSales(); }}>
+              <RotateCcw className="h-3.5 w-3.5" /> Return
+            </Button>
+          </div>
         }
       />
 
@@ -1032,6 +1117,23 @@ export default function GallaPage() {
               </div>
             </div>
 
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={taxInvoice}
+                onChange={(e) => setTaxInvoice(e.target.checked)}
+                className="rounded border"
+              />
+              Nepal tax invoice (PAN / VAT)
+            </label>
+            {taxInvoice && (
+              <Input
+                placeholder="Buyer PAN (optional)"
+                value={buyerPan}
+                onChange={(e) => setBuyerPan(e.target.value)}
+              />
+            )}
+
             <div className="grid grid-cols-2 gap-2">
               <Button variant="outline" onClick={clearCart}>
                 Clear (Esc)
@@ -1074,7 +1176,7 @@ export default function GallaPage() {
               disabled={paying}
               onClick={() => void completeSale({ qrConfirmed: true })}
             >
-              {paying ? "Saving…" : "Paid — print bill"}
+              {paying ? "Saving…" : "Fonepay confirmed — print"}
             </Button>
           </div>
         </DialogContent>
@@ -1091,7 +1193,7 @@ export default function GallaPage() {
           <DialogHeader>
             <DialogTitle>Add caller</DialogTitle>
             <DialogDescription>
-              Saves to Customers, creates a Phone order (and Orders / Delivery). If the cart has
+              Saves to Customers and creates a phone order (visible on Orders). If the cart has
               items, they are attached to that phone order.
             </DialogDescription>
           </DialogHeader>
@@ -1130,6 +1232,139 @@ export default function GallaPage() {
                 Cancel
               </Button>
               <Button onClick={() => void saveQuickCustomer()}>Save &amp; select</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={tillOpen} onOpenChange={setTillOpen}>
+        <DialogContent onClose={() => setTillOpen(false)}>
+          <DialogHeader>
+            <DialogTitle>Open till</DialogTitle>
+            <DialogDescription>Count opening float before the first sale.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label>Opening float (NPR)</Label>
+              <Input type="number" min={0} value={tillFloat} onChange={(e) => setTillFloat(e.target.value)} />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setTillOpen(false)}>Cancel</Button>
+              <Button
+                onClick={async () => {
+                  try {
+                    await commerceClient.tillOpen({
+                      cashierName: storeUser?.name || "Cashier",
+                      openingFloat: Number(tillFloat) || 0,
+                    });
+                    toast.success("Till opened");
+                    setTillOpen(false);
+                    await reloadTill();
+                  } catch (e) {
+                    toast.error(e instanceof Error ? e.message : "Could not open till");
+                  }
+                }}
+              >
+                Open shift
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={tillCloseOpen} onOpenChange={setTillCloseOpen}>
+        <DialogContent onClose={() => setTillCloseOpen(false)}>
+          <DialogHeader>
+            <DialogTitle>Close till</DialogTitle>
+            <DialogDescription>
+              {tillCurrent
+                ? `Float ${formatNPR(Number(tillCurrent.openingFloat))} · count cash in drawer`
+                : "No open shift"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label>Closing cash count</Label>
+              <Input type="number" min={0} value={tillClosing} onChange={(e) => setTillClosing(e.target.value)} />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setTillCloseOpen(false)}>Cancel</Button>
+              <Button
+                disabled={!tillCurrent}
+                onClick={async () => {
+                  if (!tillCurrent) return;
+                  try {
+                    await commerceClient.tillClose({
+                      id: tillCurrent.id,
+                      closingCash: Number(tillClosing) || 0,
+                    });
+                    toast.success("Till closed");
+                    setTillClosing("");
+                    setTillCloseOpen(false);
+                    await reloadTill();
+                  } catch (e) {
+                    toast.error(e instanceof Error ? e.message : "Could not close till");
+                  }
+                }}
+              >
+                Close shift
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={returnOpen} onOpenChange={setReturnOpen}>
+        <DialogContent onClose={() => setReturnOpen(false)}>
+          <DialogHeader>
+            <DialogTitle>Return / restock</DialogTitle>
+            <DialogDescription>Pick a recent sale. Stock comes back immediately.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label>Sale</Label>
+              <select
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                value={returnOrderId}
+                onChange={(e) => setReturnOrderId(e.target.value)}
+              >
+                <option value="">Select…</option>
+                {recentSales.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.id} · {formatNPR(Number(o.amount))} · {o.customer?.name ?? "Walk-in"}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <Label>Reason</Label>
+              <Input value={returnReason} onChange={(e) => setReturnReason(e.target.value)} placeholder="Wrong shade, damaged…" />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setReturnOpen(false)}>Cancel</Button>
+              <Button
+                onClick={async () => {
+                  if (!returnOrderId) {
+                    toast.error("Select a sale");
+                    return;
+                  }
+                  try {
+                    await commerceClient.createReturn({
+                      orderId: returnOrderId,
+                      reason: returnReason.trim() || undefined,
+                    });
+                    toast.success("Return processed — stock restocked");
+                    setReturnOpen(false);
+                    setReturnReason("");
+                    await reloadProducts();
+                    await reloadRecentSales();
+                  } catch (e) {
+                    toast.error(e instanceof Error ? e.message : "Return failed");
+                  }
+                }}
+              >
+                Process return
+              </Button>
             </div>
           </div>
         </DialogContent>

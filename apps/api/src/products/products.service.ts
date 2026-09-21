@@ -25,6 +25,7 @@ export class ProductsService {
     name: string;
     sku: string;
     price: Prisma.Decimal;
+    costPrice?: Prisma.Decimal;
     stock: number;
     category: string | null;
     images: string;
@@ -44,6 +45,7 @@ export class ProductsService {
     return {
       ...p,
       price: Number(p.price),
+      costPrice: p.costPrice != null ? Number(p.costPrice) : 0,
       mrp: p.mrp != null ? Number(p.mrp) : Number(p.price),
       images: parseImages(p.images),
     };

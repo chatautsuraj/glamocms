@@ -3,6 +3,7 @@ generator client {
 }
 
 datasource db {
+  // Local default: sqlite (file:./dev.db). Docker/Render entrypoint switches to postgresql.
   provider = "sqlite"
   url      = env("DATABASE_URL")
 }
@@ -35,6 +36,8 @@ model Product {
   name        String
   sku         String      @unique
   price       Decimal
+  /// Average / last purchase cost for margin reports
+  costPrice   Decimal     @default(0)
   stock       Int         @default(0)
   category    String?
   images      String      @default("[]")
@@ -51,6 +54,9 @@ model Product {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
   orderItems  OrderItem[]
+  stockAdjustments StockAdjustment[]
+  purchaseLines PurchaseLine[]
+  returnLines SaleReturnLine[]
 }
 
 model Customer {
@@ -94,4 +100,79 @@ model OrderItem {
   qty       Int
   unitPrice Decimal
   lineTotal Decimal
+}
+
+/// Cashier till / shift for open–close reconciliation
+model TillShift {
+  id           String    @id @default(cuid())
+  cashierName  String
+  openedAt     DateTime  @default(now())
+  closedAt     DateTime?
+  openingFloat Decimal   @default(0)
+  closingCash  Decimal?
+  expectedCash Decimal?
+  notes        String?
+  status       String    @default("open") // open | closed
+}
+
+/// Stock adjustments with reason (stocktake / damage / receive)
+model StockAdjustment {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  delta     Int
+  reason    String
+  note      String?
+  createdAt DateTime @default(now())
+}
+
+/// Purchase receipts (supplier receiving)
+model PurchaseReceipt {
+  id           String   @id @default(cuid())
+  supplierName String
+  reference    String?
+  notes        String?
+  createdAt    DateTime @default(now())
+  lines        PurchaseLine[]
+}
+
+model PurchaseLine {
+  id        String          @id @default(cuid())
+  receiptId String
+  receipt   PurchaseReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product         @relation(fields: [productId], references: [id])
+  qty       Int
+  unitCost  Decimal         @default(0)
+}
+
+/// Partial or full return against a sold order (restocks inventory)
+model SaleReturn {
+  id        String          @id @default(cuid())
+  orderId   String
+  amount    Decimal
+  reason    String?
+  createdAt DateTime        @default(now())
+  lines     SaleReturnLine[]
+}
+
+model SaleReturnLine {
+  id        String     @id @default(cuid())
+  returnId  String
+  return    SaleReturn @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product    @relation(fields: [productId], references: [id])
+  qty       Int
+}
+
+/// Fonepay / QR payment confirmations (manual confirm or webhook)
+model PaymentConfirmation {
+  id          String   @id @default(cuid())
+  orderId     String?
+  provider    String   @default("fonepay")
+  externalRef String?
+  amount      Decimal  @default(0)
+  status      String   @default("confirmed") // pending | confirmed | failed
+  raw         String?
+  createdAt   DateTime @default(now())
 }
