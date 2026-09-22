@@ -28,7 +28,6 @@ import {
   localUpdateOrder,
   localUpdateProduct,
   mergeProductsWithLocal,
-  nextLocalOrderNumber,
   type LocalCustomerInput,
   type LocalOrderInput,
   type LocalOrderPatch,
