@@ -11,9 +11,18 @@ export async function GET() {
     glamoApi("/till/current"),
     glamoApi("/till"),
   ]);
+  const shifts = list.ok && Array.isArray(list.data) ? list.data : [];
+  let open = current.ok ? current.data : null;
+  if (!open && Array.isArray(shifts)) {
+    open = shifts.find((s: { status?: string }) => s.status === "open") ?? null;
+  }
+  // Both upstream calls failed — fall through to browser localStorage on the client.
+  if (!current.ok && !list.ok) {
+    return NextResponse.json({ current: null, shifts: [], source: "offline" }, { status: 200 });
+  }
   return NextResponse.json({
-    current: current.ok ? current.data : null,
-    shifts: list.ok ? list.data : [],
+    current: open,
+    shifts,
   });
 }
 

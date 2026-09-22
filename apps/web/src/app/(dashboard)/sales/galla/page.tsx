@@ -35,7 +35,6 @@ import {
 import { useApiProducts } from "@/lib/use-api-products";
 import { commerceClient, type ApiOrder } from "@/lib/commerce-client";
 import { issueStoreBill } from "@/lib/print-bill";
-import { kickCashDrawerHint } from "@/lib/print-hardware";
 import { syncCallerToAppStore } from "@/lib/sync-caller";
 import { useActiveTenantId, useStoreUser, useVatEnabled } from "@/lib/use-entitlements";
 import { cn } from "@/lib/utils";
@@ -520,6 +519,29 @@ export default function GallaPage() {
   };
 
   const completeSale = useCallback(async (opts?: { qrConfirmed?: boolean }) => {
+    if (!tillCurrent) {
+      toast.error("Open the till before taking sales");
+      void (async () => {
+        try {
+          const live = await commerceClient.tillStatus();
+          const open = live.current as {
+            id: string;
+            cashierName: string;
+            openingFloat: number | string;
+            status: string;
+          } | null;
+          if (open?.status === "open") {
+            setTillCurrent(open);
+            toast.success("Till is open — tap Pay again");
+            return;
+          }
+        } catch {
+          /* ignore */
+        }
+        setTillOpen(true);
+      })();
+      return;
+    }
     if (!customer) {
       toast.error("Select a customer");
       return;
@@ -611,9 +633,6 @@ export default function GallaPage() {
       toast.success(`Sale complete — ${order.id}`, {
         description: `${cart.length} lines · ${formatNPR(total)} via ${payment}`,
       });
-      if (payment === "CASH" || payment === "SPLIT") {
-        toast.message(kickCashDrawerHint().message);
-      }
       issueStoreBill({
         orderId: order.id,
         customerName: customer.name,
@@ -654,6 +673,7 @@ export default function GallaPage() {
     qrOpen,
     taxInvoice,
     buyerPan,
+    tillCurrent,
   ]);
 
   useEffect(() => {
@@ -696,7 +716,33 @@ export default function GallaPage() {
                 Close till
               </Button>
             ) : (
-              <Button size="sm" variant="outline" onClick={() => setTillOpen(true)}>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={async () => {
+                  await reloadTill();
+                  // reloadTill updates state async — check live status before prompting
+                  try {
+                    const live = await commerceClient.tillStatus();
+                    const open = live.current as { status?: string } | null;
+                    if (open?.status === "open") {
+                      setTillCurrent(
+                        open as {
+                          id: string;
+                          cashierName: string;
+                          openingFloat: number | string;
+                          status: string;
+                        },
+                      );
+                      toast.success("Till is already open — ready to sell");
+                      return;
+                    }
+                  } catch {
+                    /* fall through to open dialog */
+                  }
+                  setTillOpen(true);
+                }}
+              >
                 Open till
               </Button>
             )}
@@ -1138,10 +1184,25 @@ export default function GallaPage() {
               <Button variant="outline" onClick={clearCart}>
                 Clear (Esc)
               </Button>
-              <Button onClick={() => void completeSale()} disabled={cart.length === 0 || paying}>
-                {paying ? "Saving…" : payment === "QR_ESEWA" || payment === "SPLIT" ? "Confirm pay (F2)" : "Pay (F2)"}
+              <Button
+                onClick={() => void completeSale()}
+                disabled={cart.length === 0 || paying || !tillCurrent}
+                title={!tillCurrent ? "Open the till first" : undefined}
+              >
+                {paying
+                  ? "Saving…"
+                  : !tillCurrent
+                    ? "Open till to pay"
+                    : payment === "QR_ESEWA" || payment === "SPLIT"
+                      ? "Confirm pay (F2)"
+                      : "Pay (F2)"}
               </Button>
             </div>
+            {!tillCurrent && (
+              <p className="text-center text-xs text-warning">
+                Till is closed — open a shift before taking sales
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -1173,7 +1234,7 @@ export default function GallaPage() {
               Cancel
             </Button>
             <Button
-              disabled={paying}
+              disabled={paying || !tillCurrent}
               onClick={() => void completeSale({ qrConfirmed: true })}
             >
               {paying ? "Saving…" : "Fonepay confirmed — print"}
@@ -1253,15 +1314,27 @@ export default function GallaPage() {
               <Button
                 onClick={async () => {
                   try {
-                    await commerceClient.tillOpen({
+                    const { shift } = await commerceClient.tillOpen({
                       cashierName: storeUser?.name || "Cashier",
                       openingFloat: Number(tillFloat) || 0,
                     });
-                    toast.success("Till opened");
-                    setTillOpen(false);
                     await reloadTill();
+                    const already =
+                      shift &&
+                      typeof shift === "object" &&
+                      "status" in shift &&
+                      (shift as { status?: string }).status === "open";
+                    toast.success(already ? "Till is open — ready to sell" : "Till opened");
+                    setTillOpen(false);
                   } catch (e) {
-                    toast.error(e instanceof Error ? e.message : "Could not open till");
+                    const msg = e instanceof Error ? e.message : "Could not open till";
+                    if (/already open/i.test(msg)) {
+                      await reloadTill();
+                      toast.success("Till is already open — ready to sell");
+                      setTillOpen(false);
+                      return;
+                    }
+                    toast.error(msg);
                   }
                 }}
               >

@@ -492,14 +492,29 @@ export const commerceClient = {
   },
 
   tillStatus: async () => {
+    const local = localTillStatus();
     try {
       const res = await bff<{ current: unknown; shifts: unknown[]; source?: string }>(
         "/api/commerce/till",
       );
-      if (res.source === "offline") return localTillStatus();
-      return { current: res.current ?? null, shifts: Array.isArray(res.shifts) ? res.shifts : [] };
+      if (res.source === "offline") return local;
+
+      const remoteShifts = Array.isArray(res.shifts) ? res.shifts : [];
+      const remoteCurrent =
+        (res.current as { status?: string } | null)?.status === "open"
+          ? res.current
+          : (remoteShifts.find((s) => (s as { status?: string }).status === "open") ?? null);
+
+      // Prefer remote open shift; otherwise keep browser till so login/POS stay in sync offline.
+      if (remoteCurrent) {
+        return { current: remoteCurrent, shifts: remoteShifts.length ? remoteShifts : local.shifts };
+      }
+      if (local.current) {
+        return { current: local.current, shifts: local.shifts };
+      }
+      return { current: null, shifts: remoteShifts.length ? remoteShifts : local.shifts };
     } catch {
-      return localTillStatus();
+      return local;
     }
   },
   tillOpen: async (body: { cashierName: string; openingFloat?: number; notes?: string }) => {
@@ -509,8 +524,22 @@ export const commerceClient = {
         body: JSON.stringify({ action: "open", ...body }),
       });
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e ?? "");
+      if (/already open/i.test(msg)) {
+        const status = localTillStatus();
+        if (status.current) return { shift: status.current };
+      }
       if (!isApiOfflineError(e)) throw e;
-      return { shift: localTillOpen(body) };
+      try {
+        return { shift: localTillOpen(body) };
+      } catch (localErr) {
+        const localMsg = localErr instanceof Error ? localErr.message : String(localErr ?? "");
+        if (/already open/i.test(localMsg)) {
+          const status = localTillStatus();
+          if (status.current) return { shift: status.current };
+        }
+        throw localErr;
+      }
     }
   },
   tillClose: async (body: { id: string; closingCash: number; notes?: string }) => {
