@@ -18,9 +18,25 @@ export function ProductPhoto({ src, name, className, sizes = "240px" }: { src?: 
       {show && src ? (
         isInlineImageSrc(src) ? (
           // eslint-disable-next-line @next/next/no-img-element -- data/blob URLs from product upload
-          <img src={src} alt={name} className="absolute inset-0 h-full w-full object-contain p-3" onError={() => setFailed(src)} />
+          <img
+            src={src}
+            alt={name}
+            loading="lazy"
+            decoding="async"
+            className="absolute inset-0 h-full w-full object-contain p-3"
+            onError={() => setFailed(src)}
+          />
         ) : (
-          <Image src={src} alt={name} fill sizes={sizes} unoptimized className="object-contain p-3" onError={() => setFailed(src)} />
+          <Image
+            src={src}
+            alt={name}
+            fill
+            sizes={sizes}
+            unoptimized
+            loading="lazy"
+            className="object-contain p-3"
+            onError={() => setFailed(src)}
+          />
         )
       ) : (
         <div className="flex h-full min-h-12 items-center justify-center bg-muted">

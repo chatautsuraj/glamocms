@@ -56,6 +56,7 @@ async function bff<T>(path: string, init?: RequestInit): Promise<T> {
   return data as T;
 }
 
+
 export type ApiProduct = {
   id: string;
   name: string;
@@ -338,26 +339,10 @@ export const commerceClient = {
     }
   },
   createOrder: async (body: Record<string, unknown>) => {
-    try {
-      const res = await bff<{ ok: boolean; order: ApiOrder }>("/api/commerce/orders", {
-        method: "POST",
-        body: JSON.stringify(body),
-      });
-      if (res.order) {
-        // Keep Glamo number format for bills/PDF even when API returns its own id
-        const numbered: ApiOrder = {
-          ...res.order,
-          id: nextLocalOrderNumber(localListOrders()),
-        };
-        localMirrorOrder(numbered);
-        return { ok: true, order: numbered };
-      }
-      return res;
-    } catch (e) {
-      if (!isApiOfflineError(e)) throw e;
-      const order = localCreateOrder(body as LocalOrderInput);
-      return { ok: true, order };
-    }
+    // Counter sales are local-first so Pay never waits on a cold BFF / missing Nest.
+    // When a hosted API is wired, sync can be added as a background queue without blocking UI.
+    const order = localCreateOrder(body as LocalOrderInput);
+    return { ok: true, order };
   },
   updateOrder: async (id: string, body: Record<string, unknown>) => {
     const patch = body as LocalOrderPatch;

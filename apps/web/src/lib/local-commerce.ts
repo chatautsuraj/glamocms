@@ -6,6 +6,8 @@
 import type { AnalyticsSummary, ApiCustomer, ApiOrder, ApiProduct } from "@/lib/commerce-client";
 
 const KEY = "glamo-local-commerce-v1";
+const MAX_ORDERS = 300;
+const MAX_PAYMENTS = 300;
 
 type LocalTillShift = {
   id: string;
@@ -61,6 +63,10 @@ type LocalStore = {
   payments: LocalPayment[];
 };
 
+/** In-memory copy so POS sales don't re-parse localStorage on every write. */
+let memory: LocalStore | null = null;
+let persistTimer: ReturnType<typeof setTimeout> | null = null;
+
 function empty(): LocalStore {
   return {
     customers: [],
@@ -75,7 +81,25 @@ function empty(): LocalStore {
   };
 }
 
-function read(): LocalStore {
+function stripHeavyImages(images: string[] | undefined): string[] {
+  if (!Array.isArray(images) || !images.length) return [];
+  // data: URLs blow up localStorage and freeze JSON.stringify on every sale
+  return images.filter((img) => typeof img === "string" && !img.startsWith("data:")).slice(0, 1);
+}
+
+function slimForPersist(store: LocalStore): LocalStore {
+  return {
+    ...store,
+    orders: store.orders.slice(0, MAX_ORDERS),
+    payments: store.payments.slice(0, MAX_PAYMENTS),
+    products: store.products.map((p) => ({
+      ...p,
+      images: stripHeavyImages(p.images),
+    })),
+  };
+}
+
+function readFromDisk(): LocalStore {
   if (typeof window === "undefined") return empty();
   try {
     const raw = localStorage.getItem(KEY);
@@ -103,9 +127,48 @@ function read(): LocalStore {
   }
 }
 
+function read(): LocalStore {
+  if (!memory) {
+    memory = readFromDisk();
+    // One-time slim: old sessions may have huge data: image URLs that freeze every sale.
+    let dirty = false;
+    memory.products = memory.products.map((p) => {
+      const images = stripHeavyImages(p.images);
+      if (images.length !== (p.images?.length ?? 0)) dirty = true;
+      return images === p.images ? p : { ...p, images };
+    });
+    if (memory.orders.length > MAX_ORDERS) {
+      memory.orders = memory.orders.slice(0, MAX_ORDERS);
+      dirty = true;
+    }
+    if (dirty) write(memory);
+  }
+  return memory;
+}
+
+function flushPersist() {
+  if (typeof window === "undefined" || !memory) return;
+  try {
+    localStorage.setItem(KEY, JSON.stringify(slimForPersist(memory)));
+  } catch {
+    /* quota — keep memory; next sale still works */
+  }
+}
+
 function write(store: LocalStore) {
+  memory = store;
   if (typeof window === "undefined") return;
-  localStorage.setItem(KEY, JSON.stringify(store));
+  if (persistTimer) clearTimeout(persistTimer);
+  // Debounce disk writes so multi-line sales don't stringify repeatedly on the hot path.
+  persistTimer = setTimeout(() => {
+    persistTimer = null;
+    const run = () => flushPersist();
+    if (typeof requestIdleCallback === "function") {
+      requestIdleCallback(run, { timeout: 800 });
+    } else {
+      run();
+    }
+  }, 50);
 }
 
 function uid(prefix: string) {
@@ -408,8 +471,13 @@ export function localAdjustStockFromCurrent(
   return localSetStock(productId, Math.max(0, currentStock + delta), baseProduct);
 }
 
-function localAdjustStockRelative(productId: string, qty: number, knownStock?: number) {
-  const store = read();
+function localAdjustStockRelative(
+  productId: string,
+  qty: number,
+  knownStock?: number,
+  store = read(),
+  persist = true,
+) {
   const idx = store.products.findIndex((p) => p.id === productId);
   if (idx >= 0) {
     const p = store.products[idx];
@@ -418,17 +486,17 @@ function localAdjustStockRelative(productId: string, qty: number, knownStock?: n
       stock: Math.max(0, p.stock + qty),
       updatedAt: new Date().toISOString(),
     };
-    write(store);
+    if (persist) write(store);
     return;
   }
   if (typeof store.stockOverrides[productId] === "number") {
     store.stockOverrides[productId] = Math.max(0, store.stockOverrides[productId] + qty);
-    write(store);
+    if (persist) write(store);
     return;
   }
   if (typeof knownStock === "number") {
     store.stockOverrides[productId] = Math.max(0, knownStock + qty);
-    write(store);
+    if (persist) write(store);
   }
 }
 
@@ -536,16 +604,16 @@ export function localCreateOrder(input: LocalOrderInput): ApiOrder {
     items,
   };
 
-  store.orders = [order, ...store.orders];
-  write(store);
+  store.orders = [order, ...store.orders].slice(0, MAX_ORDERS);
 
   for (const line of input.items ?? []) {
     const qty = Number(line.qty) || 0;
     if (qty > 0) {
-      localAdjustStockRelative(line.productId, -qty, line.currentStock);
+      localAdjustStockRelative(line.productId, -qty, line.currentStock, store, false);
     }
   }
 
+  write(store);
   return order;
 }
 

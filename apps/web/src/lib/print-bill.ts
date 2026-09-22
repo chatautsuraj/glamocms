@@ -268,10 +268,11 @@ export function downloadStoreBillPdf(opts: StoreBillOpts) {
   return true;
 }
 
-/** Print receipt now; defer PDF so the POS UI can unlock without a jspdf freeze. */
-export function issueStoreBill(opts: StoreBillOpts) {
+/** Print thermal receipt. PDF download is opt-in (jspdf freezes the counter). */
+export function issueStoreBill(opts: StoreBillOpts & { downloadPdf?: boolean }) {
   const stamped = { ...opts, printedAt: opts.printedAt ?? new Date() };
   printStoreBill(stamped);
+  if (!opts.downloadPdf) return;
   const schedule =
     typeof window !== "undefined" && "requestIdleCallback" in window
       ? (cb: () => void) =>
@@ -279,8 +280,8 @@ export function issueStoreBill(opts: StoreBillOpts) {
             window as Window & {
               requestIdleCallback: (fn: () => void, opts?: { timeout: number }) => number;
             }
-          ).requestIdleCallback(cb, { timeout: 1200 })
-      : (cb: () => void) => window.setTimeout(cb, 80);
+          ).requestIdleCallback(cb, { timeout: 2000 })
+      : (cb: () => void) => window.setTimeout(cb, 250);
   schedule(() => {
     try {
       downloadStoreBillPdf(stamped);

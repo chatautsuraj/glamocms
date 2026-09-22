@@ -3,7 +3,6 @@ import { ProductPhoto } from "@/components/product-photo";
 
 import { saleBlockReason } from "@/lib/cosmetics";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   Banknote,
   Camera,
@@ -640,13 +639,18 @@ export default function GallaPage() {
         invoiceType: (taxInvoice ? "tax" : "estimate") as "tax" | "estimate",
         buyerPan: taxInvoice ? buyerPan.trim() || undefined : undefined,
       };
-      window.setTimeout(() => {
+      // Let React paint the cleared cart before opening the print dialog.
+      const schedulePrint =
+        typeof requestIdleCallback === "function"
+          ? (cb: () => void) => requestIdleCallback(cb, { timeout: 600 })
+          : (cb: () => void) => window.setTimeout(cb, 50);
+      schedulePrint(() => {
         try {
           issueStoreBill(billOpts);
         } catch {
           toast.error("Sale saved, but bill print failed");
         }
-      }, 0);
+      });
 
       if (needsQr) {
         void commerceClient
@@ -660,10 +664,10 @@ export default function GallaPage() {
             /* offline / API optional — sale already paid locally */
           });
       }
-      void reloadRecentSales();
+      // Defer sales history refresh so it never competes with cart unlock.
       window.setTimeout(() => {
-        void reloadProducts();
-      }, 2500);
+        void reloadRecentSales();
+      }, 400);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not complete the sale");
       setPaying(false);
@@ -680,7 +684,6 @@ export default function GallaPage() {
     splitCash,
     splitQr,
     products,
-    reloadProducts,
     reloadRecentSales,
     applyStockSold,
     qrOpen,
@@ -891,49 +894,43 @@ export default function GallaPage() {
 
           <div className="max-h-[calc(100vh-22rem)] overflow-y-auto scrollbar-thin pr-1">
             <div className="grid gap-2 sm:grid-cols-2">
-              <AnimatePresence mode="popLayout">
-                {filteredProducts.length === 0 ? (
-                  <p className="col-span-full py-10 text-center text-sm text-muted-foreground">
-                    No counter products match. Mark SKUs as counter/POS when adding products.
-                  </p>
-                ) : (
-                  filteredProducts.map((p) => (
-                    <motion.button
-                      key={p.id}
-                      layout
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      type="button"
-                      onClick={() => addToCart(p)}
-                      disabled={p.stock <= 0 || !!saleBlockReason(p)}
-                      className={cn(
-                        "flex items-center gap-3 rounded-xl border border-border bg-card p-3 text-left transition-colors hover:border-primary/50 hover:bg-primary/5 disabled:cursor-not-allowed disabled:opacity-50",
-                        p.stock <= p.reorderAt && p.stock > 0 && "border-warning/40"
-                      )}
-                    >
-                      <ProductPhoto src={p.image} name={p.name} className="h-20 w-20 shrink-0" />
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium leading-snug">{p.name}</p>
-                        {p.shade && !p.name.includes(p.shade) && <p className="text-xs text-primary">{p.shade}</p>}
-                        <p className="text-xs text-muted-foreground">
-                          {p.size ? `${p.size} · ` : ""}
-                          {p.sku} · Stock: {p.stock}
-                          {p.stock <= 0 ? " · OUT" : ""}{p.isTester ? " · TESTER" : saleBlockReason(p) ? " · EXPIRED" : ""}
-                        </p>
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <p className="font-semibold text-primary">
-                          {formatNPR(p.tradePrice)}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground">
-                          MRP {formatNPR(p.mrp)}
-                        </p>
-                      </div>
-                    </motion.button>
-                  ))
-                )}
-              </AnimatePresence>
+              {filteredProducts.length === 0 ? (
+                <p className="col-span-full py-10 text-center text-sm text-muted-foreground">
+                  No counter products match. Mark SKUs as counter/POS when adding products.
+                </p>
+              ) : (
+                filteredProducts.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => addToCart(p)}
+                    disabled={p.stock <= 0 || !!saleBlockReason(p)}
+                    className={cn(
+                      "flex items-center gap-3 rounded-xl border border-border bg-card p-3 text-left transition-colors hover:border-primary/50 hover:bg-primary/5 disabled:cursor-not-allowed disabled:opacity-50",
+                      p.stock <= p.reorderAt && p.stock > 0 && "border-warning/40"
+                    )}
+                  >
+                    <ProductPhoto src={p.image} name={p.name} className="h-20 w-20 shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium leading-snug">{p.name}</p>
+                      {p.shade && !p.name.includes(p.shade) && <p className="text-xs text-primary">{p.shade}</p>}
+                      <p className="text-xs text-muted-foreground">
+                        {p.size ? `${p.size} · ` : ""}
+                        {p.sku} · Stock: {p.stock}
+                        {p.stock <= 0 ? " · OUT" : ""}{p.isTester ? " · TESTER" : saleBlockReason(p) ? " · EXPIRED" : ""}
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="font-semibold text-primary">
+                        {formatNPR(p.tradePrice)}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        MRP {formatNPR(p.mrp)}
+                      </p>
+                    </div>
+                  </button>
+                ))
+              )}
             </div>
           </div>
         </div>
