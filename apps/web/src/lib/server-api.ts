@@ -17,6 +17,9 @@ function resolveApiUrl(): string | null {
 }
 
 const UPSTREAM_MS = Number(process.env.GLAMO_API_TIMEOUT_MS ?? (process.env.GLAMO_API_URL ? 8000 : 600));
+/** After a dead Nest, skip dialing it briefly so POS sales don't stack timeouts. */
+const COOLDOWN_MS = Number(process.env.GLAMO_API_COOLDOWN_MS ?? 20_000);
+let upstreamSkipUntil = 0;
 
 export function getGlamoApiConfig() {
   return { API_URL: resolveApiUrl(), API_KEY };
@@ -32,6 +35,10 @@ export async function glamoApi<T = unknown>(
 ): Promise<{ ok: true; data: T } | { ok: false; status: number; error: unknown }> {
   const base = resolveApiUrl();
   if (!base) {
+    return { ok: false, status: 503, error: "fetch failed" };
+  }
+
+  if (Date.now() < upstreamSkipUntil) {
     return { ok: false, status: 503, error: "fetch failed" };
   }
 
@@ -58,10 +65,15 @@ export async function glamoApi<T = unknown>(
       }
     }
     if (!res.ok) {
+      if (res.status >= 500) {
+        upstreamSkipUntil = Date.now() + COOLDOWN_MS;
+      }
       return { ok: false, status: res.status, error: data ?? text };
     }
+    upstreamSkipUntil = 0;
     return { ok: true, data: data as T };
   } catch (e) {
+    upstreamSkipUntil = Date.now() + COOLDOWN_MS;
     const msg =
       e instanceof Error
         ? e.name === "AbortError"

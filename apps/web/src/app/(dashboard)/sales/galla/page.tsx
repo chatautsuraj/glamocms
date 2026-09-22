@@ -68,7 +68,7 @@ export default function GallaPage() {
   const activeTenantId = useActiveTenantId();
   const vatEnabled = useVatEnabled();
   const storeUser = useStoreUser();
-  const { products, reload: reloadProducts } = useApiProducts();
+  const { products, reload: reloadProducts, applyStockSold } = useApiProducts();
   const walkIn = useMemo(
     () => getWalkInCustomer(activeTenantId ?? "glamo"),
     [activeTenantId]
@@ -615,45 +615,57 @@ export default function GallaPage() {
         })),
       });
 
-      if (needsQr) {
-        try {
-          await commerceClient.confirmPayment({
-            orderId: order.id,
-            provider: "fonepay",
-            amount: payment === "SPLIT" ? qrAmt || total : total,
-            externalRef: `POS-${Date.now()}`,
-          });
-        } catch {
-          /* offline / API optional — sale already paid locally */
-        }
-      }
-
+      // Unlock counter immediately — bill + background sync must not block the next sale.
+      applyStockSold(cart.map((item) => ({ productId: item.productId, qty: item.qty })));
       setSessionSales((s) => s + total);
       setSessionCount((c) => c + 1);
       toast.success(`Sale complete — ${order.id}`, {
         description: `${cart.length} lines · ${formatNPR(total)} via ${payment}`,
       });
-      issueStoreBill({
+      setQrOpen(false);
+      clearCart();
+      setPaying(false);
+
+      const billOpts = {
         orderId: order.id,
         customerName: customer.name,
         customerPhone: "phone" in customer ? (customer.phone ?? undefined) : undefined,
         method: payment,
-        channel: "store",
+        channel: "store" as const,
         lines: billLines,
         subtotal,
         vat,
         total,
         vatEnabled: vatEnabled && vat > 0,
-        invoiceType: taxInvoice ? "tax" : "estimate",
+        invoiceType: (taxInvoice ? "tax" : "estimate") as "tax" | "estimate",
         buyerPan: taxInvoice ? buyerPan.trim() || undefined : undefined,
-      });
-      setQrOpen(false);
-      clearCart();
-      await reloadProducts();
-      await reloadRecentSales();
+      };
+      window.setTimeout(() => {
+        try {
+          issueStoreBill(billOpts);
+        } catch {
+          toast.error("Sale saved, but bill print failed");
+        }
+      }, 0);
+
+      if (needsQr) {
+        void commerceClient
+          .confirmPayment({
+            orderId: order.id,
+            provider: "fonepay",
+            amount: payment === "SPLIT" ? qrAmt || total : total,
+            externalRef: `POS-${Date.now()}`,
+          })
+          .catch(() => {
+            /* offline / API optional — sale already paid locally */
+          });
+      }
+      void reloadRecentSales();
+      window.setTimeout(() => {
+        void reloadProducts();
+      }, 2500);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not complete the sale");
-    } finally {
       setPaying(false);
     }
   }, [
@@ -670,6 +682,7 @@ export default function GallaPage() {
     products,
     reloadProducts,
     reloadRecentSales,
+    applyStockSold,
     qrOpen,
     taxInvoice,
     buyerPan,

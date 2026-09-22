@@ -18,6 +18,22 @@ export function invalidateProductCache() {
   cache = null;
 }
 
+/** Instant on-hand update after a POS sale (avoids full catalog refetch freeze). */
+export function patchCachedStockSold(lines: { productId: string; qty: number }[]) {
+  if (!cache || !lines.length) return null;
+  const sold: Record<string, number> = {};
+  for (const line of lines) {
+    sold[line.productId] = (sold[line.productId] ?? 0) + Math.max(0, Math.floor(line.qty));
+  }
+  const products = cache.products.map((p) => {
+    const qty = sold[p.id];
+    if (!qty) return p;
+    return { ...p, stock: Math.max(0, p.stock - qty) };
+  });
+  cache = { at: Date.now(), products };
+  return products;
+}
+
 export function useApiProducts() {
   const [products, setProducts] = useState<UiProduct[]>(() =>
     cache ? cache.products.map(apiProductToUi) : [],
@@ -26,10 +42,14 @@ export function useApiProducts() {
   const [loading, setLoading] = useState(!cache);
   const [error, setError] = useState<string | null>(null);
 
+  const hydrate = useCallback((list: ApiProduct[]) => {
+    setRaw(list);
+    setProducts(list.map(apiProductToUi));
+  }, []);
+
   const reload = useCallback(async (force = false) => {
     if (!force && cache && Date.now() - cache.at < CACHE_MS) {
-      setRaw(cache.products);
-      setProducts(cache.products.map(apiProductToUi));
+      hydrate(cache.products);
       setLoading(false);
       return;
     }
@@ -39,20 +59,34 @@ export function useApiProducts() {
     try {
       const { products: list } = await commerceClient.listProducts();
       cache = { at: Date.now(), products: list };
-      setRaw(list);
-      setProducts(list.map(apiProductToUi));
+      hydrate(list);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load products");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [hydrate]);
+
+  const applyStockSold = useCallback(
+    (lines: { productId: string; qty: number }[]) => {
+      const next = patchCachedStockSold(lines);
+      if (next) hydrate(next);
+    },
+    [hydrate],
+  );
 
   useEffect(() => {
     void reload();
   }, [reload]);
 
-  return { products, raw, loading, error, reload: () => reload(true) };
+  return {
+    products,
+    raw,
+    loading,
+    error,
+    reload: () => reload(true),
+    applyStockSold,
+  };
 }
 
 /** Lazy camera scanner — keeps POS first paint lighter. */

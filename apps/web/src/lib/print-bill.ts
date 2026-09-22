@@ -268,11 +268,26 @@ export function downloadStoreBillPdf(opts: StoreBillOpts) {
   return true;
 }
 
-/** Print + download PDF estimate. */
+/** Print receipt now; defer PDF so the POS UI can unlock without a jspdf freeze. */
 export function issueStoreBill(opts: StoreBillOpts) {
   const stamped = { ...opts, printedAt: opts.printedAt ?? new Date() };
-  downloadStoreBillPdf(stamped);
   printStoreBill(stamped);
+  const schedule =
+    typeof window !== "undefined" && "requestIdleCallback" in window
+      ? (cb: () => void) =>
+          (
+            window as Window & {
+              requestIdleCallback: (fn: () => void, opts?: { timeout: number }) => number;
+            }
+          ).requestIdleCallback(cb, { timeout: 1200 })
+      : (cb: () => void) => window.setTimeout(cb, 80);
+  schedule(() => {
+    try {
+      downloadStoreBillPdf(stamped);
+    } catch {
+      /* print already issued */
+    }
+  });
 }
 
 /** Large QR payload for customer to scan (amount + shop). Replace with Fonepay/eSewa payload later. */
