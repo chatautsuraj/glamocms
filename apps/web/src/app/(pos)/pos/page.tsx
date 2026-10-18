@@ -41,6 +41,11 @@ import { cn } from "@/lib/utils";
 const BarcodeCameraDialog = dynamic(() => import("@/components/barcode-camera-dialog").then((m) => m.BarcodeCameraDialog), { ssr: false });
 
 const AUTO_PRINT_KEY = "glamo-pos:auto-print";
+/** Touch screens: don't pop the on-screen keyboard; the scanner works without focus anyway. */
+const focusSearch = (el: HTMLInputElement | null) => {
+  if (el && !window.matchMedia("(pointer: coarse)").matches) el.focus();
+};
+
 /** A typed (not scanned) code + Enter is looked up when it looks like a barcode/SKU. */
 const LOOKS_LIKE_CODE = /^[A-Za-z0-9._\-/+]{4,64}$/;
 
@@ -80,7 +85,7 @@ export default function PosPage() {
   useEffect(() => {
     setAutoPrint(window.localStorage.getItem(AUTO_PRINT_KEY) !== "off");
     setSound(scanSoundEnabled());
-    searchRef.current?.focus();
+    focusSearch(searchRef.current);
     // Load the bill printer code while online so printing keeps working offline.
     const idle = window.setTimeout(preloadPrinting, 1500);
     return () => window.clearTimeout(idle);
@@ -227,7 +232,12 @@ export default function PosPage() {
   };
 
   const complete = async (tenders: Tender[]) => {
-    if (!user || !config || submitting.current) return;
+    if (submitting.current) return;
+    if (!user || !config) {
+      toast.error("Shop settings are still loading. Try again in a moment.");
+      void usePosConfig.getState().refresh();
+      return;
+    }
     submitting.current = true;
     setBusy(true);
     const state = usePosCart.getState();
@@ -256,12 +266,12 @@ export default function PosPage() {
     const saved = { lines: snapshot.lines, customer: snapshot.customer, discount: snapshot.discount, notes: snapshot.notes, lastKey: snapshot.lastKey };
     snapshot.clear();
     toast("Sale cleared", { action: { label: "Undo", onClick: () => usePosCart.setState(saved) }, duration: 6000 });
-    searchRef.current?.focus();
+    focusSearch(searchRef.current);
   };
 
   const newSale = () => {
     setDone(null);
-    window.setTimeout(() => searchRef.current?.focus(), 0);
+    window.setTimeout(() => focusSearch(searchRef.current), 0);
   };
 
   const toggle = (key: string, value: boolean, set: (v: boolean) => void) => {

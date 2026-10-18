@@ -20,7 +20,7 @@ import { useApi } from "@/lib/use-api";
 const REPORTS: Array<{ type: ReportType; label: string; hint: string; channel: boolean }> = [
   { type: "sales", label: "Sales", hint: "Every order with channel, cashier, totals and payment.", channel: true },
   { type: "vat", label: "VAT", hint: "Taxable amount and VAT per day, for your VAT return.", channel: true },
-  { type: "products", label: "Products", hint: "Sales, units and estimated profit per product.", channel: true },
+  { type: "products", label: "Products", hint: "Sales, units and gross profit per product.", channel: true },
   { type: "till", label: "Cash drawer", hint: "Starting cash, cash sales, what should be in the drawer, what was counted, and the difference.", channel: false },
   { type: "inventory", label: "Stock", hint: "Stock right now and its value at cost and at selling price.", channel: false },
 ];
@@ -34,7 +34,7 @@ const COLUMN_LABEL: Record<string, string> = {
   cashierName: "Cashier", openedAt: "Started", closedAt: "Counted at", byMethod: "By payment", lowStockThreshold: "Warn at",
   costPrice: "Cost", stockValueCost: "Stock value (cost)", stockValueRetail: "Stock value (selling)", isActive: "Active", posVisible: "At counter",
   paymentStatus: "Payment", paymentMethod: "Paid by", ref: "Bill no.", taxableAmount: "Taxable", vatAmount: "VAT", exemptAmount: "VAT free",
-  revenue: "Sales", margin: "Profit (estimate)", key: "Code", label: "Name", id: "ID", sku: "SKU",
+  revenue: "Sales", margin: "Gross profit", key: "Code", label: "Name", id: "ID", sku: "SKU",
 };
 
 function columnLabel(key: string) {

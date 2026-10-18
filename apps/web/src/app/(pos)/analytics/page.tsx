@@ -18,7 +18,7 @@ import { useApi } from "@/lib/use-api";
 const breakdownTable = (rows: BreakdownRow[]): TableSpec => ({
   columns: [
     { key: "label", label: "Name" }, { key: "revenue", label: "Sales", money: true }, { key: "orders", label: "Orders" },
-    { key: "items", label: "Items" }, { key: "margin", label: "Profit (estimate)", money: true },
+    { key: "items", label: "Items" }, { key: "margin", label: "Gross profit", money: true },
   ],
   rows: rows as unknown as Array<Record<string, unknown>>,
 });
@@ -46,7 +46,7 @@ export default function AnalyticsPage() {
           <StatCard title="Sales" value={t ? formatNPR(t.revenue) : "…"} loading={summary.loading && !t} icon={TrendingUp} subtitle={t?.netRevenue !== undefined ? `${formatNPR(t.netRevenue)} after refunds` : undefined} />
           <StatCard title="Orders" value={t ? formatNumber(t.orders) : "…"} loading={summary.loading && !t} icon={Receipt} subtitle={t ? `${formatNumber(t.items)} items` : undefined} />
           <StatCard title="Average order" value={t ? formatNPR(t.aov) : "…"} loading={summary.loading && !t} icon={ShoppingBag} />
-          <StatCard title="Profit (estimate)" value={t ? formatNPR(t.grossMargin) : "…"} loading={summary.loading && !t} icon={BadgePercent} subtitle={t ? `VAT ${formatNPR(t.vat)} · discounts ${formatNPR(t.discounts)} · refunds ${formatNPR(t.refunds)}` : undefined} />
+          <StatCard title="Gross profit" value={t ? formatNPR(t.grossMargin) : "…"} loading={summary.loading && !t} icon={BadgePercent} subtitle={t ? `VAT ${formatNPR(t.vat)} · discounts ${formatNPR(t.discounts)} · refunds ${formatNPR(t.refunds)}` : undefined} />
         </div>
       )}
       <div className="grid gap-4 xl:grid-cols-2">

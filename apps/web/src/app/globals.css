@@ -53,8 +53,8 @@
   --sidebar-accent: #fbeff3;
   --sidebar-accent-foreground: #1a1512;
 
-  --shadow-card: 0 1px 2px rgb(26 21 18 / 0.04), 0 6px 16px -10px rgb(173 75 100 / 0.18);
-  --shadow-pop: 0 12px 32px -12px rgb(26 21 18 / 0.28);
+  --elev-card: 0 1px 2px rgb(26 21 18 / 0.04), 0 6px 16px -10px rgb(173 75 100 / 0.18);
+  --elev-pop: 0 12px 32px -12px rgb(26 21 18 / 0.28);
 
   /* Chart series — validated categorical palette, fixed order (one per channel). */
   --series-1: #2a78d6;
@@ -107,8 +107,8 @@
   --sidebar-accent: rgb(217 120 152 / 0.16);
   --sidebar-accent-foreground: #fbf6f4;
 
-  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4);
-  --shadow-pop: 0 12px 32px -12px rgb(0 0 0 / 0.7);
+  --elev-card: 0 1px 2px rgb(0 0 0 / 0.4);
+  --elev-pop: 0 12px 32px -12px rgb(0 0 0 / 0.7);
 
   --series-1: #3987e5;
   --series-2: #d95926;
@@ -143,6 +143,7 @@
   --color-rose-dark: var(--rose-dark);
   --color-rose-tint: var(--rose-tint);
   --color-ink: var(--ink);
+  --color-ink-strong: var(--ink-strong);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
@@ -162,8 +163,8 @@
   --radius-xl: 1rem;
   --radius-2xl: 1.25rem;
 
-  --shadow-card: var(--shadow-card);
-  --shadow-pop: var(--shadow-pop);
+  --shadow-card: var(--elev-card);
+  --shadow-pop: var(--elev-pop);
 
   --font-sans: var(--font-glamo-sans);
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
@@ -191,7 +192,6 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-glamo-sans), system-ui, sans-serif;
-  font-feature-settings: "tnum" 0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

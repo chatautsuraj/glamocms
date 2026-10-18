@@ -11,7 +11,7 @@ type SnapshotFn = (updatedSince?: string) => Promise<{ products: PosProduct[]; s
  * Pull the catalog. First run (or `full`) replaces the cache; afterwards only
  * products changed since the last serverTime are fetched, and `deleted:true`
  * rows are removed. Pending offline sales are re-applied to stock afterwards
- * so the till never shows stock that has already been sold locally.
+ * so the POS never shows stock that has already been sold locally.
  */
 export async function refreshCatalog(opts: { full?: boolean; snapshot?: SnapshotFn } = {}) {
   const snapshot = opts.snapshot ?? catalogApi.snapshot;

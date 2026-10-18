@@ -154,7 +154,8 @@ export default function PhoneOrdersPage() {
   };
 
   const place = async (tenders: Tender[]) => {
-    if (!user || !config || busy) return;
+    if (busy) return;
+    if (!user || !config) return void toast.error("Shop settings are still loading. Try again in a moment.");
     setBusy(true);
     const state = usePhoneOrderCart.getState();
     const paid = tenders.reduce((s, t) => s + t.amount, 0);
