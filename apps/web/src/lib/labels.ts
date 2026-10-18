@@ -19,12 +19,11 @@ export const CHANNEL_FILTERS: Array<{ value: Channel | ""; label: string }> = [
 
 export const PAYMENT_LABEL: Record<PaymentMethod | "CASH_ON_DELIVERY", string> = {
   CASH: "Cash",
-  FONEPAY_QR: "Fonepay QR",
+  FONEPAY_QR: "Fonepay",
   KHALTI: "Khalti",
   ESEWA: "eSewa",
   CARD: "Card",
   BANK_TRANSFER: "Bank transfer",
-  CREDIT: "Khata (credit)",
   CASH_ON_DELIVERY: "Cash on delivery",
 };
 

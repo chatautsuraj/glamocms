@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import { useEffect, useId, useRef, type ReactNode, type RefObject } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "./button";
@@ -19,14 +19,16 @@ const stack: string[] = [];
 
 const FOCUSABLE = "a[href], button:not([disabled]), input:not([disabled]):not([type=hidden]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])";
 
-/** Modal dialog: role=dialog, Escape closes, Tab is trapped, focus moves in and is restored on close. */
-export function Dialog({ open, onOpenChange, children, className, label }: DialogProps) {
+/**
+ * Registers a modal layer: Escape closes only the top-most layer, Tab is
+ * trapped inside `panel`, focus moves in on open and is restored on close.
+ */
+export function useModalLayer(open: boolean, onClose: () => void, panel: RefObject<HTMLElement | null>) {
   const id = useId();
-  const panel = useRef<HTMLDivElement>(null);
-  const onOpenChangeRef = useRef(onOpenChange);
+  const onCloseRef = useRef(onClose);
   useEffect(() => {
-    onOpenChangeRef.current = onOpenChange;
-  }, [onOpenChange]);
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!open) return;
@@ -38,7 +40,7 @@ export function Dialog({ open, onOpenChange, children, className, label }: Dialo
       if (e.key === "Escape") {
         e.preventDefault();
         e.stopPropagation();
-        onOpenChangeRef.current(false);
+        onCloseRef.current();
         return;
       }
       if (e.key === "Tab" && panel.current) {
@@ -70,7 +72,13 @@ export function Dialog({ open, onOpenChange, children, className, label }: Dialo
       window.clearTimeout(t);
       previous?.focus?.();
     };
-  }, [open, id]);
+  }, [open, id, panel]);
+}
+
+/** Modal dialog: role=dialog, Escape closes, Tab is trapped, focus moves in and is restored on close. */
+export function Dialog({ open, onOpenChange, children, className, label }: DialogProps) {
+  const panel = useRef<HTMLDivElement>(null);
+  useModalLayer(open, () => onOpenChange(false), panel);
 
   if (!open) return null;
   return (

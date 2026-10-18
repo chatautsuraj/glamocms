@@ -54,6 +54,7 @@ function notePageHtml(order: PosOrder, index: number, total: number, COMPANY: Bi
   const address = deliveryAddress(order).trim() || "Address not set";
   const notes = order.notes?.trim() || "";
   const assignee = order.shipment ? "Nepal Can Move" : "—";
+  const legal = COMPANY.legalName?.trim() && COMPANY.legalName.trim() !== COMPANY.name.trim() ? COMPANY.legalName.trim() : "";
   const tracking = order.shipment?.trackingCode
     ? `<p>NCM tracking: <strong class="mono">${escapeHtml(order.shipment.trackingCode)}</strong></p>`
     : "";
@@ -86,8 +87,7 @@ function notePageHtml(order: PosOrder, index: number, total: number, COMPANY: Bi
         <div class="logo">${logoImg(COMPANY.name, 72)}</div>
         <div class="brand-text">
           <strong>${escapeHtml(COMPANY.name)}</strong>
-          <span>${escapeHtml(COMPANY.category ?? "Cosmetics store")}</span>
-          <span>${escapeHtml(COMPANY.address)}</span>
+${legal ? `          <span>${escapeHtml(legal)}</span>\n` : ""}          <span>${escapeHtml(COMPANY.address)}</span>
           <span>${escapeHtml(COMPANY.phone)}</span>
         </div>
       </div>
@@ -124,8 +124,7 @@ function notePageHtml(order: PosOrder, index: number, total: number, COMPANY: Bi
           <div class="logo-sm">${logoImg(COMPANY.name, 40)}</div>
           <div>
             <p><strong>${escapeHtml(COMPANY.name)}</strong></p>
-            <p>${escapeHtml(COMPANY.category ?? "Cosmetics store")}</p>
-            <p>${escapeHtml(COMPANY.address)}</p>
+${legal ? `            <p>${escapeHtml(legal)}</p>\n` : ""}            <p>${escapeHtml(COMPANY.address)}</p>
             <p>Tel: ${escapeHtml(COMPANY.phone)}</p>
             <p>${escapeHtml(COMPANY.email ?? "")}</p>
           </div>

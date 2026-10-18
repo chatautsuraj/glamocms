@@ -1,8 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import {
   BarChart3, Boxes, ChevronLeft, ChevronRight, FileBarChart, LayoutDashboard, MessageCircle, Package, Phone, Receipt,
   ScanLine, Settings, Truck, Users,
@@ -16,38 +16,56 @@ const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
 };
 
 const SECTIONS = ["Sell", "Commerce", "Channels", "Insights", "Admin"] as const;
+const SECTION_LABEL: Record<(typeof SECTIONS)[number], string> = {
+  Sell: "Sell",
+  Commerce: "Stock & orders",
+  Channels: "Delivery & chat",
+  Insights: "Reports",
+  Admin: "Admin",
+};
+
+/** Store logo from Settings, falling back to the bundled GLAMO logo (never a broken image). */
+function StoreLogo({ src }: { src: string | undefined }) {
+  const [failed, setFailed] = useState(false);
+  const url = src && !failed ? src : "/images/logo.png";
+  // eslint-disable-next-line @next/next/no-img-element -- remote logo URL from settings
+  return <img src={url} alt="" width={40} height={24} onError={() => setFailed(true)} className="h-7 w-11 shrink-0 object-contain" />;
+}
 
 export function Sidebar({ collapsed, mobileOpen = false, onToggle }: { collapsed: boolean; mobileOpen?: boolean; onToggle: () => void }) {
   const pathname = usePathname();
   const permissions = useAuthStore((s) => s.permissions);
+  const store = useAuthStore((s) => s.store);
   const items = NAV.filter((n) => hasAny(permissions, n.anyOf));
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  // On phones the drawer always shows labels.
+  const compact = collapsed && !mobileOpen;
 
   return (
     <aside
-      aria-label="Main navigation"
+      aria-label="Main menu"
       className={cn(
-        "fixed inset-y-0 left-0 z-50 flex flex-col border-r border-sidebar-border bg-sidebar transition-all duration-300 md:translate-x-0",
-        mobileOpen ? "visible translate-x-0" : "invisible -translate-x-full md:visible",
-        collapsed ? "w-[68px]" : "w-64",
+        "fixed inset-y-0 left-0 z-50 flex flex-col border-r border-sidebar-border bg-sidebar transition-[width,transform] duration-200 md:translate-x-0",
+        mobileOpen ? "visible w-64 translate-x-0" : "invisible -translate-x-full md:visible",
+        !mobileOpen && (collapsed ? "md:w-[72px]" : "md:w-60"),
       )}
     >
-      <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-4">
-        <Image src="/images/logo.png" alt="" width={40} height={24} className="h-6 w-10 shrink-0 object-contain" />
-        {!collapsed && (
+      <div className={cn("flex h-16 items-center gap-2.5 border-b border-sidebar-border px-4", compact && "justify-center px-2")}>
+        <StoreLogo src={store?.logoUrl} />
+        {!compact && (
           <div className="min-w-0">
-            <p className="truncate font-display text-base font-semibold leading-tight">GLAMO POS</p>
-            <p className="truncate text-[11px] text-muted-foreground">GLAMO Nepal</p>
+            <p className="truncate font-display text-lg font-bold leading-none tracking-wide">GLAMO POS</p>
+            <p className="truncate text-xs text-muted-foreground">{store?.name}</p>
           </div>
         )}
       </div>
-      <nav className="flex-1 overflow-y-auto p-3 scrollbar-thin">
+      <nav className="flex-1 overflow-y-auto p-2 scrollbar-thin">
         {SECTIONS.map((section) => {
           const sectionItems = items.filter((i) => i.section === section);
           if (!sectionItems.length) return null;
           return (
-            <div key={section} className="mb-4">
-              {!collapsed && <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{section}</p>}
+            <div key={section} className="mb-3">
+              {!compact ? <p className="mb-1 px-3 pt-1 text-xs font-medium text-muted-foreground">{SECTION_LABEL[section]}</p> : <div className="mx-3 mb-2 h-px bg-sidebar-border" aria-hidden />}
               <ul className="space-y-0.5">
                 {sectionItems.map((item) => {
                   const Icon = ICONS[item.icon] ?? LayoutDashboard;
@@ -57,15 +75,15 @@ export function Sidebar({ collapsed, mobileOpen = false, onToggle }: { collapsed
                       <Link
                         href={item.href}
                         aria-current={active ? "page" : undefined}
-                        title={collapsed ? item.label : undefined}
+                        title={compact ? item.label : undefined}
                         className={cn(
-                          "flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                          active ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground hover:bg-accent hover:text-accent-foreground",
-                          collapsed && "justify-center px-2",
+                          "relative flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                          active ? "bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:inset-y-2 before:left-0 before:w-1 before:rounded-full before:bg-rose" : "text-sidebar-foreground hover:bg-accent",
+                          compact && "justify-center px-2",
                         )}
                       >
-                        <Icon className={cn("h-[18px] w-[18px] shrink-0", active && "text-primary")} />
-                        {collapsed ? <span className="sr-only">{item.label}</span> : <span className="truncate">{item.label}</span>}
+                        <Icon className="h-5 w-5 shrink-0" />
+                        {compact ? <span className="sr-only">{item.label}</span> : <span className="truncate">{item.label}</span>}
                       </Link>
                     </li>
                   );
@@ -75,14 +93,14 @@ export function Sidebar({ collapsed, mobileOpen = false, onToggle }: { collapsed
           );
         })}
       </nav>
-      <div className="hidden border-t border-sidebar-border p-3 md:block">
+      <div className="hidden border-t border-sidebar-border p-2 md:block">
         <button
           type="button"
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-label={collapsed ? "Show menu labels" : "Hide menu labels"}
           onClick={onToggle}
-          className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg px-3 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          {collapsed ? <ChevronRight className="h-4 w-4" /> : <><ChevronLeft className="h-4 w-4" /><span>Collapse</span></>}
+          {collapsed ? <ChevronRight className="h-4 w-4" /> : <><ChevronLeft className="h-4 w-4" /><span>Hide labels</span></>}
         </button>
       </div>
     </aside>

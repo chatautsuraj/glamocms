@@ -1,14 +1,14 @@
 /*
  * GLAMO POS service worker (hand-written, registered in production only).
- * - App shell + static assets so the till opens and sells offline.
+ * - App shell + static assets so the POS screen opens and sells offline.
  * - Never caches API traffic (api.glamonepal.com is cross-origin) or auth.
  * Business data lives in IndexedDB (Dexie), not here.
  */
-const VERSION = "glamo-pos-v1";
+const VERSION = "glamo-pos-v2";
 const SHELL = `${VERSION}-shell`;
 const ASSETS = `${VERSION}-assets`;
 const PAGES = `${VERSION}-pages`;
-const SHELL_URLS = ["/", "/till", "/login", "/dashboard", "/orders", "/images/logo.png", "/fonepay-qr.jpg", "/favicon.ico"];
+const SHELL_URLS = ["/", "/pos", "/login", "/dashboard", "/orders", "/images/logo.png", "/favicon.ico"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -60,7 +60,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
   if (request.mode === "navigate") {
-    event.respondWith(networkFirst(request, "/till"));
+    event.respondWith(networkFirst(request, "/pos"));
     return;
   }
   // RSC payloads for client-side navigation

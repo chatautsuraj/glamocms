@@ -10,8 +10,9 @@
  *     (and the PDF "Estimate — not a tax invoice" / "Thank you" lines) are
  *     gone. The note now prints only "Tax invoice · PAN …" (tax invoices)
  *     and/or the Settings bill footer; with neither, no note at all.
- *  3. The hard-coded "Cosmetics store" tagline is gone (store data comes from
- *     Settings: the legal name prints there when it differs from the name).
+ *  3. The hard-coded "Cosmetics store" tagline is gone from bills and delivery
+ *     notes (store data comes from Settings: the legal name prints there when
+ *     it differs from the store name).
  *  4. Buyer PAN is no longer printed (no API field for it).
  *  5. The inline print script is gone: bills/notes print through a hidden
  *     print frame (lib/print/print-document.ts), which prints exactly once.
@@ -128,7 +129,13 @@ test("BillData from the server maps onto the bill lines", () => {
 
 const OLD_LOGO_SVG = /<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg" viewBox="0 0 120 120"[\s\S]*?<\/svg>/g;
 const NEW_LOGO_IMG = /<img src="data:image\/png;base64,[^"]+" alt="[^"]*" width="\d+" height="\d+"\/>/g;
-const oldDelivery = () => old.deliveryHtml.replace(OLD_LOGO_SVG, "[LOGO]").replace("<script>window.onload=function(){window.print();}</script>\n", "");
+/** Old note minus the print script and the hard-coded tagline (or with the legal name in its place). */
+const oldDelivery = (legal = "") =>
+  old.deliveryHtml
+    .replace(OLD_LOGO_SVG, "[LOGO]")
+    .replace("<script>window.onload=function(){window.print();}</script>\n", "")
+    .replace("          <span>Cosmetics store</span>\n", legal ? `          <span>${legal}</span>\n` : "")
+    .replace("            <p>Cosmetics store</p>\n", legal ? `            <p>${legal}</p>\n` : "");
 
 test("delivery note matches the old layout apart from the logo and the print script", () => {
   const html = deliveryNotesHtml({ orders: [SAMPLE_POS_ORDER as unknown as PosOrder], company: OLD_COMPANY_AS_BILL });
@@ -148,5 +155,5 @@ test("delivery note adds the NCM tracking code and nothing else", () => {
   const normalised = tokeniseCompany(html.replace(NEW_LOGO_IMG, "[LOGO]"), store)
     .replace(`<p>NCM tracking: <strong class="mono">778899</strong></p>`, "")
     .replace("Assignee: Nepal Can Move", "Assignee: —");
-  assert.equal(normalised, tokeniseCompany(oldDelivery(), OLD_COMPANY_AS_BILL));
+  assert.equal(normalised, tokeniseCompany(oldDelivery("{LEGAL}"), OLD_COMPANY_AS_BILL));
 });

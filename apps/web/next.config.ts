@@ -9,6 +9,10 @@ const nextConfig: NextConfig = {
     optimizePackageImports: ["lucide-react", "recharts", "date-fns", "jspdf", "jsbarcode"],
   },
   images: { unoptimized: true },
+  async redirects() {
+    // v1 called the counter screen "Till".
+    return [{ source: "/till", destination: "/pos", permanent: true }];
+  },
   async headers() {
     return [
       { source: "/sw.js", headers: [{ key: "Cache-Control", value: "no-cache" }, { key: "Service-Worker-Allowed", value: "/" }] },

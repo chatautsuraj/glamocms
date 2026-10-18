@@ -6,15 +6,15 @@ import { StatusBadge } from "@/components/status-badge";
 import type { PosOrder } from "@/lib/api/types";
 import { formatDateTime, formatNPR } from "@/lib/format";
 
-export function OrdersTable({ orders, showShipment = true }: { orders: PosOrder[]; showShipment?: boolean }) {
-  if (!orders.length) return <p className="py-10 text-center text-sm text-muted-foreground">No orders match these filters.</p>;
+export function OrdersTable({ orders, showShipment = true, emptyText = "No orders match these filters." }: { orders: PosOrder[]; showShipment?: boolean; emptyText?: string }) {
+  if (!orders.length) return <p className="py-10 text-center text-sm text-muted-foreground">{emptyText}</p>;
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <caption className="sr-only">Orders</caption>
-        <thead className="text-left text-xs uppercase tracking-wide text-muted-foreground">
+        <thead className="text-left text-xs font-medium text-muted-foreground">
           <tr className="border-b border-border">
-            <th scope="col" className="py-2 pr-3">Bill / order</th>
+            <th scope="col" className="py-2 pr-3">Bill no.</th>
             <th scope="col" className="py-2 pr-3">Channel</th>
             <th scope="col" className="py-2 pr-3">Customer</th>
             <th scope="col" className="py-2 pr-3">Cashier</th>
@@ -38,7 +38,7 @@ export function OrdersTable({ orders, showShipment = true }: { orders: PosOrder[
                 <span className="block max-w-[180px] truncate">{o.customer.name}</span>
                 {o.customer.phone && <span className="text-xs text-muted-foreground">{o.customer.phone}</span>}
               </td>
-              <td className="py-2 pr-3 text-xs">{o.cashier?.name ?? "—"}</td>
+              <td className="py-2 pr-3 text-xs">{o.cashier?.name ?? "Website"}</td>
               <td className="py-2 pr-3"><StatusBadge status={o.status} /></td>
               <td className="py-2 pr-3"><StatusBadge status={o.paymentStatus} /></td>
               {showShipment && (
@@ -46,7 +46,7 @@ export function OrdersTable({ orders, showShipment = true }: { orders: PosOrder[
                   {o.shipment ? <><StatusBadge status={o.shipment.status} />{o.shipment.trackingCode && <span className="ml-1 font-mono">{o.shipment.trackingCode}</span>}</> : "—"}
                 </td>
               )}
-              <td className="py-2 pr-3 text-right font-medium">{formatNPR(o.totalAmount)}</td>
+              <td className="tabular py-2 pr-3 text-right font-semibold">{formatNPR(o.totalAmount)}</td>
               <td className="py-2 text-xs text-muted-foreground">{o.createdAt ? formatDateTime(o.createdAt) : ""}</td>
             </tr>
           ))}
