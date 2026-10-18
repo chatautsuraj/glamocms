@@ -6,7 +6,8 @@ const enc = encodeURIComponent;
 
 export interface OrderQuery {
   channel?: Channel | "";
-  status?: OrderStatus | "";
+  /** One status or a comma-separated list. */
+  status?: OrderStatus | "" | string;
   paymentStatus?: string;
   from?: string;
   to?: string;
