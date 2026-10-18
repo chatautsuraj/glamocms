@@ -106,3 +106,54 @@ test("typing targets are excluded from global scanning", () => {
   assert.equal(isTypingTarget({ tagName: "TEXTAREA" } as unknown as EventTarget), true);
   assert.equal(isTypingTarget(null), false);
 });
+
+import { buildLocalBill, buildSalePayload, createCartStore, lineFromProduct } from "../src/lib/pos/cart";
+import type { PosProduct, StoreProfile } from "../src/lib/api/types";
+
+const prod = (over: Partial<PosProduct> = {}): PosProduct => ({
+  id: "p1", sku: "LIP-01", barcode: "8901", name: "Matte Lipstick", brand: "GLAMO", category: "Lips", price: 1130, basePrice: 1130, salePrice: null,
+  mrp: 1200, vatApplicable: true, posVisible: true, stock: 4, lowStockThreshold: 2, imageUrl: null, isActive: true, attributes: {}, variants: [], updatedAt: null, ...over,
+});
+
+test("cart merges repeat scans and builds the POST /pos/sales payload", () => {
+  const cart = createCartStore();
+  cart.getState().add(lineFromProduct(prod(), null));
+  cart.getState().add(lineFromProduct(prod(), null));
+  const shaded = prod({ id: "p2", variants: [{ id: "v9", name: "Ruby 09", sku: "LIP-09", barcode: "8909", price: 990, stock: 2 }] });
+  cart.getState().add(lineFromProduct(shaded, "v9"));
+  cart.getState().setLineDiscount("p2:v9", 90);
+  const { lines } = cart.getState();
+  assert.equal(lines.length, 2);
+  assert.equal(lines[0].quantity, 2);
+  const payload = buildSalePayload({
+    clientRef: "11111111-2222-4333-8444-555555555555", lines, discount: 100, shiftId: "shift-1",
+    customer: { name: " Sita ", phone: "9800000001", email: "" },
+    tenders: [{ method: "CASH", amount: 2000 }, { method: "FONEPAY_QR", amount: 1250, reference: " FP-77 " }, { method: "CARD", amount: 0 }],
+  });
+  assert.deepEqual(payload, {
+    clientRef: "11111111-2222-4333-8444-555555555555",
+    shiftId: "shift-1",
+    channel: "POS_COUNTER",
+    customer: { name: "Sita", phone: "9800000001" },
+    items: [{ productId: "p1", quantity: 2 }, { productId: "p2", variantId: "v9", quantity: 1, lineDiscount: 90 }],
+    discount: 100,
+    payments: [{ method: "CASH", amount: 2000 }, { method: "FONEPAY_QR", amount: 1250, reference: "FP-77" }],
+  });
+  cart.getState().setUnitPrice("p1:", 1000);
+  assert.equal(buildSalePayload({ clientRef: "x".repeat(8), lines: cart.getState().lines, discount: 0, tenders: [] }).items[0].unitPrice, 1000, "override only when price changed");
+});
+
+test("offline bill mirrors server BillData math (VAT-inclusive, split, change)", () => {
+  const store = { name: "GLAMO Nepal", address: "S.S Chowk, Madhyapur Thimi, Bagmati", phone: "+977 9818212188" } as StoreProfile;
+  const lines = [lineFromProduct(prod(), null)];
+  lines[0].quantity = 2;
+  const bill = buildLocalBill({ lines, discount: 60, vatRate: 13, tenders: [{ method: "ESEWA", amount: 1000, reference: "E1" }, { method: "CASH", amount: 1500 }], cashierName: "Asha", store });
+  assert.equal(bill.subtotal, 2260);
+  assert.equal(bill.total, 2200);
+  assert.equal(bill.vatAmount, Math.round((2200 * 13) / 113));
+  assert.equal(bill.taxableAmount + bill.vatAmount, 2200);
+  assert.equal(bill.tendered, 2500);
+  assert.equal(bill.change, 300);
+  assert.deepEqual(bill.payments, [{ method: "ESEWA", amount: 1000, reference: "E1" }, { method: "CASH", amount: 1200, reference: null }]);
+  assert.equal(bill.customer.name, "Walk-in Customer");
+});
