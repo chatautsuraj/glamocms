@@ -17,7 +17,7 @@ export interface OrderQuery {
 }
 
 export const ordersApi = {
-  list: (q: OrderQuery) => api.list<PosOrder>("/pos/orders", q as Query),
+  list: (q: OrderQuery) => api.list<PosOrder>("/pos/orders", q as unknown as Query),
   get: (id: string) => api.get<PosOrder>(`/pos/orders/${enc(id)}`),
   setStatus: (id: string, status: OrderStatus, note?: string) => api.patch<PosOrder>(`/pos/orders/${enc(id)}/status`, { status, note: note || undefined }),
   cancel: (id: string, reason: string, restock: boolean) => api.post<PosOrder>(`/pos/orders/${enc(id)}/cancel`, { reason, restock }),

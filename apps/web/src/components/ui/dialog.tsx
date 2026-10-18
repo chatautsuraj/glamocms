@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useId, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "./button";
@@ -41,9 +41,9 @@ export function DialogContent({
   onClose?: () => void;
 }) {
   return (
-    <div className={cn("glass rounded-xl border border-border p-6 shadow-xl", className)}>
+    <div className={cn("glass relative rounded-xl border border-border p-6 shadow-xl", className)}>
       {onClose && (
-        <Button variant="ghost" size="icon-sm" className="absolute right-4 top-4" onClick={onClose}>
+        <Button variant="ghost" size="icon-sm" className="absolute right-4 top-4" onClick={onClose} aria-label="Close" data-dialog-close>
           <X className="h-4 w-4" />
         </Button>
       )}

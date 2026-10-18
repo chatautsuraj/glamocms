@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type EmptyStateProps = {
@@ -22,9 +23,9 @@ export function EmptyState({ icon: Icon, title, description, action, className }
       )}
       {action &&
         (action.href ? (
-          <a href={action.href}>
-            <Button className="mt-6">{action.label}</Button>
-          </a>
+          <Link href={action.href} className={buttonVariants({ className: "mt-6" })}>
+            {action.label}
+          </Link>
         ) : (
           <Button className="mt-6" onClick={action.onClick}>
             {action.label}

@@ -9,11 +9,11 @@ export interface RangeQuery {
 }
 
 export const analyticsApi = {
-  summary: (q: RangeQuery) => api.get<AnalyticsSummary>("/pos/analytics/summary", q as Query),
-  breakdown: (q: RangeQuery & { groupBy: BreakdownGroup }) => api.get<BreakdownRow[]>("/pos/analytics/breakdown", q as Query),
-  report: (type: ReportType, q: RangeQuery) => api.get<ReportData>(`/pos/reports/${type}`, { ...q, format: "json" } as Query),
+  summary: (q: RangeQuery) => api.get<AnalyticsSummary>("/pos/analytics/summary", q as unknown as Query),
+  breakdown: (q: RangeQuery & { groupBy: BreakdownGroup }) => api.get<BreakdownRow[]>("/pos/analytics/breakdown", q as unknown as Query),
+  report: (type: ReportType, q: RangeQuery) => api.get<ReportData>(`/pos/reports/${type}`, { ...q, format: "json" } as unknown as Query),
   async reportCsv(type: ReportType, q: RangeQuery): Promise<{ blob: Blob; filename: string }> {
-    const res = await requestRaw("GET", `/pos/reports/${type}`, { query: { ...q, format: "csv" } as Query, raw: true });
+    const res = await requestRaw("GET", `/pos/reports/${type}`, { query: { ...q, format: "csv" } as unknown as Query, raw: true });
     const disposition = res.headers.get("Content-Disposition") ?? "";
     const match = /filename="?([^";]+)"?/.exec(disposition);
     return { blob: await res.blob(), filename: match?.[1] ?? `glamo-${type}.csv` };
