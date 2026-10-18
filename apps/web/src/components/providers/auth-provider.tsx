@@ -1,131 +1,96 @@
 "use client";
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useState,
-  type ReactNode,
-} from "react";
-import { useRouter } from "next/navigation";
-import { useAppStore, type User } from "@/lib/store";
+/**
+ * Wires Firebase Google auth to the POS session:
+ * Firebase ID token → POST /pos/session → Zustand {user, permissions, store}.
+ * Tokens refresh via onIdTokenChanged / getIdToken(); 401 → forced refresh →
+ * sign-out to /login; 403 → toast. When the API is unreachable a cached
+ * session (IndexedDB) keeps the till usable offline.
+ */
+import { useEffect, type ReactNode } from "react";
+import { toast } from "sonner";
+import { configureApi } from "@/lib/api/client";
+import { ApiError, friendlyError } from "@/lib/api/errors";
+import { sessionApi } from "@/lib/api/session";
+import type { PosSession } from "@/lib/api/types";
+import { currentIdToken, signOutFirebase, watchIdToken } from "@/lib/auth/firebase";
+import { useAuthStore } from "@/lib/auth/auth-store";
+import { getMeta, setMeta } from "@/lib/offline/db";
+import { startOfflineRunner } from "@/lib/offline/sync-runner";
+import { useSettingsStore } from "@/lib/settings-store";
 
-const AUTH_KEY = "glamo_nepal_auth";
+let lastForbiddenToast = 0;
 
-export type AuthUser = {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  avatar: string;
-  tenantId: string | null;
-};
-
-export type LoginPortal = "admin" | "client";
-
-type AuthContextValue = {
-  user: AuthUser | null;
-  isLoading: boolean;
-  login: (email: string, password: string, portal?: LoginPortal) => Promise<boolean>;
-  logout: () => void;
-  postLoginPath: (user: AuthUser | User) => string;
-};
-
-const AuthContext = createContext<AuthContextValue | null>(null);
-
-function toAuthUser(user: User): AuthUser {
-  return {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    role: user.role,
-    avatar: user.avatar,
-    tenantId: user.tenantId,
-  };
-}
-
-export function postLoginPathForUser(_user: AuthUser | User): string {
-  // Glamo Nepal is single-store — no super-admin portal
-  void _user;
-  return "/dashboard";
-}
-
-function restoreSession(): AuthUser | null {
+export async function signOut(reason?: string) {
   try {
-    const stored = localStorage.getItem(AUTH_KEY);
-    if (!stored) return null;
-    const parsed = JSON.parse(stored) as AuthUser;
-    const users = useAppStore.getState().users;
-    const match =
-      users.find((u) => u.id === parsed.id) ??
-      users.find((u) => u.email === parsed.email.toLowerCase());
-    if (!match || match.active === false || match.status === "Inactive") {
-      localStorage.removeItem(AUTH_KEY);
-      useAppStore.getState().setCurrentUserId(null);
-      return null;
-    }
-    const authUser = toAuthUser(match);
-    localStorage.setItem(AUTH_KEY, JSON.stringify(authUser));
-    useAppStore.getState().setCurrentUserId(match.id);
-    return authUser;
-  } catch {
-    localStorage.removeItem(AUTH_KEY);
-    useAppStore.getState().setCurrentUserId(null);
-    return null;
+    await signOutFirebase();
+  } finally {
+    useAuthStore.getState().setSignedOut(reason ?? null);
   }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const router = useRouter();
-
   useEffect(() => {
-    const finish = () => {
-      setUser(restoreSession());
-      setIsLoading(false);
+    configureApi({
+      getToken: (force) => currentIdToken(force),
+      onUnauthorized: () => {
+        if (useAuthStore.getState().status === "ready") {
+          toast.error("Your session expired — please sign in again.");
+          void signOut("Session expired");
+        }
+      },
+      onForbidden: (err) => {
+        if (Date.now() - lastForbiddenToast < 1500) return;
+        lastForbiddenToast = Date.now();
+        toast.error(friendlyError(err));
+      },
+    });
+
+    let currentUid: string | null = null;
+    let stopRunner: (() => void) | null = null;
+
+    const unsubscribe = watchIdToken(async (fbUser) => {
+      const store = useAuthStore.getState();
+      if (!fbUser) {
+        currentUid = null;
+        stopRunner?.();
+        stopRunner = null;
+        if (store.status !== "denied") store.setSignedOut(store.error);
+        return;
+      }
+      // onIdTokenChanged also fires on hourly refresh — only (re)create the session for a new user.
+      if (currentUid === fbUser.uid && store.status === "ready") return;
+      currentUid = fbUser.uid;
+      try {
+        const session = await sessionApi.create();
+        store.setSession(session);
+        await setMeta(`session:${fbUser.uid}`, session);
+      } catch (err) {
+        if (err instanceof ApiError && err.isNetwork) {
+          const cached = await getMeta<PosSession>(`session:${fbUser.uid}`);
+          if (cached) {
+            store.setSession(cached, true);
+            toast.warning("Offline — using your last session. Sales will queue until the connection returns.");
+          } else {
+            store.setSignedOut("Can't reach the GLAMO server to start your first session. Connect to the internet and try again.");
+          }
+        } else {
+          const message = friendlyError(err);
+          await signOutFirebase().catch(() => undefined);
+          useAuthStore.getState().setDenied(message);
+          return;
+        }
+      }
+      const ready = useAuthStore.getState();
+      void useSettingsStore.getState().load(ready.permissions.includes("settings.read"));
+      if (!stopRunner && ready.permissions.includes("pos.sell")) stopRunner = startOfflineRunner();
+    });
+
+    return () => {
+      unsubscribe();
+      stopRunner?.();
     };
-
-    const persistApi = useAppStore.persist;
-    if (persistApi.hasHydrated()) {
-      finish();
-      return;
-    }
-
-    const unsub = persistApi.onFinishHydration(() => finish());
-    return unsub;
   }, []);
 
-  const login = useCallback(async (email: string, password: string, _portal?: LoginPortal) => {
-    void _portal;
-    const matched = useAppStore.getState().authenticate(email, password);
-    if (!matched) return false;
-
-    const authUser = toAuthUser(matched);
-    localStorage.setItem(AUTH_KEY, JSON.stringify(authUser));
-    setUser(authUser);
-    return true;
-  }, []);
-
-  const logout = useCallback(() => {
-    localStorage.removeItem(AUTH_KEY);
-    useAppStore.getState().setCurrentUserId(null);
-    setUser(null);
-    router.push("/login");
-  }, [router]);
-
-  return (
-    <AuthContext.Provider
-      value={{ user, isLoading, login, logout, postLoginPath: postLoginPathForUser }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
-}
-
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
-  return ctx;
+  return <>{children}</>;
 }

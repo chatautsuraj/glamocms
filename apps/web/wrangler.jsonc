@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "main": ".open-next/worker.js",
+  "name": "glamo-pos",
+  "workers_dev": true,
+  "compatibility_date": "2026-06-24",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [
+    { "binding": "WORKER_SELF_REFERENCE", "service": "glamo-pos" }
+  ],
+  "routes": [
+    { "pattern": "pos.glamonepal.com", "custom_domain": true }
+  ],
+  "observability": { "enabled": true }
+  // NEXT_PUBLIC_* values are inlined at BUILD time (see .env.example /
+  // .env.production); there are no runtime secrets — the POS is a pure client
+  // of https://api.glamonepal.com and authenticates with Firebase ID tokens.
+}

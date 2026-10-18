@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { TrendingDown, TrendingUp } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -15,14 +14,7 @@ export function StatCard({ title, value, change, icon: Icon, subtitle, className
         <div className="flex items-start justify-between">
           <div className="space-y-2">
             <p className="text-sm font-medium text-muted-foreground">{title}</p>
-            <motion.p
-              className="text-2xl font-semibold tracking-tight"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, ease: "easeOut" }}
-            >
-              {value}
-            </motion.p>
+            <p className="text-2xl font-semibold tracking-tight">{value}</p>
             {subtitle && (
               <p className="text-xs text-muted-foreground">{subtitle}</p>
             )}
@@ -38,7 +30,7 @@ export function StatCard({ title, value, change, icon: Icon, subtitle, className
                 ) : (
                   <TrendingDown className="h-3 w-3" />
                 )}
-                {Math.abs(change).toFixed(1)}% vs yesterday
+                {Math.abs(change).toFixed(1)}%
               </div>
             )}
           </div>

@@ -13,6 +13,7 @@ build/
 # Env
 .env
 .env*.local
+.env.production
 !.env.example
 
 # Debug / OS
@@ -21,13 +22,12 @@ npm-debug.log*
 Thumbs.db
 *.pem
 
-# Prisma
-apps/api/prisma/*.db
-apps/api/prisma/*.db-journal
-apps/api/dev.db
+# Cloudflare / OpenNext
+.open-next/
+.wrangler/
+.dev.vars
 
-# IDE / Vercel
-.vercel
+# IDE
 .idea/
 .vscode/
 *.swp
@@ -35,4 +35,3 @@ apps/api/dev.db
 # Misc
 coverage/
 .turbo/
-.env*

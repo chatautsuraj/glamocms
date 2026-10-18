@@ -38,21 +38,3 @@ export function formatDateTime(date: string | Date): string {
     minute: "2-digit",
   }).format(typeof date === "string" ? new Date(date) : date);
 }
-
-export const VAT_RATE = 0.13;
-
-export function calcVat(subtotal: number) {
-  const vat = Math.round(subtotal * VAT_RATE);
-  return { subtotal, vat, total: subtotal + vat };
-}
-
-/** Effective VAT rate for a tenant (0 when VAT service is off). */
-export function tenantVatRate(vatEnabled = true) {
-  return vatEnabled ? VAT_RATE : 0;
-}
-
-/** Apply 13% VAT only when the tenant has VAT enabled. */
-export function calcVatIfEnabled(subtotal: number, vatEnabled = true) {
-  if (!vatEnabled) return { subtotal, vat: 0, total: subtotal };
-  return calcVat(subtotal);
-}
