@@ -4,7 +4,7 @@ Standalone point-of-sale and commerce cockpit for **GLAMO Nepal** (S.S Chowk, Ma
 It is a **pure client** of the GLAMO Nepal Hono API — every screen reads and writes
 `${NEXT_PUBLIC_API_URL}/api/v1/pos/*` (prod `https://api.glamonepal.com`). There is no
 backend in this repo, no BFF, no database and no demo data. Contract:
-`POS-API-CONTRACT.md` (shared with `glamo-nepal/backend`).
+[docs/POS-API-CONTRACT.md](docs/POS-API-CONTRACT.md) (shared with `glamo-nepal/backend`).
 
 - **App:** `apps/web` — Next.js 15 (App Router, client-rendered), React 19, Tailwind 4, Zustand, Dexie, jsPDF, jsbarcode, html5-qrcode, recharts.
 - **Auth:** Firebase Google sign-in (same Firebase project as glamonepal.com) → `POST /pos/session` → `{user, permissions, store}`; the Firebase ID token is sent as `Bearer` on every call (forced refresh + retry on 401, sign-out if still 401; 403 → toast).
@@ -95,3 +95,5 @@ Unauthenticated users go to `/login`; pages a role may not open show "No access"
 - Variants (shades) are read-only here; they're edited in the website admin (no POS variant write endpoint).
 - Product images are set by URL (no upload endpoint under `/pos`).
 - The `receiptFooter` setting is stored but not printed — the bill layout was frozen by the parity requirement.
+- Queued offline sales are replayed with the token of whoever is signed in when the device reconnects, so cashier attribution follows the syncing user if staff swap devices while offline.
+- No browser/E2E run was possible in this environment; flows are covered by unit tests, typecheck and a production build/`next start` smoke check.
