@@ -97,7 +97,8 @@ function VariantForm({ product, variant, onCancel, onSaved }: { product: PosProd
 
   const submit = async () => {
     const price = digitsToInt(d.price);
-    const salePrice = d.salePrice.trim() ? digitsToInt(d.salePrice) : null;
+    // 0 means "no sale price" (the server only accepts a positive sale price).
+    const salePrice = digitsToInt(d.salePrice) > 0 ? digitsToInt(d.salePrice) : null;
     const next: typeof errors = {};
     if (!d.name.trim()) next.name = "Enter the shade name.";
     if (price <= 0) next.price = "Enter the price.";

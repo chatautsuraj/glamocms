@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Calculator, Camera, CheckCircle2, Search } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
@@ -77,6 +77,11 @@ export default function PhoneOrdersPage() {
   const [busy, setBusy] = useState(false);
   const [last, setLast] = useState<{ bill: BillData; order?: PosOrder } | null>(null);
   const online = useOfflineStore((s) => s.online);
+  /** One idempotency key per order attempt, reused if the cashier retries after a timeout. */
+  const checkoutRef = useRef<string | null>(null);
+  useEffect(() => {
+    checkoutRef.current = null;
+  }, [lines, discount, customer, deliver, charge, branch, channel]);
 
   useEffect(() => {
     if (canDelivery) deliveryApi.branches().then(setBranches).catch(() => undefined);
@@ -165,13 +170,15 @@ export default function PhoneOrdersPage() {
       ? { required: true, address: customer.address.trim(), city, branch: branch || undefined, charge: deliveryCharge, codAmount: Math.max(0, totals.total - paid) }
       : undefined;
     const saleCustomer = { id: customer.id, name: customer.name.trim(), phone: phoneDigits, address: address || undefined };
-    const payload = buildSalePayload({ clientRef: newClientRef(), lines: state.lines, discount: state.discount, tenders, customer: saleCustomer, notes: state.notes, channel, delivery });
+    checkoutRef.current ??= newClientRef();
+    const payload = buildSalePayload({ clientRef: checkoutRef.current, lines: state.lines, discount: state.discount, tenders, customer: saleCustomer, notes: state.notes, channel, delivery });
     const localBill = buildLocalBill({
       lines: state.lines, discount: state.discount, vat, taxInvoice: config.taxInvoice, tenders, customer: saleCustomer, cashierName: user.name, store: config.store, footer: config.receiptFooter,
       deliveryCharge, allowShortfall: deliver, channel,
     });
     try {
       const res = await submitSale(payload, localBill);
+      checkoutRef.current = null;
       setLast({ bill: res.bill, order: res.order });
       state.clear();
       setPayOpen(false);

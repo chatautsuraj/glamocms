@@ -24,6 +24,15 @@ export function paymentsPatch(original: PaymentSettings, draft: PaymentSettings)
   return out;
 }
 
+/** Trim every string (one level deep for nested sections) — the server trims too and "   " would fail its rules. */
+export function trimStrings<T extends object>(value: T): T {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(value)) {
+    out[k] = typeof v === "string" ? v.trim() : v && typeof v === "object" && !Array.isArray(v) ? trimStrings(v as object) : v;
+  }
+  return out as T;
+}
+
 const HTTPS = /^https:\/\/\S+$/i;
 
 export type FieldErrors = Record<string, string>;

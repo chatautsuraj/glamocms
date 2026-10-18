@@ -77,7 +77,7 @@ export function ProductDialog({ open, onOpenChange, product, onSaved }: { open: 
 
   const submit = async () => {
     const basePrice = money(f.basePrice);
-    const salePrice = money(f.salePrice);
+    const salePrice = money(f.salePrice) || null;
     const next: Errors = {};
     if (!f.name.trim()) next.name = "Enter the product name.";
     if (!f.categoryId) next.categoryId = "Choose a category (or add one with +).";
@@ -85,7 +85,10 @@ export function ProductDialog({ open, onOpenChange, product, onSaved }: { open: 
     if (basePrice && salePrice !== null && salePrice >= basePrice) next.salePrice = "Sale price must be lower than the selling price.";
     setErrors(next);
     if (Object.keys(next).length) return;
-    const attributes = { shade: f.shade.trim() || undefined, batch: f.batch.trim() || undefined, expiry: f.expiry || undefined, tester: f.tester || undefined };
+    // The server merges attributes, so cleared fields must be sent as "" / false to be removed.
+    const attributes = current
+      ? { shade: f.shade.trim(), batch: f.batch.trim(), expiry: f.expiry, tester: f.tester }
+      : { shade: f.shade.trim() || undefined, batch: f.batch.trim() || undefined, expiry: f.expiry || undefined, tester: f.tester || undefined };
     const body: PosProductWrite = {
       name: f.name.trim(),
       description: f.description.trim() || null,

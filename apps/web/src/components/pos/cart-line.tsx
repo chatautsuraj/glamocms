@@ -6,7 +6,6 @@ import { ProductImage } from "@/components/product-image";
 import { Button } from "@/components/ui/button";
 import type { CartLine } from "@/lib/pos/cart";
 import { digitsToInt, formatNPR } from "@/lib/format";
-import { cn } from "@/lib/utils";
 
 type Props = {
   line: CartLine;
@@ -25,7 +24,9 @@ export const CartLineRow = memo(function CartLineRow({ line: l, canOverride, fla
   const lineTotal = l.unitPrice * l.quantity - l.lineDiscount;
   const overStock = l.trackInventory && l.quantity > l.stock;
   return (
-    <li key={flash} className={cn("px-3 py-2.5 sm:px-4", flash > 0 && "animate-scan-flash")}>
+    <li className="relative px-3 py-2.5 sm:px-4">
+      {/* Re-keyed overlay replays the "just scanned" flash without remounting the inputs. */}
+      {flash > 0 && <span key={flash} aria-hidden className="pointer-events-none absolute inset-0 animate-scan-flash" />}
       <div className="flex items-start gap-3">
         <ProductImage src={l.imageUrl} name={l.name} className="h-11 w-11 shrink-0 border border-border" />
         <div className="min-w-0 flex-1">

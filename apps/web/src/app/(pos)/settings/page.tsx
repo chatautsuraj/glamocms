@@ -22,7 +22,7 @@ import { formatTime } from "@/lib/format";
 import { toastError } from "@/lib/notify";
 import { usePosConfig } from "@/lib/pos/config-store";
 import { LABEL_SIZE_NAME, printLabels } from "@/lib/print/labels";
-import { changedFields, isDirty, paymentErrors, paymentsPatch, posErrors, storeErrors, type FieldErrors } from "@/lib/settings-form";
+import { changedFields, isDirty, paymentErrors, paymentsPatch, posErrors, storeErrors, trimStrings, type FieldErrors } from "@/lib/settings-form";
 import { useApi } from "@/lib/use-api";
 import { cn } from "@/lib/utils";
 
@@ -67,12 +67,12 @@ export default function SettingsPage() {
         </TabsList>
         {canRead && tab !== "staff" && (error ? <div className="mt-4"><ErrorPanel error={error} onRetry={reload} /></div> : loading || !data ? <div className="mt-4"><LoadingRows rows={6} /></div> : (
           <>
-            <TabsContent value="store"><StoreForm s={data} disabled={!canWrite} onSave={save} /></TabsContent>
-            <TabsContent value="selling"><SellingForm s={data} disabled={!canWrite} onSave={save} /></TabsContent>
-            <TabsContent value="payments"><PaymentsForm s={data} disabled={!canWrite} onSave={save} /></TabsContent>
-            <TabsContent value="labels"><LabelsForm s={data} disabled={!canWrite} onSave={save} /></TabsContent>
-            <TabsContent value="delivery"><DeliveryForm s={data} disabled={!canWrite} onSave={save} /></TabsContent>
-            <TabsContent value="whatsapp"><WhatsAppForm s={data} disabled={!canWrite} onSave={save} /></TabsContent>
+            <TabsContent value="store" keepMounted><StoreForm s={data} disabled={!canWrite} onSave={save} /></TabsContent>
+            <TabsContent value="selling" keepMounted><SellingForm s={data} disabled={!canWrite} onSave={save} /></TabsContent>
+            <TabsContent value="payments" keepMounted><PaymentsForm s={data} disabled={!canWrite} onSave={save} /></TabsContent>
+            <TabsContent value="labels" keepMounted><LabelsForm s={data} disabled={!canWrite} onSave={save} /></TabsContent>
+            <TabsContent value="delivery" keepMounted><DeliveryForm s={data} disabled={!canWrite} onSave={save} /></TabsContent>
+            <TabsContent value="whatsapp" keepMounted><WhatsAppForm s={data} disabled={!canWrite} onSave={save} /></TabsContent>
           </>
         ))}
         {canStaff && <TabsContent value="staff"><StaffPanel /></TabsContent>}
@@ -152,7 +152,7 @@ function StoreForm({ s, disabled, onSave }: FormProps) {
     const e = storeErrors(f);
     setErrors(e);
     if (Object.keys(e).length) return;
-    void sec.run(() => onSave({ store: changedFields(s.store, { ...f, pan: f.pan.trim(), email: f.email.trim() }) }));
+    void sec.run(() => onSave({ store: changedFields(s.store, trimStrings(f)) }));
   };
   return (
     <SectionCard title="Shop details" description="Printed on bills and delivery notes. Address and phone also show on glamonepal.com." onSubmit={submit} disabled={disabled} busy={sec.busy} dirty={sec.dirty} savedAt={sec.savedAt} errors={errors}>
@@ -224,10 +224,11 @@ function PaymentsForm({ s, disabled, onSave }: FormProps) {
   const dirty = Object.keys(paymentsPatch(s.payments, p)).length > 0;
   const setMethod = <K extends MethodKey>(key: K, patch: Partial<PaymentSettings[K]>) => sec.setDraft((d) => ({ ...d, [key]: { ...d[key], ...patch } }));
   const submit = () => {
-    const e = paymentErrors(p);
+    const trimmed = trimStrings(p);
+    const e = paymentErrors(trimmed);
     setErrors(e);
     if (Object.keys(e).length) return;
-    void sec.run(() => onSave({ payments: paymentsPatch(s.payments, p) }));
+    void sec.run(() => onSave({ payments: paymentsPatch(s.payments, trimmed) }));
   };
   const text = <K extends MethodKey>(key: K, field: keyof PaymentSettings[K] & string, label: string, hint?: string) => (
     <Field label={label} hint={hint} error={errors[`${key}.${field}`]}>

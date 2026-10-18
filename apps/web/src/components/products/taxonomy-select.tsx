@@ -53,6 +53,7 @@ export function TaxonomySelect({ kind, value, onChange, required, invalid, id }:
           placeholder={`New ${label} name`}
           autoFocus
           aria-label={`New ${label} name`}
+          data-escape-local
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();

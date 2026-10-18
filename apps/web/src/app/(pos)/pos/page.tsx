@@ -11,7 +11,7 @@ import { ProductGrid } from "@/components/pos/product-grid";
 import { SaleCompleteDialog } from "@/components/pos/sale-complete-dialog";
 import { ShadePickerDialog } from "@/components/pos/shade-picker-dialog";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, isModalOpen } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { catalogApi } from "@/lib/api/catalog";
@@ -81,6 +81,8 @@ export default function PosPage() {
   const [announce, setAnnounce] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
   const submitting = useRef(false);
+  /** One idempotency key per checkout: a retry after a timeout can't create a second sale. */
+  const checkoutRef = useRef<string | null>(null);
 
   useEffect(() => {
     setAutoPrint(window.localStorage.getItem(AUTO_PRINT_KEY) !== "off");
@@ -102,16 +104,33 @@ export default function PosPage() {
 
   const categories = useMemo(() => categoriesOf(products), [products]);
   const results = useMemo(() => searchProducts(products, deferredQuery, category), [products, deferredQuery, category]);
+  useEffect(() => {
+    checkoutRef.current = null; // the sale changed → it's a different checkout
+  }, [lines, discount, customer]);
+
   const inCart = useMemo(() => {
     const m = new Map<string, number>();
     for (const l of lines) m.set(l.productId, (m.get(l.productId) ?? 0) + l.quantity);
     return m;
   }, [lines]);
 
+  const allowNegative = Boolean(config?.allowNegativeStock);
+  /** +1 respects stock like adding does (online, unless selling below zero is allowed). */
+  const bumpQty = useCallback((key: string, delta: number) => {
+    const line = usePosCart.getState().lines.find((l) => l.key === key);
+    if (!line) return;
+    if (delta > 0 && line.trackInventory && line.quantity + delta > line.stock && !allowNegative && useOfflineStore.getState().online) {
+      playScanSound("error");
+      toast.error(`Only ${Math.max(0, line.stock)} of ${line.name} in stock.`);
+      return;
+    }
+    usePosCart.getState().bumpQty(key, delta);
+  }, [allowNegative]);
+
   const actions: CartActions = useMemo(() => {
     const s = usePosCart.getState();
-    return { setQty: s.setQty, bumpQty: s.bumpQty, remove: s.remove, setLineDiscount: s.setLineDiscount, setUnitPrice: s.setUnitPrice, setDiscount: s.setDiscount, setCustomer: s.setCustomer };
-  }, []);
+    return { setQty: s.setQty, bumpQty, remove: s.remove, setLineDiscount: s.setLineDiscount, setUnitPrice: s.setUnitPrice, setDiscount: s.setDiscount, setCustomer: s.setCustomer };
+  }, [bumpQty]);
 
   const addProduct = useCallback((p: PosProduct, variantId: string | null, source: "scan" | "tap") => {
     const inCartQty = usePosCart.getState().lines.find((l) => l.key === lineKey(p.id, variantId))?.quantity ?? 0;
@@ -167,7 +186,38 @@ export default function PosPage() {
     }
   }, [addProduct]);
 
-  const scanner = useBarcodeScanner({ enabled: !anyDialog || cartSheet, onScan: (code) => void resolveCode(code) });
+  /**
+   * Route a scan by what is on screen: normal → add; shade picker → pick that
+   * shade; "sale complete" → start the next sale with it; any other dialog
+   * (payment, cash drawer, customer…) → ignore, so a barcode never ends up
+   * typed into a cash or phone field.
+   */
+  const onScan = (code: string) => {
+    if (shadeFor) {
+      const needle = code.trim().toUpperCase();
+      const v = shadeFor.variants.find((x) => x.barcode?.toUpperCase() === needle || x.sku?.toUpperCase() === needle);
+      if (v) {
+        setShadeFor(null);
+        addProduct(shadeFor, v.id, "scan");
+      } else {
+        playScanSound("error");
+        toast.error("That barcode is not one of these shades.");
+      }
+      return;
+    }
+    if (done) {
+      newSale();
+      void resolveCode(code);
+      return;
+    }
+    if (isModalOpen() && !cartSheet) {
+      playScanSound("error");
+      toast.error(payMethod ? "Finish or close the payment first, then scan." : "Close this window first, then scan.");
+      return;
+    }
+    void resolveCode(code);
+  };
+  const scanner = useBarcodeScanner({ enabled: !cameraOpen, onScan });
 
   const openPayment = useCallback((method: PaymentMethod) => {
     if (!usePosCart.getState().lines.length) return;
@@ -182,6 +232,7 @@ export default function PosPage() {
     if (anyDialog) return;
     let pending: number | null = null;
     const onKey = (e: KeyboardEvent) => {
+      if (isModalOpen()) return; // e.g. the customer dialog
       if (pending !== null) {
         window.clearTimeout(pending);
         pending = null;
@@ -208,7 +259,7 @@ export default function PosPage() {
         // Wait a beat: a scanner typing "GLM-…" sends "-" mid-code and the next key cancels this.
         pending = window.setTimeout(() => {
           pending = null;
-          usePosCart.getState().bumpQty(key, delta);
+          bumpQty(key, delta);
         }, 90);
       }
     };
@@ -217,16 +268,18 @@ export default function PosPage() {
       window.removeEventListener("keydown", onKey);
       if (pending !== null) window.clearTimeout(pending);
     };
-  }, [anyDialog, openPayment, scanner]);
+  }, [anyDialog, openPayment, scanner, bumpQty]);
 
   const onSearchEnter = () => {
     const q = query.trim();
     if (!q) return;
     const upper = q.toUpperCase();
     const exact = products.find((p) => p.codes.includes(upper));
+    // Fresh results: the grid's deferred list can lag behind fast typing.
+    const fresh = exact ? [] : searchProducts(products, q, category);
     if (exact) void resolveCode(q);
-    else if (results.length === 1) pickTile(results[0]);
-    else if (LOOKS_LIKE_CODE.test(q) && !results.length) void resolveCode(q);
+    else if (fresh.length === 1) pickTile(fresh[0]);
+    else if (LOOKS_LIKE_CODE.test(q) && !fresh.length) void resolveCode(q);
     else return;
     setQuery("");
   };
@@ -241,12 +294,14 @@ export default function PosPage() {
     submitting.current = true;
     setBusy(true);
     const state = usePosCart.getState();
-    const payload = buildSalePayload({ clientRef: newClientRef(), lines: state.lines, discount: state.discount, tenders, customer: state.customer, shiftId: drawer?.id, channel: "POS_COUNTER" });
+    checkoutRef.current ??= newClientRef();
+    const payload = buildSalePayload({ clientRef: checkoutRef.current, lines: state.lines, discount: state.discount, tenders, customer: state.customer, shiftId: drawer?.id, channel: "POS_COUNTER" });
     const localBill = buildLocalBill({
       lines: state.lines, discount: state.discount, vat, taxInvoice: config.taxInvoice, tenders, customer: state.customer, cashierName: user.name, store: config.store, footer: config.receiptFooter, channel: "POS_COUNTER",
     });
     try {
       const result = await submitSale(payload, localBill);
+      checkoutRef.current = null;
       state.clear();
       setPayMethod(null);
       setDone(result.bill);

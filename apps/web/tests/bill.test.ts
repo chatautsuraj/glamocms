@@ -59,3 +59,17 @@ test("money uses Indian grouping on the bill", () => {
   const html = billHtml(billOptsFromBillData(bill({ total: 123456, subtotal: 123456 })));
   assert.match(html, /Rs 1,23,456/);
 });
+
+test("discount, delivery, change and cash-on-delivery lines print only when they apply", () => {
+  const plain = billHtml(billOptsFromBillData(bill()));
+  assert.doesNotMatch(plain, /Discount|Delivery|Change|To pay on delivery/);
+  const html = billHtml(billOptsFromBillData(bill({ discount: 200, deliveryCharge: 150, tendered: 3000, change: 103, due: 0 })));
+  assert.match(html, /<span>Discount<\/span><span>-Rs 200<\/span>/);
+  assert.match(html, /<span>Delivery<\/span><span>Rs 150<\/span>/);
+  assert.match(html, /<span>Cash given<\/span><span>Rs 3,000<\/span>/);
+  assert.match(html, /<span>Change<\/span><span>Rs 103<\/span>/);
+  const cod = billOptsFromBillData(bill({ payments: [], tendered: 0, due: 2897 }));
+  assert.match(billHtml(cod), /<span>To pay on delivery<\/span><span>Rs 2,897<\/span>/);
+  assert.equal(cod.method, "Cash on delivery");
+  assert.ok(pdfTexts(capturePdf(() => billPdf(cod))).includes("To pay on delivery"));
+});

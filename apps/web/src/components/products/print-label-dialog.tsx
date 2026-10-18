@@ -24,7 +24,7 @@ export function PrintLabelDialog({ product, onClose }: { product: PosProduct | n
     setCopies(Object.fromEntries(rows.map((r) => [r.key, String(defaultCopies(r.stock))])));
   }, [rows]);
 
-  const total = rows.reduce((s, r) => s + digitsToInt(copies[r.key] ?? "0"), 0);
+  const total = rows.reduce((s, r) => s + (r.code ? digitsToInt(copies[r.key] ?? "0") : 0), 0);
   const missing = rows.filter((r) => !r.code);
 
   const print = () => {

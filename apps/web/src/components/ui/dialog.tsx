@@ -17,6 +17,11 @@ type DialogProps = {
 /** Open dialogs, innermost last: only the top one reacts to Escape / traps Tab. */
 const stack: string[] = [];
 
+/** True while any modal layer is open (screens use it to pause shortcuts). */
+export function isModalOpen() {
+  return stack.length > 0;
+}
+
 const FOCUSABLE = "a[href], button:not([disabled]), input:not([disabled]):not([type=hidden]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])";
 
 /**
@@ -38,6 +43,8 @@ export function useModalLayer(open: boolean, onClose: () => void, panel: RefObje
     const onKey = (e: KeyboardEvent) => {
       if (stack[stack.length - 1] !== id) return;
       if (e.key === "Escape") {
+        // Inputs that use Escape themselves (e.g. "add new category") opt out.
+        if ((e.target as HTMLElement | null)?.closest?.("[data-escape-local]")) return;
         e.preventDefault();
         e.stopPropagation();
         onCloseRef.current();

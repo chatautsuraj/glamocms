@@ -3,7 +3,7 @@
  * when someone presses "Download PDF".
  */
 import { jsPDF } from "jspdf";
-import { docTitle, footerLines, npr, printTimestamp, showVat, type StoreBillOpts } from "./bill";
+import { docTitle, extraLines, footerLines, npr, printTimestamp, showVat, type StoreBillOpts } from "./bill";
 import { LOGO_DATA_URL, LOGO_HEIGHT, LOGO_WIDTH } from "./logo";
 
 function fileSlug(ref: string): string {
@@ -80,10 +80,12 @@ export function billPdf(opts: StoreBillOpts): jsPDF {
   doc.line(4, y, w - 4, y);
   y += 5;
   line("Subtotal", npr(opts.subtotal));
+  for (const [label, value] of extraLines(opts, "before")) line(label, value);
   if (showVat(opts)) line(`VAT ${opts.vatRate ?? 0}%`, npr(opts.vat));
   doc.setFont("helvetica", "bold");
   line("BALANCE", npr(opts.total));
   doc.setFont("helvetica", "normal");
+  for (const [label, value] of extraLines(opts, "after")) line(label, value);
   y += 4;
   if (opts.taxInvoice && COMPANY.pan) center(`Tax invoice · PAN ${COMPANY.pan}`, 7);
   for (const f of footerLines(opts.footer)) center(f.length > 44 ? `${f.slice(0, 43)}…` : f, 7);

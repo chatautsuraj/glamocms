@@ -142,6 +142,8 @@ function AdjustDialog({ target, onClose, onDone }: { target: { product: PosProdu
   const [negative, setNegative] = useState(false);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+  /** Latest stock from the server (the list may be a few sales old). */
+  const [fresh, setFresh] = useState<PosProduct | null>(null);
   useEffect(() => {
     if (!target) return;
     setReason(target.reason);
@@ -149,14 +151,21 @@ function AdjustDialog({ target, onClose, onDone }: { target: { product: PosProdu
     setQty("");
     setNegative(false);
     setNote("");
+    setFresh(null);
+    let alive = true;
+    catalogApi.get(target.product.id).then((p) => alive && setFresh(p)).catch(() => undefined);
+    return () => {
+      alive = false;
+    };
   }, [target]);
   if (!target) return null;
-  const p = target.product;
+  const p = fresh ?? target.product;
   const current = variantId ? p.variants.find((v) => v.id === variantId)?.stock ?? 0 : p.stock;
   const n = Math.round(Number(qty) || 0);
   const sign = REASONS.find((r) => r.value === reason)?.sign ?? 0;
   const delta = reason === "COUNT" ? n - current : sign === 0 ? (negative ? -n : n) : sign * n;
   const submit = async () => {
+    if (!qty.trim()) return void toast.error(reason === "COUNT" ? "Enter how many are on the shelf." : "Enter how many.");
     if (delta === 0) return void toast.error(reason === "COUNT" ? "That is already the stock number. Nothing to change." : "Enter how many.");
     setBusy(true);
     try {

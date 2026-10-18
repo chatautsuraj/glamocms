@@ -73,9 +73,11 @@ export function PaymentDialog({ open, onOpenChange, total, methods, initialMetho
   const splitTenders: Tender[] = useMemo(() => rows.map((r) => ({ method: r.method, amount: digitsToInt(r.amount), reference: r.reference.trim() || undefined })), [rows]);
   const tenders = mode === "split" ? splitTenders : singleTenders;
   const summary = useMemo(() => summariseTenders(tenders, total, { allowShortfall }), [tenders, total, allowShortfall]);
+  // A barcode or an extra zero typed into "cash received" must not become a huge change.
+  const cashTooHigh = mode === "single" && method === "CASH" && !allowShortfall && cashGiven > total + Math.max(10_000, total * 2);
 
   const complete = async (list: Tender[] = tenders) => {
-    if (busy) return;
+    if (busy || (list === tenders && cashTooHigh)) return;
     const check = summariseTenders(list, total, { allowShortfall });
     if (check.error) return;
     await onComplete(list.filter((t) => t.amount > 0));
@@ -181,6 +183,8 @@ export function PaymentDialog({ open, onOpenChange, total, methods, initialMetho
                         placeholder={String(total)}
                         className="tabular h-14 text-2xl font-bold"
                         autoFocus
+                        data-autofocus
+                        aria-invalid={cashTooHigh}
                       />
                     </label>
                     <div className="flex flex-wrap gap-2" role="group" aria-label="Quick cash amounts">
@@ -258,11 +262,12 @@ export function PaymentDialog({ open, onOpenChange, total, methods, initialMetho
               </div>
             )}
 
+            {cashTooHigh && <p role="alert" className="text-sm font-medium text-danger">Check the cash amount: {formatNPR(cashGiven)} is much more than the total.</p>}
             {summary.error && (mode === "split" || tenders.length > 0) && <p role="alert" className="text-sm font-medium text-danger">{ERROR_TEXT[summary.error]}</p>}
 
             <div className="grid grid-cols-[auto_1fr] gap-2">
               <Button variant="outline" size="lg" onClick={() => onOpenChange(false)}>Back</Button>
-              <Button type="submit" variant="brand" size="xl" disabled={Boolean(summary.error) || busy} aria-busy={busy}>
+              <Button type="submit" variant="brand" size="xl" disabled={Boolean(summary.error) || cashTooHigh || busy} aria-busy={busy}>
                 {busy ? "Saving…" : method === "CARD" && mode === "single" ? "Card payment received" : allowShortfall && summary.due > 0 ? `Place order · ${formatNPR(summary.due)} on delivery` : "Complete sale"}
               </Button>
             </div>

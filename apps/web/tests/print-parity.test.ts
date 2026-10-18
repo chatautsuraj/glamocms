@@ -17,6 +17,10 @@
  *  5. The inline print script is gone: bills/notes print through a hidden
  *     print frame (lib/print/print-document.ts), which prints exactly once.
  *  6. The logo is the embedded GLAMO PNG (unchanged since v1).
+ *  7. New lines print only when they apply — Discount / Delivery (under
+ *     Subtotal) and Cash given / Change / To pay on delivery (under Balance).
+ *     The fixture sale has none of them, so its layout is unchanged
+ *     (covered in bill.test.ts).
  */
 import { capturePdf, pdfTexts, type PdfOp } from "./helpers/print-capture";
 import { test } from "node:test";

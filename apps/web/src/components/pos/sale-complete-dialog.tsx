@@ -37,7 +37,7 @@ export function SaleCompleteDialog({ bill, onClose }: { bill: BillData | null; o
               <Button variant="outline" size="lg" onClick={() => void printBill(bill)}><Printer className="h-4 w-4" aria-hidden /> Print bill</Button>
               <Button variant="outline" size="lg" onClick={() => void downloadBillPdf(bill)}><Download className="h-4 w-4" aria-hidden /> Download PDF</Button>
             </div>
-            <Button variant="brand" size="xl" className="w-full" onClick={onClose} autoFocus>New sale</Button>
+            <Button variant="brand" size="xl" className="w-full" onClick={onClose} autoFocus data-autofocus>New sale</Button>
           </div>
         )}
       </DialogContent>

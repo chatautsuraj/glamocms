@@ -77,11 +77,13 @@ export function TabsTrigger({ value, children, className }: { value: string; chi
   );
 }
 
-export function TabsContent({ value, children, className }: { value: string; children: ReactNode; className?: string }) {
+/** `keepMounted` keeps hidden panels in the DOM (unsaved form edits survive a tab switch). */
+export function TabsContent({ value, children, className, keepMounted }: { value: string; children: ReactNode; className?: string; keepMounted?: boolean }) {
   const ctx = useTabs();
-  if (ctx.value !== value) return null;
+  const active = ctx.value === value;
+  if (!active && !keepMounted) return null;
   return (
-    <div role="tabpanel" id={`${ctx.baseId}-panel-${value}`} aria-labelledby={`${ctx.baseId}-tab-${value}`} className={cn("mt-4", className)}>
+    <div role="tabpanel" hidden={!active} id={`${ctx.baseId}-panel-${value}`} aria-labelledby={`${ctx.baseId}-tab-${value}`} className={cn("mt-4", className)}>
       {children}
     </div>
   );

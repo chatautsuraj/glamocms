@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -26,12 +26,16 @@ const NOTES = [1000, 500, 100, 50, 20, 10, 5, 2, 1];
 export function CashDrawerDialog({ open, onOpenChange, drawer, onChange }: { open: boolean; onOpenChange: (o: boolean) => void; drawer: DrawerShift | null; onChange: (d: DrawerShift | null) => void }) {
   const [live, setLive] = useState<DrawerShift | null>(drawer);
   const [result, setResult] = useState<DrawerShift | null>(null);
+  const drawerRef = useRef(drawer);
+  drawerRef.current = drawer;
+  // Reset only when the dialog opens (saving the count clears `drawer`; the result must stay on screen).
   useEffect(() => {
     if (!open) return;
+    const current = drawerRef.current;
     setResult(null);
-    setLive(drawer);
-    if (drawer) cashDrawerApi.current().then((d) => d && setLive(d)).catch(() => undefined);
-  }, [open, drawer]);
+    setLive(current);
+    if (current) cashDrawerApi.current().then((d) => d && setLive(d)).catch(() => undefined);
+  }, [open]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} label="Cash drawer" className="max-w-xl">

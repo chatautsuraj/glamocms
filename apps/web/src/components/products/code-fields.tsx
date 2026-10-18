@@ -28,6 +28,11 @@ export function codeFieldErrors(err: unknown): CodeErrors | null {
   }
 }
 
+/** A scanner ends with Enter: don't let that submit the form. */
+const blockEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  if (e.key === "Enter") e.preventDefault();
+};
+
 /** Barcode + SKU inputs. "Generate" reserves the next in-store EAN-13; an empty SKU is created automatically. */
 export function CodeFields({ barcode, sku, onBarcode, onSku, errors, existing }: {
   barcode: string;
@@ -53,14 +58,14 @@ export function CodeFields({ barcode, sku, onBarcode, onSku, errors, existing }:
     <>
       <Field label="Barcode" error={errors.barcode} hint={existing ? "Scan the box barcode, or press Generate for a new shop barcode." : "Scan the box barcode, or leave empty and one is created."}>
         <div className="flex gap-2">
-          <Input value={barcode} onChange={(e) => onBarcode(e.target.value.trim())} className="tabular font-mono" autoComplete="off" spellCheck={false} aria-invalid={Boolean(errors.barcode)} placeholder="Created automatically" />
+          <Input value={barcode} onChange={(e) => onBarcode(e.target.value.trim())} onKeyDown={blockEnter} className="tabular font-mono" autoComplete="off" spellCheck={false} aria-invalid={Boolean(errors.barcode)} placeholder="Created automatically" />
           <Button variant="outline" onClick={() => void generate()} disabled={busy}>
             <Wand2 className="h-4 w-4" aria-hidden /> {busy ? "…" : "Generate"}
           </Button>
         </div>
       </Field>
       <Field label="SKU" error={errors.sku} hint="Leave empty and one is created.">
-        <Input value={sku} onChange={(e) => onSku(e.target.value)} className="font-mono" autoComplete="off" spellCheck={false} aria-invalid={Boolean(errors.sku)} placeholder="Created automatically" />
+        <Input value={sku} onChange={(e) => onSku(e.target.value)} onKeyDown={blockEnter} className="font-mono" autoComplete="off" spellCheck={false} aria-invalid={Boolean(errors.sku)} placeholder="Created automatically" />
       </Field>
     </>
   );

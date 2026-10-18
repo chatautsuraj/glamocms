@@ -46,8 +46,9 @@ export function LabelPrintPanel() {
     return rows.filter((r) => (!category || r.category === category) && (!lowOnly || r.lowStock) && words.every((w) => r.search.includes(w)));
   }, [rows, query, category, lowOnly]);
 
-  const shownSelected = shown.filter((r) => selected.has(r.key)).length;
-  const allShown = shown.length > 0 && shownSelected === shown.length;
+  const printable = shown.filter((r) => r.code);
+  const shownSelected = printable.filter((r) => selected.has(r.key)).length;
+  const allShown = printable.length > 0 && shownSelected === printable.length;
   const labelCount = [...selected.entries()].reduce((s, [key, copies]) => s + (byKey.get(key)?.code ? digitsToInt(copies) : 0), 0);
 
   const toggle = (row: LabelRow, on: boolean) =>

@@ -42,6 +42,14 @@ export type StoreBillOpts = {
   taxInvoice?: boolean;
   /** Settings → bill footer ('' prints nothing). */
   footer?: string;
+  /** Printed only when not zero (old layouts had none of these). */
+  discount?: number;
+  deliveryCharge?: number;
+  /** Cash handed over and change given back. */
+  tendered?: number;
+  change?: number;
+  /** Still to pay (cash on delivery). */
+  due?: number;
   /** Override print timestamp (defaults to now). */
   printedAt?: Date | string;
   /** Seller block (store settings). */
@@ -65,6 +73,11 @@ export function billOptsFromBillData(bill: BillData, extra: { channel?: string; 
     vatRate: bill.vatRate,
     taxInvoice: Boolean(bill.taxInvoice),
     footer: bill.footer ?? "",
+    discount: bill.discount,
+    deliveryCharge: bill.deliveryCharge,
+    tendered: bill.tendered,
+    change: bill.change,
+    due: bill.due,
     printedAt: bill.createdAt,
     company: extra.company ?? companyFromStore(bill.store),
   };
@@ -90,6 +103,22 @@ function billBarcodeCode(orderId: string) {
 
 export function footerLines(footer: string | undefined): string[] {
   return (footer ?? "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+}
+
+/** Discount / delivery (before VAT) and cash given / change / due (after the balance), only when not zero. */
+export function extraLines(opts: StoreBillOpts, where: "before" | "after"): Array<[string, string]> {
+  const out: Array<[string, string]> = [];
+  if (where === "before") {
+    if ((opts.discount ?? 0) > 0) out.push(["Discount", `-${npr(opts.discount ?? 0)}`]);
+    if ((opts.deliveryCharge ?? 0) > 0) out.push(["Delivery", npr(opts.deliveryCharge ?? 0)]);
+  } else {
+    if ((opts.change ?? 0) > 0) {
+      out.push(["Cash given", npr(opts.tendered ?? 0)]);
+      out.push(["Change", npr(opts.change ?? 0)]);
+    }
+    if ((opts.due ?? 0) > 0) out.push(["To pay on delivery", npr(opts.due ?? 0)]);
+  }
+  return out;
 }
 
 export const showVat = (opts: StoreBillOpts) => opts.vatEnabled && opts.vat > 0;
@@ -165,9 +194,9 @@ ${taxIds ? `  <p class="addr">${taxIds}</p>\n` : ""}  <p class="doc">${title}</p
   <div class="tot">
     <div class="amt-big"><span>Amt</span><span>${npr(opts.total)}</span></div>
     <div class="small"><span>Subtotal</span><span>${npr(opts.subtotal)}</span></div>
-    ${showVat(opts) ? `<div class="small"><span>${vatLabel}</span><span>${npr(opts.vat)}</span></div>` : ""}
+${extraLines(opts, "before").map((l) => `    <div class="small"><span>${escapeHtml(l[0])}</span><span>${l[1]}</span></div>\n`).join("")}    ${showVat(opts) ? `<div class="small"><span>${vatLabel}</span><span>${npr(opts.vat)}</span></div>` : ""}
     <div class="amt-big"><span>Balance</span><span>${npr(opts.total)}</span></div>
-  </div>
+${extraLines(opts, "after").map((l) => `    <div class="small"><span>${escapeHtml(l[0])}</span><span>${l[1]}</span></div>\n`).join("")}  </div>
 ${noteParts.length ? `  <p class="note">${noteParts.join("<br/>")}</p>\n` : ""}  <div class="bc">${barcode}<div class="bc-code">${escapeHtml(code)}</div></div>
 </body></html>`;
 }

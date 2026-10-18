@@ -41,8 +41,18 @@ export function printDocument(html: string): boolean {
     removed = true;
     iframe.remove();
   };
+  // Printing focuses the frame; give focus back so the keyboard keeps working (Enter = New sale).
+  const before = document.activeElement as HTMLElement | null;
+  const restoreFocus = () => {
+    if (document.activeElement !== iframe && document.activeElement !== document.body) return;
+    const target = before?.isConnected ? before : document.querySelector<HTMLElement>("[role=dialog] [data-autofocus]");
+    target?.focus();
+  };
   void waitForImages(doc).then(() => {
-    win.addEventListener("afterprint", () => setTimeout(remove, 500), { once: true });
+    win.addEventListener("afterprint", () => {
+      restoreFocus();
+      setTimeout(remove, 500);
+    }, { once: true });
     try {
       win.focus();
       win.print();
@@ -50,6 +60,7 @@ export function printDocument(html: string): boolean {
       remove();
       return;
     }
+    restoreFocus();
     setTimeout(remove, REMOVE_AFTER_MS);
   });
   return true;
