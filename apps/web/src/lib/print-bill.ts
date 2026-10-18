@@ -1,9 +1,36 @@
 /** Glamo POS estimate bill — thermal receipt style (QTY / DESC / AMT + barcode). */
 
 import { jsPDF } from "jspdf";
-import { COMPANY } from "@/lib/mock-data";
-import { orderNumberFileSlug } from "@/lib/local-commerce";
+import type { BillData, StoreProfile } from "@/lib/api/types";
 import { barcodeSvgForPrint } from "@/lib/print-barcodes";
+import { LOGO_DATA_URL, LOGO_HEIGHT, LOGO_WIDTH } from "@/lib/print-logo";
+
+/** Company block printed on the bill — comes from store settings (StoreProfile). */
+export type BillCompany = {
+  name: string;
+  address: string;
+  phone: string;
+  pan: string;
+  vat?: string;
+  email?: string;
+  category?: string;
+};
+
+export function companyFromStore(store: Pick<StoreProfile, "name" | "address" | "phone" | "pan" | "vatNumber" | "email">): BillCompany {
+  return {
+    name: store.name,
+    address: store.address,
+    phone: store.phone,
+    pan: store.pan,
+    vat: store.vatNumber,
+    email: store.email,
+    category: "Cosmetics store",
+  };
+}
+
+function orderNumberFileSlug(orderId: string): string {
+  return String(orderId).replace(/[^a-zA-Z0-9_-]/g, "") || "order";
+}
 
 export type BillLine = {
   name: string;
@@ -28,7 +55,47 @@ export type StoreBillOpts = {
   /** Tax invoice (Nepal VAT / PAN) vs estimate bill */
   invoiceType?: "estimate" | "tax";
   buyerPan?: string;
+  /** Seller company block (store settings). */
+  company: BillCompany;
+  /** VAT % shown on the VAT line (default 13). */
+  vatRate?: number;
 };
+
+const PAYMENT_LABELS: Record<string, string> = {
+  CASH: "Cash",
+  FONEPAY_QR: "Fonepay QR",
+  KHALTI: "Khalti",
+  ESEWA: "eSewa",
+  CARD: "Card",
+  BANK_TRANSFER: "Bank transfer",
+  CREDIT: "Khata",
+  CASH_ON_DELIVERY: "COD",
+};
+
+/** Map server (or offline-equivalent) BillData onto the bill layout. */
+export function billOptsFromBillData(
+  bill: BillData,
+  extra: { channel?: string; invoiceType?: "estimate" | "tax"; buyerPan?: string; company?: BillCompany } = {},
+): StoreBillOpts {
+  const methods = [...new Set(bill.payments.map((p) => PAYMENT_LABELS[p.method] ?? p.method))];
+  return {
+    orderId: bill.printableRef,
+    customerName: bill.customer?.name || "Walk-in Customer",
+    customerPhone: bill.customer?.phone ?? undefined,
+    method: methods.length ? methods.join(" + ") : bill.due > 0 ? "COD" : "—",
+    channel: extra.channel ?? bill.channel,
+    lines: bill.items.map((i) => ({ name: i.name, qty: i.qty, unitPrice: i.unitPrice, lineTotal: i.lineTotal })),
+    subtotal: bill.subtotal,
+    vat: bill.vatAmount,
+    total: bill.total,
+    vatEnabled: bill.vatAmount > 0,
+    printedAt: bill.createdAt,
+    invoiceType: extra.invoiceType,
+    buyerPan: extra.buyerPan,
+    company: extra.company ?? companyFromStore(bill.store),
+    vatRate: bill.vatRate,
+  };
+}
 
 function npr(n: number) {
   return `Rs ${Math.round(n).toLocaleString("en-NP")}`;
@@ -79,6 +146,8 @@ function billBarcodeCode(orderId: string) {
 
 /** Open thermal-style estimate or tax invoice and trigger browser print. */
 export function printStoreBill(opts: StoreBillOpts) {
+  const COMPANY = opts.company;
+  const vatLabel = `VAT ${opts.vatRate ?? 13}%`;
   const stamp = printTimestamp(opts);
   const code = billBarcodeCode(opts.orderId);
   const barcode = barcodeSvgForPrint(code, { width: 200, height: 48, barWidth: 1.5 });
@@ -121,9 +190,11 @@ export function printStoreBill(opts: StoreBillOpts) {
   .bc{text-align:center;margin-top:14px}
   .bc svg{display:inline-block}
   .bc-code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10px;margin-top:2px;letter-spacing:.04em}
+  .logo{text-align:center;margin:0 0 6px}.logo img{display:inline-block;width:120px;height:auto}
   @media print{body{padding:0}}
   @page{size:80mm auto;margin:2mm}
 </style></head><body>
+  <div class="logo"><img src="${LOGO_DATA_URL}" alt="${escapeHtml(COMPANY.name)}" width="120" height="${Math.round((120 * LOGO_HEIGHT) / LOGO_WIDTH)}"/></div>
   <h1>${escapeHtml(COMPANY.name)}</h1>
   <p class="addr">${escapeHtml(COMPANY.category ?? "Cosmetics store")}</p>
   <p class="addr">${escapeHtml(COMPANY.address)}</p>
@@ -144,7 +215,7 @@ export function printStoreBill(opts: StoreBillOpts) {
   <div class="tot">
     <div class="amt-big"><span>Amt</span><span>${npr(opts.total)}</span></div>
     <div class="small"><span>Subtotal</span><span>${npr(opts.subtotal)}</span></div>
-    ${(isTax || opts.vatEnabled) && opts.vat > 0 ? `<div class="small"><span>VAT 13%</span><span>${npr(opts.vat)}</span></div>` : ""}
+    ${(isTax || opts.vatEnabled) && opts.vat > 0 ? `<div class="small"><span>${vatLabel}</span><span>${npr(opts.vat)}</span></div>` : ""}
     <div class="amt-big"><span>Balance</span><span>${npr(opts.total)}</span></div>
   </div>
   <p class="note">${note}</p>
@@ -184,10 +255,13 @@ export function printStoreBill(opts: StoreBillOpts) {
 
 /** Download a PDF estimate bill for the sale. */
 export function downloadStoreBillPdf(opts: StoreBillOpts) {
+  const COMPANY = opts.company;
   const stamp = printTimestamp(opts);
   const doc = new jsPDF({ unit: "mm", format: [80, 210] });
   const w = 80;
   let y = 8;
+  // Logo top-left (does not shift the text layout).
+  doc.addImage(LOGO_DATA_URL, "PNG", 4, 2, 15, (15 * LOGO_HEIGHT) / LOGO_WIDTH);
   const center = (text: string, size = 10) => {
     doc.setFontSize(size);
     doc.text(text, w / 2, y, { align: "center" });
@@ -248,7 +322,7 @@ export function downloadStoreBillPdf(opts: StoreBillOpts) {
   doc.line(4, y, w - 4, y);
   y += 5;
   line("Subtotal", npr(opts.subtotal));
-  if ((opts.invoiceType === "tax" || opts.vatEnabled) && opts.vat > 0) line("VAT 13%", npr(opts.vat));
+  if ((opts.invoiceType === "tax" || opts.vatEnabled) && opts.vat > 0) line(`VAT ${opts.vatRate ?? 13}%`, npr(opts.vat));
   doc.setFont("helvetica", "bold");
   line("BALANCE", npr(opts.total));
   doc.setFont("helvetica", "normal");
@@ -289,10 +363,4 @@ export function issueStoreBill(opts: StoreBillOpts & { downloadPdf?: boolean }) 
       /* print already issued */
     }
   });
-}
-
-/** Large QR payload for customer to scan (amount + shop). Replace with Fonepay/eSewa payload later. */
-export function paymentQrImageUrl(total: number) {
-  const payload = `GLAMO|NPR|${Math.round(total)}|GlamoNepal`;
-  return `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(payload)}`;
 }

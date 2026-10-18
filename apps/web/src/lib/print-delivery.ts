@@ -1,23 +1,15 @@
 /** Delivery note print — A4 layout (single or batch), matching warehouse delivery-note style. */
 
-import type { ApiOrder } from "@/lib/commerce-client";
-import { COMPANY } from "@/lib/mock-data";
+import type { PosOrder } from "@/lib/api/types";
+import type { BillCompany } from "@/lib/print-bill";
 import { barcodeSvgForPrint } from "@/lib/print-barcodes";
 import { formatNPR } from "@/lib/format";
+import { LOGO_DATA_URL, LOGO_HEIGHT, LOGO_WIDTH } from "@/lib/print-logo";
 
-/** Inline logo so print popups work without fetching /public. */
+/** Embedded GLAMO logo (data URL) so print popups work offline without fetching /public. */
 function glamoLogoSvg(uid: string, size = 72): string {
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="${size}" height="${size}" role="img" aria-label="Glamo Nepal">
-  <defs>
-    <linearGradient id="${uid}" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#9f2d4a"/>
-      <stop offset="100%" stop-color="#c45c4a"/>
-    </linearGradient>
-  </defs>
-  <circle cx="60" cy="60" r="56" fill="url(#${uid})"/>
-  <circle cx="60" cy="60" r="44" fill="none" stroke="#f7e6d8" stroke-width="3"/>
-  <text x="60" y="78" text-anchor="middle" font-family="Georgia,'Times New Roman',serif" font-size="64" font-weight="700" fill="#ffffff">G</text>
-</svg>`;
+  void uid;
+  return `<img src="${LOGO_DATA_URL}" alt="Glamo Nepal" width="${size}" height="${Math.round((size * LOGO_HEIGHT) / LOGO_WIDTH)}"/>`;
 }
 
 function escapeHtml(s: string) {
@@ -83,28 +75,37 @@ function openPrintWindow(html: string): boolean {
   return true;
 }
 
-function notePageHtml(order: ApiOrder, index: number, total: number): string {
-  const ref = shortOrderRef(order.id);
-  const code = barcodeValue(order.id);
+function deliveryAddress(order: PosOrder): string {
+  const a = order.shippingAddress ?? {};
+  return [a.address1, a.city && a.city !== a.address1 ? a.city : null].filter((v) => typeof v === "string" && v.trim()).join(", ");
+}
+
+function notePageHtml(order: PosOrder, index: number, total: number, COMPANY: BillCompany): string {
+  const orderRef = order.printableRef || order.orderNumber || order.id;
+  const ref = shortOrderRef(orderRef);
+  const code = barcodeValue(orderRef);
   const barcode = barcodeSvgForPrint(code, { width: 280, height: 64, barWidth: 1.8 });
   const orderDate = formatDay(order.createdAt);
-  const shipDate = formatDay(order.deliveryScheduledAt || order.createdAt);
-  const customerName = order.customer?.name ?? "Walk-in";
-  const phone = order.customer?.phone ?? "—";
-  const address = order.deliveryAddress?.trim() || "Address not set";
-  const notes = order.deliveryNotes?.trim() || "";
-  const assignee = order.deliveryAssignee?.trim() || "—";
+  const shipDate = formatDay(order.shipment?.createdAt || order.createdAt);
+  const customerName = order.shippingAddress?.fullName || order.customer?.name || "Walk-in";
+  const phone = order.shippingAddress?.phone || order.customer?.phone || "—";
+  const address = deliveryAddress(order).trim() || "Address not set";
+  const notes = order.notes?.trim() || "";
+  const assignee = order.shipment ? "Nepal Can Move" : "—";
+  const tracking = order.shipment?.trackingCode
+    ? `<p>NCM tracking: <strong class="mono">${escapeHtml(order.shipment.trackingCode)}</strong></p>`
+    : "";
 
   const lines = order.items?.length
     ? order.items
         .map((line, i) => {
-          const sku = line.product?.sku || line.product?.barcode || line.product?.id || line.id || "—";
-          const name = line.product?.name ?? "Item";
+          const sku = line.sku || line.productId || line.id || "—";
+          const name = line.variantName ? `${line.name} — ${line.variantName}` : line.name || "Item";
           return `<tr>
             <td>${i + 1}</td>
             <td class="mono">${escapeHtml(String(sku))}</td>
             <td>${escapeHtml(name)}</td>
-            <td class="right">${line.qty}</td>
+            <td class="right">${line.quantity}</td>
             <td class="right">${escapeHtml(formatNPR(Number(line.unitPrice)))}</td>
             <td class="right">${escapeHtml(formatNPR(Number(line.lineTotal)))}</td>
           </tr>`;
@@ -112,7 +113,7 @@ function notePageHtml(order: ApiOrder, index: number, total: number): string {
         .join("")
     : `<tr><td colspan="6" class="muted">No line items on this order</td></tr>`;
 
-  const logoId = `g${index}_${String(order.id).replace(/[^a-zA-Z0-9]/g, "").slice(-8)}`;
+  const logoId = `g${index}_${String(orderRef).replace(/[^a-zA-Z0-9]/g, "").slice(-8)}`;
 
   return `
   <section class="note">
@@ -155,7 +156,7 @@ function notePageHtml(order: ApiOrder, index: number, total: number): string {
         <p>Tel: ${escapeHtml(phone)}</p>
         ${notes ? `<p class="notes">Notes: ${escapeHtml(notes)}</p>` : ""}
         <p>Assignee: ${escapeHtml(assignee)}</p>
-        <p>Payment: ${escapeHtml(order.paymentStatus)} · ${escapeHtml(formatNPR(Number(order.amount)))}</p>
+        <p>Payment: ${escapeHtml(order.paymentStatus)} · ${escapeHtml(formatNPR(Number(order.totalAmount)))}</p>${tracking}
       </div>
       <div class="box">
         <h3>Source (from)</h3>
@@ -166,7 +167,7 @@ function notePageHtml(order: ApiOrder, index: number, total: number): string {
             <p>${escapeHtml(COMPANY.category ?? "Cosmetics store")}</p>
             <p>${escapeHtml(COMPANY.address)}</p>
             <p>Tel: ${escapeHtml(COMPANY.phone)}</p>
-            <p>${escapeHtml(COMPANY.email)}</p>
+            <p>${escapeHtml(COMPANY.email ?? "")}</p>
           </div>
         </div>
       </div>
@@ -238,20 +239,22 @@ const STYLES = `
 `;
 
 export type DeliveryPrintOpts = {
-  orders: ApiOrder[];
+  orders: PosOrder[];
+  /** Sender block (store settings). */
+  company: BillCompany;
   /** Shown in document title only */
   rangeLabel?: string;
 };
 
 /** Print one delivery note per order (batch = multi-page). */
 export function printDeliveryNotes(opts: DeliveryPrintOpts): boolean {
-  const { orders, rangeLabel } = opts;
+  const { orders, rangeLabel, company } = opts;
   if (!orders.length) return false;
 
-  const pages = orders.map((o, i) => notePageHtml(o, i, orders.length)).join("");
+  const pages = orders.map((o, i) => notePageHtml(o, i, orders.length, company)).join("");
   const title =
     orders.length === 1
-      ? `Delivery note ${shortOrderRef(orders[0].id)}`
+      ? `Delivery note ${shortOrderRef(orders[0].printableRef || orders[0].orderNumber || orders[0].id)}`
       : `Delivery notes (${orders.length})${rangeLabel ? ` — ${rangeLabel}` : ""}`;
 
   const html = `<!doctype html>
@@ -264,12 +267,7 @@ ${pages}
   return openPrintWindow(html);
 }
 
-/** @deprecated use printDeliveryNotes */
-export function printDeliverySequence(opts: DeliveryPrintOpts): boolean {
-  return printDeliveryNotes(opts);
-}
-
 /** Convenience: print a single order’s delivery note. */
-export function printDeliveryNote(order: ApiOrder): boolean {
-  return printDeliveryNotes({ orders: [order] });
+export function printDeliveryNote(order: PosOrder, company: BillCompany): boolean {
+  return printDeliveryNotes({ orders: [order], company });
 }
