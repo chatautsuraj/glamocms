@@ -1,10 +1,10 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Calculator, PhoneCall } from "lucide-react";
-import { BarcodeCameraDialog } from "@/components/barcode-camera-dialog";
 import { PageHeader } from "@/components/page-header";
 import { CartLines, TotalsBlock } from "@/components/till/cart-lines";
 import { CheckoutDialog } from "@/components/till/checkout-dialog";
@@ -33,6 +33,9 @@ import { useCatalog } from "@/lib/pos/use-catalog";
 import { companyFromStore } from "@/lib/print-bill";
 import { printDeliveryNote } from "@/lib/print-delivery";
 import { useSettingsStore } from "@/lib/settings-store";
+
+/** html5-qrcode is heavy — load the camera scanner only when opened. */
+const BarcodeCameraDialog = dynamic(() => import("@/components/barcode-camera-dialog").then((m) => m.BarcodeCameraDialog), { ssr: false });
 
 export default function PhoneOrdersPage() {
   const cart = usePhoneCart();

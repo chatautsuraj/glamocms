@@ -1,9 +1,9 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Keyboard, Lock, LockOpen, Percent, RefreshCw, User, X } from "lucide-react";
-import { BarcodeCameraDialog } from "@/components/barcode-camera-dialog";
 import { CartLines, TotalsBlock } from "@/components/till/cart-lines";
 import { CheckoutDialog } from "@/components/till/checkout-dialog";
 import { CustomerPicker } from "@/components/till/customer-picker";
@@ -30,6 +30,9 @@ import { submitSale } from "@/lib/pos/submit-sale";
 import { useCatalog } from "@/lib/pos/use-catalog";
 import { useTillShift } from "@/lib/pos/use-till";
 import { useSettingsStore } from "@/lib/settings-store";
+
+/** html5-qrcode is heavy — load the camera scanner only when opened. */
+const BarcodeCameraDialog = dynamic(() => import("@/components/barcode-camera-dialog").then((m) => m.BarcodeCameraDialog), { ssr: false });
 
 export default function TillPage() {
   const cart = useTillCart();
