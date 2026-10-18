@@ -12,7 +12,7 @@ export interface NavItem {
 
 export const NAV: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: "LayoutDashboard", anyOf: ["pos.sell"], section: "Sell" },
-  { href: "/till", label: "Till", icon: "ScanLine", anyOf: ["pos.sell"], section: "Sell" },
+  { href: "/pos", label: "POS", icon: "ScanLine", anyOf: ["pos.sell"], section: "Sell" },
   { href: "/orders", label: "Orders", icon: "Receipt", anyOf: ["orders.read.own", "orders.read.all"], section: "Sell" },
   { href: "/customers", label: "Customers", icon: "Users", anyOf: ["pos.sell"], section: "Sell" },
   { href: "/phone", label: "Phone orders", icon: "Phone", anyOf: ["orders.write"], section: "Commerce" },
@@ -41,9 +41,9 @@ export function canAccessPath(perms: readonly string[], pathname: string) {
   return item ? hasAny(perms, item.anyOf) : true;
 }
 
-/** First page the user may open — cashiers land on the till. */
+/** First page the user may open — cashiers land on the POS screen. */
 export function homeFor(perms: readonly string[]) {
   if (perms.includes("analytics.read")) return "/dashboard";
-  if (perms.includes("pos.sell")) return "/till";
+  if (perms.includes("pos.sell")) return "/pos";
   return NAV.find((n) => hasAny(perms, n.anyOf))?.href ?? "/login";
 }

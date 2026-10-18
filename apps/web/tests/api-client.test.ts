@@ -28,14 +28,32 @@ test("sends Bearer token and unwraps the envelope + meta", async () => {
 });
 
 test("maps errors[0] machine codes to ApiError + friendly copy", async () => {
-  stubFetch([{ status: 409, body: { success: false, message: "Open a till first", errors: ["TILL_NOT_OPEN"] } }]);
+  stubFetch([{ status: 400, body: { success: false, message: "Payment method disabled", errors: ["PAYMENT_METHOD_DISABLED"] } }]);
   await assert.rejects(api.post("/pos/sales", {}), (err: unknown) => {
     assert.ok(err instanceof ApiError);
-    assert.equal(err.code, "TILL_NOT_OPEN");
-    assert.equal(err.status, 409);
-    assert.equal(friendlyError(err), "Open the till before taking counter sales.");
+    assert.equal(err.code, "PAYMENT_METHOD_DISABLED");
+    assert.equal(err.status, 400);
+    assert.equal(friendlyError(err), "That payment method is switched off in Settings.");
     return true;
   });
+});
+
+test("validation errors surface the first field problem in plain words", async () => {
+  stubFetch([{ status: 400, body: { success: false, message: "Validation failed", errors: ["store.pan: PAN must be 9 digits"] } }]);
+  await assert.rejects(api.patch("/pos/settings", {}), (err: unknown) => {
+    assert.ok(err instanceof ApiError);
+    assert.equal(err.code, "VALIDATION_ERROR");
+    assert.equal(friendlyError(err), "PAN: PAN must be 9 digits");
+    return true;
+  });
+});
+
+test("multipart uploads send FormData without a JSON content type", async () => {
+  const calls = stubFetch([{ status: 201, body: { success: true, data: { url: "https://res.cloudinary.com/x/qr.png" } } }]);
+  const res = await api.upload<{ url: string }>("/pos/uploads/image", new Blob(["x"], { type: "image/png" }));
+  assert.equal(res.url, "https://res.cloudinary.com/x/qr.png");
+  assert.ok(calls[0].init.body instanceof FormData);
+  assert.equal((calls[0].init.headers as Record<string, string>)["Content-Type"], undefined);
 });
 
 test("401 retries once with a forced token refresh, then reports unauthorized", async () => {

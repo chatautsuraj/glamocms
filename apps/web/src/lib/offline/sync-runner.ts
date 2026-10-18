@@ -1,5 +1,6 @@
 /** Background loop: catalog delta refresh + offline sale replay on reconnect / interval. */
 import { create } from "zustand";
+import { usePosConfig } from "@/lib/pos/config-store";
 import { refreshCatalog } from "./catalog-cache";
 import { db } from "./db";
 import { queueCounts, recoverStuck, syncPending } from "./queue";
@@ -35,6 +36,9 @@ export async function refreshCounts() {
   useOfflineStore.setState({ ...counts, catalogCount });
 }
 
+const CONFIG_REFRESH_MS = 2 * 60_000;
+let lastConfigAt = Date.now();
+
 /** One cycle: replay queue, then pull catalog deltas. Safe to call often. */
 export async function runSyncCycle(opts: { fullCatalog?: boolean } = {}) {
   const store = useOfflineStore.getState();
@@ -53,6 +57,11 @@ export async function runSyncCycle(opts: { fullCatalog?: boolean } = {}) {
       useOfflineStore.setState({ catalogSyncedAt: Date.now() });
     } catch (err) {
       if ((err as { isNetwork?: boolean })?.isNetwork) online = false;
+    }
+    // Owner may have switched a payment method / VAT off: keep every counter current.
+    if (online && Date.now() - lastConfigAt > CONFIG_REFRESH_MS) {
+      lastConfigAt = Date.now();
+      await usePosConfig.getState().refresh();
     }
     useOfflineStore.setState({ online, lastSyncAt: Date.now() });
   } finally {

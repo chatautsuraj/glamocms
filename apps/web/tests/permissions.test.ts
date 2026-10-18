@@ -8,12 +8,12 @@ const SUPER = [...MANAGER, "settings.write", "staff.manage", "whatsapp.broadcast
 
 const visible = (perms: string[]) => NAV.filter((n) => hasAny(perms, n.anyOf)).map((n) => n.href);
 
-test("cashier sees only till, own orders, customer lookup (+ dashboard)", () => {
-  assert.deepEqual(visible(CASHIER), ["/dashboard", "/till", "/orders", "/customers"]);
+test("cashier sees only POS, own orders, customer lookup (+ dashboard)", () => {
+  assert.deepEqual(visible(CASHIER), ["/dashboard", "/pos", "/orders", "/customers"]);
   assert.equal(canAccessPath(CASHIER, "/products"), false);
   assert.equal(canAccessPath(CASHIER, "/settings"), false);
   assert.equal(canAccessPath(CASHIER, "/orders/abc"), true);
-  assert.equal(homeFor(CASHIER), "/till");
+  assert.equal(homeFor(CASHIER), "/pos");
 });
 
 test("manager gets commerce; settings read-only; super admin gets everything", () => {

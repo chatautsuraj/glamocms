@@ -53,12 +53,13 @@ async function send(method: string, path: string, opts: RequestOptions, forceRef
   const token = await hooks.getToken(forceRefresh);
   const headers: Record<string, string> = { Accept: opts.raw ? "*/*" : "application/json" };
   if (token) headers.Authorization = `Bearer ${token}`;
-  if (opts.body !== undefined) headers["Content-Type"] = "application/json";
+  const multipart = typeof FormData !== "undefined" && opts.body instanceof FormData;
+  if (opts.body !== undefined && !multipart) headers["Content-Type"] = "application/json";
   try {
     return await fetch(buildUrl(path, opts.query), {
       method,
       headers,
-      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+      body: opts.body === undefined ? undefined : multipart ? (opts.body as FormData) : JSON.stringify(opts.body),
       signal: opts.signal,
       cache: "no-store",
     });
@@ -114,6 +115,12 @@ export const api = {
   post: <T>(path: string, body?: unknown, opts: RequestOptions = {}) => request<T>("POST", path, { ...opts, body: body ?? {} }),
   patch: <T>(path: string, body?: unknown, opts: RequestOptions = {}) => request<T>("PATCH", path, { ...opts, body: body ?? {} }),
   del: <T>(path: string, opts: RequestOptions = {}) => request<T>("DELETE", path, opts),
+  /** multipart/form-data upload of one file (field `file`). */
+  upload: <T>(path: string, file: Blob, field = "file") => {
+    const form = new FormData();
+    form.append(field, file);
+    return request<T>("POST", path, { body: form });
+  },
   /** Paginated list: returns items + meta (falls back to legacy `pagination`). */
   async list<T>(path: string, query?: Query): Promise<Paged<T>> {
     const env = await requestEnvelope<T[]>("GET", path, { query });

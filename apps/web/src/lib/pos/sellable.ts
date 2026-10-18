@@ -23,7 +23,7 @@ export function stockOf(p: PosProduct, variantId: string | null) {
  */
 export function sellCheck(p: PosProduct, variantId: string | null, inCart: number, opts: { allowNegativeStock?: boolean; online?: boolean } = {}): { error?: string; warning?: string } {
   if (!p.isActive) return { error: `${p.name} is inactive.` };
-  if (p.variants.length > 0 && !variantId) return { error: "Choose a shade / variant first." };
+  if (p.variants.length > 0 && !variantId) return { error: "Choose a shade first." };
   const exp = expiryState(p.attributes?.expiry);
   if (exp === "expired") return { error: `${p.name} is past its expiry date (${p.attributes.expiry}). Remove it from the shelf.` };
   const stock = stockOf(p, variantId);

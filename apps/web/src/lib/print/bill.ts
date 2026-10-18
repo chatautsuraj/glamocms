@@ -1,35 +1,42 @@
-/** Glamo POS estimate bill — thermal receipt style (QTY / DESC / AMT + barcode). */
+/**
+ * Customer bill — 80 mm thermal receipt (QTY / DESC / AMT + bill-number
+ * barcode) and the matching PDF. Built from server BillData (or the identical
+ * offline equivalent). Rules (POS v2):
+ *  - no "estimate" / "not a tax invoice" / "thank you" wording;
+ *  - taxInvoice (VAT on + store PAN) → heading TAX INVOICE + "Tax invoice · PAN …";
+ *  - VAT switched off → no VAT line at all;
+ *  - footer = Settings → bill footer, printed only when set.
+ */
 
 import { jsPDF } from "jspdf";
 import type { BillData, StoreProfile } from "@/lib/api/types";
-import { barcodeSvgForPrint } from "@/lib/print-barcodes";
-import { LOGO_DATA_URL, LOGO_HEIGHT, LOGO_WIDTH } from "@/lib/print-logo";
+import { paymentTitle } from "@/lib/pos/payments";
+import { barcodeSvgForPrint } from "./barcode";
+import { LOGO_DATA_URL, LOGO_HEIGHT, LOGO_WIDTH } from "./logo";
+import { escapeHtml, printDocument } from "./print-document";
 
-/** Company block printed on the bill — comes from store settings (StoreProfile). */
+/** Seller block printed on the bill — from store settings (StoreProfile). */
 export type BillCompany = {
   name: string;
+  /** Printed under the name only when set and different from it. */
+  legalName?: string;
   address: string;
   phone: string;
   pan: string;
   vat?: string;
   email?: string;
-  category?: string;
 };
 
-export function companyFromStore(store: Pick<StoreProfile, "name" | "address" | "phone" | "pan" | "vatNumber" | "email">): BillCompany {
+export function companyFromStore(store: Pick<StoreProfile, "name" | "legalName" | "address" | "phone" | "pan" | "vatNumber" | "email">): BillCompany {
   return {
     name: store.name,
+    legalName: store.legalName,
     address: store.address,
     phone: store.phone,
     pan: store.pan,
     vat: store.vatNumber,
     email: store.email,
-    category: "Cosmetics store",
   };
-}
-
-function orderNumberFileSlug(orderId: string): string {
-  return String(orderId).replace(/[^a-zA-Z0-9_-]/g, "") || "order";
 }
 
 export type BillLine = {
@@ -49,93 +56,52 @@ export type StoreBillOpts = {
   subtotal: number;
   vat: number;
   total: number;
+  /** Global VAT switch at sale time; false → no VAT line. */
   vatEnabled: boolean;
+  /** VAT % shown on the VAT line. */
+  vatRate?: number;
+  /** VAT on + store PAN → TAX INVOICE heading and "Tax invoice · PAN …" line. */
+  taxInvoice?: boolean;
+  /** Settings → bill footer ('' prints nothing). */
+  footer?: string;
   /** Override print timestamp (defaults to now). */
   printedAt?: Date | string;
-  /** Tax invoice (Nepal VAT / PAN) vs estimate bill */
-  invoiceType?: "estimate" | "tax";
-  buyerPan?: string;
-  /** Seller company block (store settings). */
+  /** Seller block (store settings). */
   company: BillCompany;
-  /** VAT % shown on the VAT line (default 13). */
-  vatRate?: number;
-};
-
-const PAYMENT_LABELS: Record<string, string> = {
-  CASH: "Cash",
-  FONEPAY_QR: "Fonepay QR",
-  KHALTI: "Khalti",
-  ESEWA: "eSewa",
-  CARD: "Card",
-  BANK_TRANSFER: "Bank transfer",
-  CREDIT: "Khata",
-  CASH_ON_DELIVERY: "COD",
 };
 
 /** Map server (or offline-equivalent) BillData onto the bill layout. */
-export function billOptsFromBillData(
-  bill: BillData,
-  extra: { channel?: string; invoiceType?: "estimate" | "tax"; buyerPan?: string; company?: BillCompany } = {},
-): StoreBillOpts {
-  const methods = [...new Set(bill.payments.map((p) => PAYMENT_LABELS[p.method] ?? p.method))];
+export function billOptsFromBillData(bill: BillData, extra: { channel?: string; company?: BillCompany } = {}): StoreBillOpts {
+  const methods = [...new Set(bill.payments.map((p) => paymentTitle(p.method)))];
   return {
     orderId: bill.printableRef,
     customerName: bill.customer?.name || "Walk-in Customer",
     customerPhone: bill.customer?.phone ?? undefined,
-    method: methods.length ? methods.join(" + ") : bill.due > 0 ? "COD" : "—",
+    method: methods.length ? methods.join(" + ") : bill.due > 0 ? "Cash on delivery" : "—",
     channel: extra.channel ?? bill.channel,
     lines: bill.items.map((i) => ({ name: i.name, qty: i.qty, unitPrice: i.unitPrice, lineTotal: i.lineTotal })),
     subtotal: bill.subtotal,
     vat: bill.vatAmount,
     total: bill.total,
-    vatEnabled: bill.vatAmount > 0,
-    printedAt: bill.createdAt,
-    invoiceType: extra.invoiceType,
-    buyerPan: extra.buyerPan,
-    company: extra.company ?? companyFromStore(bill.store),
+    vatEnabled: bill.vatEnabled !== false && bill.vatAmount > 0,
     vatRate: bill.vatRate,
+    taxInvoice: Boolean(bill.taxInvoice),
+    footer: bill.footer ?? "",
+    printedAt: bill.createdAt,
+    company: extra.company ?? companyFromStore(bill.store),
   };
 }
 
 function npr(n: number) {
-  return `Rs ${Math.round(n).toLocaleString("en-NP")}`;
-}
-
-function escapeHtml(s: string) {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+  return `Rs ${Math.round(n).toLocaleString("en-IN")}`;
 }
 
 function printTimestamp(opts: StoreBillOpts) {
-  const d =
-    opts.printedAt instanceof Date
-      ? opts.printedAt
-      : opts.printedAt
-        ? new Date(opts.printedAt)
-        : new Date();
+  const d = opts.printedAt instanceof Date ? opts.printedAt : opts.printedAt ? new Date(opts.printedAt) : new Date();
+  const timeZone = "Asia/Kathmandu";
   return {
-    date: d.toLocaleDateString("en-NP", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }),
-    time: d.toLocaleTimeString("en-NP", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    }),
-    full: d.toLocaleString("en-NP", {
-      year: "numeric",
-      month: "short",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: true,
-    }),
+    date: d.toLocaleDateString("en-NP", { year: "numeric", month: "2-digit", day: "2-digit", timeZone }),
+    time: d.toLocaleTimeString("en-NP", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone }),
   };
 }
 
@@ -144,18 +110,27 @@ function billBarcodeCode(orderId: string) {
   return (clean || orderId).slice(0, 24);
 }
 
-/** Open thermal-style estimate or tax invoice and trigger browser print. */
-export function printStoreBill(opts: StoreBillOpts) {
+function footerLines(footer: string | undefined): string[] {
+  return (footer ?? "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+}
+
+const showVat = (opts: StoreBillOpts) => opts.vatEnabled && opts.vat > 0;
+const docTitle = (opts: StoreBillOpts) => (opts.taxInvoice ? "TAX INVOICE" : "BILL");
+
+/** Thermal bill HTML (no script; printing is triggered by printDocument). */
+export function billHtml(opts: StoreBillOpts): string {
   const COMPANY = opts.company;
-  const vatLabel = `VAT ${opts.vatRate ?? 13}%`;
+  const vatLabel = `VAT ${opts.vatRate ?? 0}%`;
   const stamp = printTimestamp(opts);
   const code = billBarcodeCode(opts.orderId);
   const barcode = barcodeSvgForPrint(code, { width: 200, height: 48, barWidth: 1.5 });
-  const isTax = opts.invoiceType === "tax";
-  const docTitle = isTax ? "TAX INVOICE" : "ESTIMATE BILL";
-  const note = isTax
-    ? `Tax invoice · Seller PAN ${COMPANY.pan}${opts.buyerPan ? ` · Buyer PAN ${escapeHtml(opts.buyerPan)}` : ""}<br/>VAT as applicable (IRD / Nepal). Thank you`
-    : "This is an estimate bill — not a tax invoice.<br/>Thank you";
+  const title = docTitle(opts);
+  const noteParts = [
+    ...(opts.taxInvoice && COMPANY.pan ? [`Tax invoice · PAN ${escapeHtml(COMPANY.pan)}`] : []),
+    ...footerLines(opts.footer).map(escapeHtml),
+  ];
+  const legal = COMPANY.legalName?.trim() && COMPANY.legalName.trim() !== COMPANY.name.trim() ? COMPANY.legalName.trim() : "";
+  const taxIds = [COMPANY.pan ? `PAN ${escapeHtml(COMPANY.pan)}` : "", COMPANY.vat ? `VAT ${escapeHtml(COMPANY.vat)}` : ""].filter(Boolean).join(" · ");
 
   const rows = opts.lines
     .map(
@@ -168,8 +143,8 @@ export function printStoreBill(opts: StoreBillOpts) {
     )
     .join("");
 
-  const html = `<!doctype html>
-<html><head><title>${escapeHtml(docTitle)} ${escapeHtml(opts.orderId)}</title>
+  return `<!doctype html>
+<html><head><title>${escapeHtml(title)} ${escapeHtml(opts.orderId)}</title>
 <style>
   body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;padding:14px 12px;color:#111;max-width:300px;margin:0 auto}
   h1{font-size:18px;margin:0 0 2px;text-align:center;font-weight:700;letter-spacing:.02em}
@@ -196,17 +171,14 @@ export function printStoreBill(opts: StoreBillOpts) {
 </style></head><body>
   <div class="logo"><img src="${LOGO_DATA_URL}" alt="${escapeHtml(COMPANY.name)}" width="120" height="${Math.round((120 * LOGO_HEIGHT) / LOGO_WIDTH)}"/></div>
   <h1>${escapeHtml(COMPANY.name)}</h1>
-  <p class="addr">${escapeHtml(COMPANY.category ?? "Cosmetics store")}</p>
-  <p class="addr">${escapeHtml(COMPANY.address)}</p>
+${legal ? `  <p class="addr">${escapeHtml(legal)}</p>\n` : ""}  <p class="addr">${escapeHtml(COMPANY.address)}</p>
   <p class="addr">${escapeHtml(COMPANY.phone)}</p>
-  <p class="addr">PAN ${escapeHtml(COMPANY.pan)}${COMPANY.vat ? ` · VAT ${escapeHtml(COMPANY.vat)}` : ""}</p>
-  <p class="doc">${docTitle}</p>
+${taxIds ? `  <p class="addr">${taxIds}</p>\n` : ""}  <p class="doc">${title}</p>
   <div class="row"><span>${escapeHtml(stamp.date)}</span><span>${escapeHtml(stamp.time)}</span></div>
   <div class="meta">
     <div class="row"><span>Order ${escapeHtml(opts.orderId)}</span><span>${escapeHtml(opts.channel ?? "store")}</span></div>
     <div class="row"><span>${escapeHtml(opts.customerName)}</span><span>${escapeHtml(opts.method)}</span></div>
     ${opts.customerPhone ? `<div class="row"><span>Tel ${escapeHtml(opts.customerPhone)}</span><span></span></div>` : ""}
-    ${isTax && opts.buyerPan ? `<div class="row"><span>Buyer PAN</span><span>${escapeHtml(opts.buyerPan)}</span></div>` : ""}
   </div>
   <table>
     <thead><tr><th class="qty">Qty</th><th class="desc">Desc</th><th class="amt">Amt</th></tr></thead>
@@ -215,46 +187,24 @@ export function printStoreBill(opts: StoreBillOpts) {
   <div class="tot">
     <div class="amt-big"><span>Amt</span><span>${npr(opts.total)}</span></div>
     <div class="small"><span>Subtotal</span><span>${npr(opts.subtotal)}</span></div>
-    ${(isTax || opts.vatEnabled) && opts.vat > 0 ? `<div class="small"><span>${vatLabel}</span><span>${npr(opts.vat)}</span></div>` : ""}
+    ${showVat(opts) ? `<div class="small"><span>${vatLabel}</span><span>${npr(opts.vat)}</span></div>` : ""}
     <div class="amt-big"><span>Balance</span><span>${npr(opts.total)}</span></div>
   </div>
-  <p class="note">${note}</p>
-  <div class="bc">${barcode}<div class="bc-code">${escapeHtml(code)}</div></div>
-  <script>window.onload=function(){window.print();}</script>
+${noteParts.length ? `  <p class="note">${noteParts.join("<br/>")}</p>\n` : ""}  <div class="bc">${barcode}<div class="bc-code">${escapeHtml(code)}</div></div>
 </body></html>`;
-
-  const w = window.open("", "_blank", "width=400,height=640");
-  if (!w) {
-    const iframe = document.createElement("iframe");
-    iframe.style.cssText =
-      "position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0";
-    document.body.appendChild(iframe);
-    const doc = iframe.contentDocument;
-    if (!doc) {
-      iframe.remove();
-      return false;
-    }
-    doc.open();
-    doc.write(html);
-    doc.close();
-    setTimeout(() => {
-      try {
-        iframe.contentWindow?.print();
-      } catch {
-        /* ignore */
-      }
-      setTimeout(() => iframe.remove(), 800);
-    }, 200);
-    return true;
-  }
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
-  return true;
 }
 
-/** Download a PDF estimate bill for the sale. */
-export function downloadStoreBillPdf(opts: StoreBillOpts) {
+/** Print the thermal bill (hidden print frame — works after an await and offline). */
+export function printStoreBill(opts: StoreBillOpts) {
+  return printDocument(billHtml({ ...opts, printedAt: opts.printedAt ?? new Date() }));
+}
+
+function fileSlug(ref: string): string {
+  return String(ref).replace(/[^a-zA-Z0-9_-]/g, "") || "bill";
+}
+
+/** Build the 80 mm PDF bill (jsPDF document, not yet saved). */
+export function billPdf(opts: StoreBillOpts): jsPDF {
   const COMPANY = opts.company;
   const stamp = printTimestamp(opts);
   const doc = new jsPDF({ unit: "mm", format: [80, 210] });
@@ -277,7 +227,8 @@ export function downloadStoreBillPdf(opts: StoreBillOpts) {
   doc.setFont("helvetica", "bold");
   center(COMPANY.name, 12);
   doc.setFont("helvetica", "normal");
-  center(COMPANY.category ?? "Cosmetics store", 7);
+  const legal = COMPANY.legalName?.trim();
+  if (legal && legal !== COMPANY.name.trim()) center(legal, 7);
   // Split long address for 80mm thermal width
   const addr = COMPANY.address;
   if (addr.length > 32) {
@@ -290,7 +241,7 @@ export function downloadStoreBillPdf(opts: StoreBillOpts) {
   }
   center(COMPANY.phone, 8);
   doc.setFont("helvetica", "bold");
-  center("ESTIMATE BILL", 10);
+  center(docTitle(opts), 10);
   doc.setFont("helvetica", "normal");
   center(`${stamp.date}  ${stamp.time}`, 7);
   y += 1;
@@ -322,45 +273,18 @@ export function downloadStoreBillPdf(opts: StoreBillOpts) {
   doc.line(4, y, w - 4, y);
   y += 5;
   line("Subtotal", npr(opts.subtotal));
-  if ((opts.invoiceType === "tax" || opts.vatEnabled) && opts.vat > 0) line(`VAT ${opts.vatRate ?? 13}%`, npr(opts.vat));
+  if (showVat(opts)) line(`VAT ${opts.vatRate ?? 0}%`, npr(opts.vat));
   doc.setFont("helvetica", "bold");
   line("BALANCE", npr(opts.total));
   doc.setFont("helvetica", "normal");
   y += 4;
-  if (opts.invoiceType === "tax") {
-    center(`PAN ${COMPANY.pan}`, 7);
-    if (opts.buyerPan) center(`Buyer PAN ${opts.buyerPan}`, 7);
-    center("Tax invoice", 7);
-  } else {
-    center("Estimate — not a tax invoice", 7);
-  }
-  center("Thank you", 9);
-
-  doc.save(
-    `glamo-${opts.invoiceType === "tax" ? "tax" : "estimate"}-${orderNumberFileSlug(opts.orderId)}.pdf`,
-  );
-  return true;
+  if (opts.taxInvoice && COMPANY.pan) center(`Tax invoice · PAN ${COMPANY.pan}`, 7);
+  for (const f of footerLines(opts.footer)) center(f.length > 44 ? `${f.slice(0, 43)}…` : f, 7);
+  return doc;
 }
 
-/** Print thermal receipt. PDF download is opt-in (jspdf freezes the counter). */
-export function issueStoreBill(opts: StoreBillOpts & { downloadPdf?: boolean }) {
-  const stamped = { ...opts, printedAt: opts.printedAt ?? new Date() };
-  printStoreBill(stamped);
-  if (!opts.downloadPdf) return;
-  const schedule =
-    typeof window !== "undefined" && "requestIdleCallback" in window
-      ? (cb: () => void) =>
-          (
-            window as Window & {
-              requestIdleCallback: (fn: () => void, opts?: { timeout: number }) => number;
-            }
-          ).requestIdleCallback(cb, { timeout: 2000 })
-      : (cb: () => void) => window.setTimeout(cb, 250);
-  schedule(() => {
-    try {
-      downloadStoreBillPdf(stamped);
-    } catch {
-      /* print already issued */
-    }
-  });
+/** Download the PDF bill for the sale. */
+export function downloadStoreBillPdf(opts: StoreBillOpts) {
+  billPdf(opts).save(`bill-${fileSlug(opts.orderId)}.pdf`);
+  return true;
 }

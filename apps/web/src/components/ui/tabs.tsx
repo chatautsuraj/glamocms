@@ -1,22 +1,19 @@
 "use client";
 
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, useId, useState, type KeyboardEvent, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-type TabsContextValue = {
-  value: string;
-  setValue: (v: string) => void;
-};
+type TabsContextValue = { value: string; setValue: (v: string) => void; baseId: string };
 
 const TabsContext = createContext<TabsContextValue | null>(null);
 
-export function Tabs({
-  defaultValue,
-  value: controlledValue,
-  onValueChange,
-  children,
-  className,
-}: {
+function useTabs() {
+  const ctx = useContext(TabsContext);
+  if (!ctx) throw new Error("Tabs components must be used inside <Tabs>");
+  return ctx;
+}
+
+export function Tabs({ defaultValue, value: controlledValue, onValueChange, children, className }: {
   defaultValue?: string;
   value?: string;
   onValueChange?: (v: string) => void;
@@ -24,56 +21,55 @@ export function Tabs({
   className?: string;
 }) {
   const [internal, setInternal] = useState(defaultValue ?? "");
+  const baseId = useId();
   const value = controlledValue ?? internal;
   const setValue = (v: string) => {
     setInternal(v);
     onValueChange?.(v);
   };
-
   return (
-    <TabsContext.Provider value={{ value, setValue }}>
+    <TabsContext.Provider value={{ value, setValue, baseId }}>
       <div className={className}>{children}</div>
     </TabsContext.Provider>
   );
 }
 
-export function TabsList({ children, className }: { children: ReactNode; className?: string }) {
+/** Arrow keys move between tabs (WAI-ARIA tabs pattern). */
+function onListKey(e: KeyboardEvent<HTMLDivElement>) {
+  if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
+  const tabs = Array.from(e.currentTarget.querySelectorAll<HTMLButtonElement>("[role=tab]"));
+  const at = tabs.indexOf(document.activeElement as HTMLButtonElement);
+  if (at < 0) return;
+  e.preventDefault();
+  const next = e.key === "Home" ? 0 : e.key === "End" ? tabs.length - 1 : (at + (e.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+  tabs[next].focus();
+  tabs[next].click();
+}
+
+export function TabsList({ children, className, label }: { children: ReactNode; className?: string; label?: string }) {
   return (
-    <div
-      role="tablist"
-      className={cn(
-        "inline-flex min-h-10 flex-wrap items-center gap-1 rounded-xl bg-muted p-1",
-        className
-      )}
-    >
+    <div role="tablist" aria-label={label} onKeyDown={onListKey} className={cn("no-scrollbar flex max-w-full items-end gap-1 overflow-x-auto border-b border-border", className)}>
       {children}
     </div>
   );
 }
 
-export function TabsTrigger({
-  value,
-  children,
-  className,
-}: {
-  value: string;
-  children: ReactNode;
-  className?: string;
-}) {
-  const ctx = useContext(TabsContext)!;
+export function TabsTrigger({ value, children, className }: { value: string; children: ReactNode; className?: string }) {
+  const ctx = useTabs();
   const active = ctx.value === value;
   return (
     <button
       type="button"
       role="tab"
+      id={`${ctx.baseId}-tab-${value}`}
       aria-selected={active}
+      aria-controls={`${ctx.baseId}-panel-${value}`}
+      tabIndex={active ? 0 : -1}
       onClick={() => ctx.setValue(value)}
       className={cn(
-        "inline-flex min-h-9 items-center justify-center rounded-lg px-3 py-1.5 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        active
-          ? "bg-card text-foreground shadow-sm"
-          : "text-muted-foreground hover:text-foreground",
-        className
+        "-mb-px inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+        active ? "border-rose text-foreground" : "border-transparent text-muted-foreground hover:text-foreground",
+        className,
       )}
     >
       {children}
@@ -81,16 +77,12 @@ export function TabsTrigger({
   );
 }
 
-export function TabsContent({
-  value,
-  children,
-  className,
-}: {
-  value: string;
-  children: ReactNode;
-  className?: string;
-}) {
-  const ctx = useContext(TabsContext)!;
+export function TabsContent({ value, children, className }: { value: string; children: ReactNode; className?: string }) {
+  const ctx = useTabs();
   if (ctx.value !== value) return null;
-  return <div role="tabpanel" className={cn("mt-4", className)}>{children}</div>;
+  return (
+    <div role="tabpanel" id={`${ctx.baseId}-panel-${value}`} aria-labelledby={`${ctx.baseId}-tab-${value}`} className={cn("mt-4", className)}>
+      {children}
+    </div>
+  );
 }

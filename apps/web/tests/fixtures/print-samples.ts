@@ -28,10 +28,12 @@ export const SAMPLE_BILL_OPTS = {
   vat: 333,
   total: 2897,
   vatEnabled: true,
+  vatRate: 13,
   printedAt: SAMPLE_PRINTED_AT,
 };
 
-export const SAMPLE_TAX_OPTS = { ...SAMPLE_BILL_OPTS, invoiceType: "tax" as const, buyerPan: "301234567" };
+/** v1 tax-invoice sample (the old fixture also carried a buyer PAN, which v2 no longer prints). */
+export const SAMPLE_TAX_OPTS = { ...SAMPLE_BILL_OPTS, taxInvoice: true };
 
 /** Old ApiOrder shape (commerce-client) for the delivery note. */
 export const SAMPLE_OLD_DELIVERY_ORDER = {
@@ -51,8 +53,8 @@ export const SAMPLE_OLD_DELIVERY_ORDER = {
   ],
 };
 
-/** Same company as the old mock-data COMPANY, in the new BillCompany shape. */
-export const OLD_COMPANY_AS_BILL = { ...OLD_COMPANY, category: "Cosmetics store" };
+/** Same company as the fixture's COMPANY, in the BillCompany shape (no separate legal name). */
+export const OLD_COMPANY_AS_BILL = { ...OLD_COMPANY };
 
 /** The real GLAMO store profile (what /pos/settings returns in production). */
 export const REAL_STORE = {
@@ -79,6 +81,8 @@ export const SAMPLE_BILL_DATA = {
   taxableAmount: 2564,
   vatRate: 13,
   vatAmount: 333,
+  vatEnabled: true,
+  taxInvoice: false,
   total: 2897,
   payments: [
     { method: "CASH", amount: 1000, reference: null },
@@ -87,7 +91,7 @@ export const SAMPLE_BILL_DATA = {
   tendered: 2897,
   change: 0,
   due: 0,
-  footer: "Thank you",
+  footer: "",
   store: REAL_STORE,
   channel: "POS_COUNTER",
 };

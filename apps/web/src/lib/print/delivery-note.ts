@@ -1,23 +1,15 @@
 /** Delivery note print — A4 layout (single or batch), matching warehouse delivery-note style. */
 
 import type { PosOrder } from "@/lib/api/types";
-import type { BillCompany } from "@/lib/print-bill";
-import { barcodeSvgForPrint } from "@/lib/print-barcodes";
 import { formatNPR } from "@/lib/format";
-import { LOGO_DATA_URL, LOGO_HEIGHT, LOGO_WIDTH } from "@/lib/print-logo";
+import type { BillCompany } from "./bill";
+import { barcodeSvgForPrint } from "./barcode";
+import { LOGO_DATA_URL, LOGO_HEIGHT, LOGO_WIDTH } from "./logo";
+import { escapeHtml, printDocument } from "./print-document";
 
-/** Embedded GLAMO logo (data URL) so print popups work offline without fetching /public. */
-function glamoLogoSvg(uid: string, size = 72): string {
-  void uid;
-  return `<img src="${LOGO_DATA_URL}" alt="Glamo Nepal" width="${size}" height="${Math.round((size * LOGO_HEIGHT) / LOGO_WIDTH)}"/>`;
-}
-
-function escapeHtml(s: string) {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+/** Embedded logo (data URL) so delivery notes print offline without fetching /public. */
+function logoImg(alt: string, size = 72): string {
+  return `<img src="${LOGO_DATA_URL}" alt="${escapeHtml(alt)}" width="${size}" height="${Math.round((size * LOGO_HEIGHT) / LOGO_WIDTH)}"/>`;
 }
 
 function shortOrderRef(id: string) {
@@ -41,38 +33,8 @@ function formatDay(iso: string | null | undefined) {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
+    timeZone: "Asia/Kathmandu",
   });
-}
-
-function openPrintWindow(html: string): boolean {
-  const w = window.open("", "_blank", "width=900,height=720");
-  if (!w) {
-    const iframe = document.createElement("iframe");
-    iframe.style.cssText =
-      "position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0";
-    document.body.appendChild(iframe);
-    const doc = iframe.contentDocument;
-    if (!doc) {
-      iframe.remove();
-      return false;
-    }
-    doc.open();
-    doc.write(html);
-    doc.close();
-    setTimeout(() => {
-      try {
-        iframe.contentWindow?.print();
-      } catch {
-        /* ignore */
-      }
-      setTimeout(() => iframe.remove(), 60_000);
-    }, 250);
-    return true;
-  }
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
-  return true;
 }
 
 function deliveryAddress(order: PosOrder): string {
@@ -113,8 +75,6 @@ function notePageHtml(order: PosOrder, index: number, total: number, COMPANY: Bi
         .join("")
     : `<tr><td colspan="6" class="muted">No line items on this order</td></tr>`;
 
-  const logoId = `g${index}_${String(orderRef).replace(/[^a-zA-Z0-9]/g, "").slice(-8)}`;
-
   return `
   <section class="note">
     <header class="top">
@@ -123,7 +83,7 @@ function notePageHtml(order: PosOrder, index: number, total: number, COMPANY: Bi
         ${total > 1 ? `<p class="batch">Stop ${index + 1} of ${total}</p>` : ""}
       </div>
       <div class="brand">
-        <div class="logo">${glamoLogoSvg(`${logoId}_a`, 72)}</div>
+        <div class="logo">${logoImg(COMPANY.name, 72)}</div>
         <div class="brand-text">
           <strong>${escapeHtml(COMPANY.name)}</strong>
           <span>${escapeHtml(COMPANY.category ?? "Cosmetics store")}</span>
@@ -161,7 +121,7 @@ function notePageHtml(order: PosOrder, index: number, total: number, COMPANY: Bi
       <div class="box">
         <h3>Source (from)</h3>
         <div class="source-brand">
-          <div class="logo-sm">${glamoLogoSvg(`${logoId}_b`, 40)}</div>
+          <div class="logo-sm">${logoImg(COMPANY.name, 40)}</div>
           <div>
             <p><strong>${escapeHtml(COMPANY.name)}</strong></p>
             <p>${escapeHtml(COMPANY.category ?? "Cosmetics store")}</p>
@@ -246,10 +206,9 @@ export type DeliveryPrintOpts = {
   rangeLabel?: string;
 };
 
-/** Print one delivery note per order (batch = multi-page). */
-export function printDeliveryNotes(opts: DeliveryPrintOpts): boolean {
+/** Delivery notes HTML, one A4 page per order (no script; printing is triggered by printDocument). */
+export function deliveryNotesHtml(opts: DeliveryPrintOpts): string {
   const { orders, rangeLabel, company } = opts;
-  if (!orders.length) return false;
 
   const pages = orders.map((o, i) => notePageHtml(o, i, orders.length, company)).join("");
   const title =
@@ -261,10 +220,15 @@ export function printDeliveryNotes(opts: DeliveryPrintOpts): boolean {
 <html><head><meta charset="utf-8"/><title>${escapeHtml(title)}</title>
 <style>${STYLES}</style></head><body>
 ${pages}
-<script>window.onload=function(){window.print();}</script>
 </body></html>`;
 
-  return openPrintWindow(html);
+  return html;
+}
+
+/** Print one delivery note per order (batch = multi-page). */
+export function printDeliveryNotes(opts: DeliveryPrintOpts): boolean {
+  if (!opts.orders.length) return false;
+  return printDocument(deliveryNotesHtml(opts));
 }
 
 /** Convenience: print a single order’s delivery note. */
