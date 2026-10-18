@@ -25,9 +25,7 @@ import { METHOD_SETTING } from "@/lib/pos/payments";
 import { toastError } from "@/lib/notify";
 import { billForOrder } from "@/lib/pos/order-bill";
 import { useEnabledMethods, usePosConfig } from "@/lib/pos/config-store";
-import { companyFromStore } from "@/lib/print/bill";
-import { printDeliveryNote } from "@/lib/print/delivery-note";
-import { printBill } from "@/lib/print/print-sale";
+import { printBill, printDeliveryNotesFor } from "@/lib/print/print-sale";
 import { useApi } from "@/lib/use-api";
 
 export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -82,8 +80,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         <StatusBadge status={order.paymentStatus} />
         <span className="text-sm text-muted-foreground">{order.createdAt && formatDateTime(order.createdAt)}{order.cashier && ` · ${order.cashier.name}`}</span>
         <div className="ml-auto flex flex-wrap gap-2">
-          {store && <Button variant="outline" onClick={() => printBill(billForOrder(order, store, config))}><Printer className="h-4 w-4" aria-hidden /> Print bill</Button>}
-          {store && isDelivery && <Button variant="outline" onClick={() => printDeliveryNote(order, companyFromStore(store))}><FileText className="h-4 w-4" /> Delivery note</Button>}
+          {store && <Button variant="outline" onClick={() => void printBill(billForOrder(order, store, config))}><Printer className="h-4 w-4" aria-hidden /> Print bill</Button>}
+          {store && isDelivery && <Button variant="outline" onClick={() => void printDeliveryNotesFor([order], store)}><FileText className="h-4 w-4" /> Delivery note</Button>}
           {canWrite && !terminal && <Button variant="outline" onClick={() => setRefundOpen(true)} disabled={order.paymentStatus !== "PAID"}><Undo2 className="h-4 w-4" /> Refund</Button>}
           {canWrite && !terminal && <Button variant="destructive" onClick={() => setCancelOpen(true)}><Ban className="h-4 w-4" /> Cancel</Button>}
         </div>

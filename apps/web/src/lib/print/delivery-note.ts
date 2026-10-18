@@ -2,7 +2,7 @@
 
 import type { PosOrder } from "@/lib/api/types";
 import { formatNPR } from "@/lib/format";
-import type { BillCompany } from "./bill";
+import type { BillCompany } from "./company";
 import { barcodeSvgForPrint } from "./barcode";
 import { LOGO_DATA_URL, LOGO_HEIGHT, LOGO_WIDTH } from "./logo";
 import { escapeHtml, printDocument } from "./print-document";

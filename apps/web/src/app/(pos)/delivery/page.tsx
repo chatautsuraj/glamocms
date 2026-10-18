@@ -22,8 +22,7 @@ import type { Channel, NcmBranch, NcmRate, PosOrder } from "@/lib/api/types";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { formatDateTime, formatNPR } from "@/lib/format";
 import { toastError } from "@/lib/notify";
-import { companyFromStore } from "@/lib/print/bill";
-import { printDeliveryNotes } from "@/lib/print/delivery-note";
+import { printDeliveryNotesFor } from "@/lib/print/print-sale";
 import { useDefaultDeliveryType } from "@/lib/use-delivery-defaults";
 import { useApi } from "@/lib/use-api";
 
@@ -71,7 +70,7 @@ export default function DeliveryPage() {
   const printSelected = () => {
     const list = orders.filter((o) => selected.has(o.id));
     if (!store || !list.length) return;
-    printDeliveryNotes({ orders: list, company: companyFromStore(store), rangeLabel: STAGES.find((s) => s.key === stage)?.label });
+    void printDeliveryNotesFor(list, store, STAGES.find((s) => s.key === stage)?.label);
   };
 
   return (

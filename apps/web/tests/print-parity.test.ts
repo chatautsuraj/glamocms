@@ -22,7 +22,9 @@ import { capturePdf, pdfTexts, type PdfOp } from "./helpers/print-capture";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { billHtml, billOptsFromBillData, billPdf, companyFromStore, type BillCompany } from "../src/lib/print/bill";
+import { billHtml, billOptsFromBillData } from "../src/lib/print/bill";
+import { companyFromStore, type BillCompany } from "../src/lib/print/company";
+import { billPdf } from "../src/lib/print/bill-pdf";
 import { deliveryNotesHtml } from "../src/lib/print/delivery-note";
 import type { BillData, PosOrder } from "../src/lib/api/types";
 import {

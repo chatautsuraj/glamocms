@@ -34,7 +34,7 @@ import { submitSale } from "@/lib/pos/submit-sale";
 import { useBarcodeScanner } from "@/lib/pos/use-barcode-scanner";
 import { useCashDrawer } from "@/lib/pos/use-cash-drawer";
 import { useCatalog } from "@/lib/pos/use-catalog";
-import { printBill } from "@/lib/print/print-sale";
+import { preloadPrinting, printBill } from "@/lib/print/print-sale";
 import { cn } from "@/lib/utils";
 
 /** html5-qrcode is heavy — load the camera scanner only when opened. */
@@ -81,6 +81,9 @@ export default function PosPage() {
     setAutoPrint(window.localStorage.getItem(AUTO_PRINT_KEY) !== "off");
     setSound(scanSoundEnabled());
     searchRef.current?.focus();
+    // Load the bill printer code while online so printing keeps working offline.
+    const idle = window.setTimeout(preloadPrinting, 1500);
+    return () => window.clearTimeout(idle);
   }, []);
 
   const anyDialog = Boolean(shadeFor) || cameraOpen || Boolean(payMethod) || drawerOpen || cartSheet || Boolean(done);
@@ -238,7 +241,7 @@ export default function PosPage() {
       setPayMethod(null);
       setDone(result.bill);
       if (result.offline) toast.warning(`No internet. Sale saved on this device as ${result.bill.printableRef}.`);
-      if (autoPrint) printBill(result.bill);
+      if (autoPrint) void printBill(result.bill);
     } catch (err) {
       playScanSound("error");
       toastError(err);

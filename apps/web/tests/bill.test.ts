@@ -1,7 +1,9 @@
 import "./helpers/print-capture";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { billHtml, billOptsFromBillData, billPdf, companyFromStore } from "../src/lib/print/bill";
+import { billHtml, billOptsFromBillData } from "../src/lib/print/bill";
+import { companyFromStore } from "../src/lib/print/company";
+import { billPdf } from "../src/lib/print/bill-pdf";
 import type { BillData } from "../src/lib/api/types";
 import { capturePdf, pdfTexts } from "./helpers/print-capture";
 import { REAL_STORE, SAMPLE_BILL_DATA } from "./fixtures/print-samples";

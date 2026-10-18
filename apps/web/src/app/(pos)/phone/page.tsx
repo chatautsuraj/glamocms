@@ -35,9 +35,7 @@ import { searchProducts } from "@/lib/pos/search";
 import { sellCheck } from "@/lib/pos/sellable";
 import { submitSale } from "@/lib/pos/submit-sale";
 import { useCatalog } from "@/lib/pos/use-catalog";
-import { companyFromStore } from "@/lib/print/bill";
-import { printDeliveryNote } from "@/lib/print/delivery-note";
-import { printBill } from "@/lib/print/print-sale";
+import { printBill, printDeliveryNotesFor } from "@/lib/print/print-sale";
 import { useDefaultDeliveryType } from "@/lib/use-delivery-defaults";
 
 /** html5-qrcode is heavy — load the camera scanner only when opened. */
@@ -200,8 +198,8 @@ export default function PhoneOrdersPage() {
         <div role="status" className="flex flex-wrap items-center gap-3 rounded-xl border border-success/40 bg-success/10 px-4 py-3 text-sm">
           <CheckCircle2 className="h-5 w-5 text-success" aria-hidden />
           <span>Order <strong className="font-mono">{last.bill.printableRef}</strong> · {formatNPR(last.bill.total)}{last.bill.due > 0 ? ` · ${formatNPR(last.bill.due)} to collect on delivery` : " · paid"}</span>
-          <Button size="sm" variant="outline" onClick={() => printBill(last.bill)}>Print bill</Button>
-          {last.order && config && <Button size="sm" variant="outline" onClick={() => printDeliveryNote(last.order as PosOrder, companyFromStore(config.store))}>Delivery note</Button>}
+          <Button size="sm" variant="outline" onClick={() => void printBill(last.bill)}>Print bill</Button>
+          {last.order && config && <Button size="sm" variant="outline" onClick={() => void printDeliveryNotesFor([last.order as PosOrder], config.store)}>Delivery note</Button>}
           {last.order && <Link className="font-medium text-primary underline-offset-4 hover:underline" href={`/orders/${encodeURIComponent(last.order.id)}`}>Open order</Link>}
         </div>
       )}
