@@ -36,9 +36,22 @@
   --shadow-lg: 0 10px 15px -3px rgb(28 20 18 / 0.08), 0 4px 6px -4px rgb(28 20 18 / 0.06);
   --glass: rgba(255, 250, 249, 0.78);
   --glass-border: rgba(255, 255, 255, 0.45);
+  /* Chart series — validated categorical palette, fixed order (one per channel). */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+  --chart-grid: #ece4e1;
 }
 
 .dark {
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+  --chart-grid: #33282a;
   --background: #140f0e;
   --foreground: #faf4f2;
   --card: #1c1514;

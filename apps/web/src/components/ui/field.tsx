@@ -18,7 +18,7 @@ export function CheckField({ label, checked, onChange, disabled, hint }: { label
     <label className={cn("flex min-h-11 cursor-pointer items-start gap-3 py-1", disabled && "cursor-not-allowed opacity-60")}>
       <input
         type="checkbox"
-        className="mt-0.5 h-5 w-5 shrink-0 rounded accent-[var(--color-primary,#9f2d4a)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="mt-0.5 h-5 w-5 shrink-0 rounded accent-[var(--primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         checked={checked}
         disabled={disabled}
         onChange={(e) => onChange(e.target.checked)}
