@@ -36,7 +36,7 @@ export default function OrdersPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Orders" description={readAll ? "Every channel — counter, website, WhatsApp, phone and manual." : "Your sales on the current shift."} />
+      <PageHeader title="Orders" description={readAll ? "All sales and orders: counter, website, WhatsApp and phone." : "Your sales today."} />
       <Card>
         <CardContent className="space-y-3 p-4">
           <div className="flex flex-wrap items-end gap-3">

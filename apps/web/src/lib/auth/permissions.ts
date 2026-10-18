@@ -17,7 +17,7 @@ export const NAV: NavItem[] = [
   { href: "/customers", label: "Customers", icon: "Users", anyOf: ["pos.sell"], section: "Sell" },
   { href: "/phone", label: "Phone orders", icon: "Phone", anyOf: ["orders.write"], section: "Commerce" },
   { href: "/products", label: "Products", icon: "Package", anyOf: ["catalog.write"], section: "Commerce" },
-  { href: "/inventory", label: "Inventory", icon: "Boxes", anyOf: ["inventory.write"], section: "Commerce" },
+  { href: "/inventory", label: "Stock", icon: "Boxes", anyOf: ["inventory.write"], section: "Commerce" },
   { href: "/delivery", label: "Delivery", icon: "Truck", anyOf: ["delivery.manage"], section: "Channels" },
   { href: "/whatsapp", label: "WhatsApp", icon: "MessageCircle", anyOf: ["whatsapp.inbox"], section: "Channels" },
   { href: "/analytics", label: "Analytics", icon: "BarChart3", anyOf: ["analytics.read"], section: "Insights" },

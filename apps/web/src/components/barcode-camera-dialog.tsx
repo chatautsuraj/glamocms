@@ -53,7 +53,7 @@ export function BarcodeCameraDialog({ open, onOpenChange, onDetected }: Props) {
         if (!el) {
           if (!cancelled) {
             setStarting(false);
-            setError("Scanner view not ready — try again or type the code below.");
+            setError("The camera view isn't ready. Try again or type the code below.");
           }
           return;
         }
@@ -120,10 +120,10 @@ export function BarcodeCameraDialog({ open, onOpenChange, onDetected }: Props) {
           const msg = e instanceof Error ? e.message : String(e);
           setError(
             /NotAllowed|Permission|denied/i.test(msg)
-              ? "Camera permission blocked. Allow camera for this site, or type the SKU / barcode below."
+              ? "The camera is blocked. Allow the camera for this site, or type the barcode below."
               : /NotFound|no camera|DevicesNotFound/i.test(msg)
-                ? "No camera found. Type the SKU / barcode below."
-                : `${msg} — you can still type the code below.`,
+                ? "No camera found. Type the barcode below."
+                : "The camera could not start. You can type the code below.",
           );
         }
       })();
@@ -159,14 +159,14 @@ export function BarcodeCameraDialog({ open, onOpenChange, onDetected }: Props) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} className="max-w-md">
+    <Dialog open={open} onOpenChange={onOpenChange} className="max-w-md" label="Scan with camera">
       <DialogContent className="relative" onClose={() => onOpenChange(false)}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Camera className="h-4 w-4 text-primary" /> Scan with camera
           </DialogTitle>
           <DialogDescription>
-            Use the rear camera on your phone. Hold steady over the stock barcode / SKU.
+            Hold the barcode steady inside the box. The back camera is used when there is one.
           </DialogDescription>
         </DialogHeader>
 
@@ -176,7 +176,7 @@ export function BarcodeCameraDialog({ open, onOpenChange, onDetected }: Props) {
 
         {starting && !error && (
           <p className="text-center text-sm text-muted-foreground">
-            Starting camera… allow permission if asked
+            Starting the camera… allow it if your browser asks
           </p>
         )}
         {error && (
@@ -186,13 +186,13 @@ export function BarcodeCameraDialog({ open, onOpenChange, onDetected }: Props) {
         )}
 
         <div className="space-y-2 border-t border-border pt-3">
-          <Label htmlFor="manual-barcode">Or type SKU / barcode</Label>
+          <Label htmlFor="manual-barcode">Or type the barcode or SKU</Label>
           <div className="flex gap-2">
             <Input
               id="manual-barcode"
               value={manual}
               onChange={(e) => setManual(e.target.value)}
-              placeholder="Scan failed? Type code here"
+              placeholder="Barcode or SKU"
               autoComplete="off"
               inputMode="text"
               onKeyDown={(e) => {

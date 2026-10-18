@@ -26,7 +26,7 @@ export function OfflineBanner({ className }: { className?: string }) {
             {online
               ? `Sending ${sales} saved while offline…`
               : pending > 0
-                ? `No internet. You can keep selling — ${sales} saved on this device will be sent automatically.`
+                ? `No internet. You can keep selling; ${sales} saved on this device will be sent automatically.`
                 : "No internet. You can keep selling; sales will be sent when the internet is back."}
           </span>
           {online && (

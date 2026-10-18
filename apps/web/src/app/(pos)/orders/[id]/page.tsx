@@ -59,7 +59,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
     setBusy(true);
     try {
       setData(await ordersApi.setStatus(order.id, nextStatus, note));
-      toast.success(`Order marked ${STATUS_LABEL[nextStatus]}${nextStatus === "PACKED" && isDelivery ? " — NCM shipment requested" : ""}`);
+      toast.success(`Order marked ${STATUS_LABEL[nextStatus]}${nextStatus === "PACKED" && isDelivery ? ". Booking Nepal Can Move…" : ""}`);
       setNextStatus("");
       setNote("");
       if (nextStatus === "PACKED") setTimeout(() => void reload(), 1500);
