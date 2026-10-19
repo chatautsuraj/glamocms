@@ -13,6 +13,7 @@ import { CartLineRow } from "./cart-line";
 import { CustomerChip } from "./customer-chip";
 import { METHOD_ICON } from "./payment-icons";
 import { Totals } from "./totals";
+import { cn } from "@/lib/utils";
 
 export type CartActions = {
   setQty: (key: string, qty: number) => void;
@@ -82,7 +83,7 @@ export function CartPanel({ lines, lastKey, addSeq, totals, vat, discount, custo
           <div className="flex h-full flex-col items-center justify-center gap-2 px-6 py-10 text-center">
             <ScanLine className="h-10 w-10 text-rose" aria-hidden />
             <p className="font-semibold">Scan a barcode to start</p>
-            <p className="text-sm text-muted-foreground">Or choose a product from the catalog.</p>
+            <p className="text-sm text-muted-foreground">Or tap a product on the left.</p>
           </div>
         )}
       </div>
@@ -96,7 +97,7 @@ export function CartPanel({ lines, lastKey, addSeq, totals, vat, discount, custo
               <input
                 inputMode="numeric"
                 autoFocus={showDiscount && discount === 0}
-                className="tabular h-11 w-24 rounded-md border border-input bg-card px-2 text-base md:text-sm focus-visible:border-ring focus-visible:outline-none"
+                className="tabular h-10 w-24 rounded-md border border-input bg-card px-2 text-sm focus-visible:border-ring focus-visible:outline-none"
                 value={discount || ""}
                 placeholder="0"
                 onChange={(e) => actions.setDiscount(digitsToInt(e.target.value))}
@@ -105,28 +106,29 @@ export function CartPanel({ lines, lastKey, addSeq, totals, vat, discount, custo
               {discountProblem && <span role="alert" className="w-full text-xs font-medium text-danger">{discountProblem}</span>}
             </label>
           ) : (
-            <Button variant="link" size="sm" className="min-h-11" onClick={() => setShowDiscount(true)}>
+            <Button variant="link" size="sm" className="h-8" onClick={() => setShowDiscount(true)}>
               <Percent className="h-3.5 w-3.5" aria-hidden /> Add discount
             </Button>
           )
         )}
         <Totals subtotal={totals.subtotal} discount={totals.discount} vatAmount={totals.vatAmount} vat={vat} total={totals.total} />
         {needsCustomer && lines.length > 0 && <p className="text-xs font-medium text-warning">Add the customer&apos;s phone to finish this sale.</p>}
-        {methods.length > 1 && (
-          <div className="grid grid-cols-3 gap-2" role="group" aria-label="Pay with">
+        {methods.length > 1 && lines.length > 0 && (
+          // Four methods sit in one row (icon over label) so no button is left orphaned on a second line.
+          <div className={cn("grid gap-2", methods.length === 4 ? "grid-cols-4" : methods.length === 2 ? "grid-cols-2" : "grid-cols-3")} role="group" aria-label="Pay with">
             {methods.map((m) => {
               const Icon = METHOD_ICON[m];
               return (
-                <Button key={m} variant="outline" className="h-12 rounded-xl px-2 text-xs" onClick={() => onCharge(m)} disabled={blocked}>
-                  <Icon className="h-4 w-4 shrink-0" aria-hidden /> <span className="truncate">{paymentTitle(m)}</span>
+                <Button key={m} variant="outline" className="h-14 flex-col gap-1 rounded-xl px-1 text-xs" onClick={() => onCharge(m)} disabled={blocked}>
+                  <Icon className="h-4 w-4 shrink-0" aria-hidden /> <span className="max-w-full truncate">{paymentTitle(m)}</span>
                 </Button>
               );
             })}
           </div>
         )}
-        <Button variant="brand" size="xl" className="w-full min-w-0 gap-2 px-3 text-lg" onClick={() => onCharge("CASH")} disabled={blocked}>
-          Charge {formatNPR(totals.total)}
-          <kbd className="ml-1 hidden rounded border border-brand-foreground/30 px-1.5 text-xs font-medium sm:inline">F4</kbd>
+        <Button variant="brand" size="xl" className="w-full text-xl" onClick={() => onCharge("CASH")} disabled={blocked}>
+          {lines.length ? <>Charge {formatNPR(totals.total)}</> : "Add an item to charge"}
+          {lines.length > 0 && <kbd className="ml-1 hidden rounded border border-brand-foreground/30 px-1.5 text-xs font-medium sm:inline">F4</kbd>}
         </Button>
       </footer>
     </section>

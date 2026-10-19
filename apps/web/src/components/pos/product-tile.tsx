@@ -1,6 +1,5 @@
 "use client";
 
-import { Plus, Check } from "lucide-react";
 import { memo } from "react";
 import { ProductImage } from "@/components/product-image";
 import type { CachedProduct } from "@/lib/offline/db";
@@ -37,7 +36,8 @@ export const ProductTile = memo(function ProductTile({ product, inCart, onPick }
       )}
       aria-label={`${product.name}${shades ? `, ${shades} shades` : ""}, ${formatNPR(fromPrice)}, ${stock.text}${inCart ? `, ${inCart} in sale` : ""}`}
     >
-      <ProductImage src={product.imageUrl} name={product.name} rounded="rounded-none" className="aspect-square w-full border-b border-border" />
+      {/* Out of stock: only the photo fades, so the name, price and "Out of stock" keep full contrast. */}
+      <ProductImage src={product.imageUrl} name={product.name} rounded="rounded-none" className={cn("aspect-square w-full border-b border-border", stock.tone === "out" && "opacity-50 grayscale")} />
       {inCart > 0 && (
         <span aria-hidden className="absolute right-2 top-2 inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-brand px-2 text-sm font-bold text-brand-foreground shadow-card">
           {inCart}
@@ -48,18 +48,14 @@ export const ProductTile = memo(function ProductTile({ product, inCart, onPick }
           {exp === "expired" ? "Expired" : exp === "soon" ? "Expires soon" : "Tester"}
         </span>
       )}
-      <span className="flex min-w-0 flex-1 flex-col gap-1.5 p-3">
-        <span className="min-h-[2.5em] break-words text-sm font-semibold leading-snug">{product.name}</span>
+      <span className="flex flex-1 flex-col gap-1 p-2.5">
+        <span className="line-clamp-2 text-sm font-semibold leading-snug">{product.name}</span>
         <span className="truncate text-xs text-muted-foreground">
           {[product.brand, shades ? `${shades} shades` : product.attributes?.shade].filter(Boolean).join(" · ") || " "}
         </span>
-        <span className="mt-auto flex flex-col gap-1 pt-1">
-          <span className="tabular break-words text-base font-bold">{shades ? <span className="text-xs font-medium text-muted-foreground">from </span> : null}{formatNPR(fromPrice)}</span>
-          <span className={cn("text-xs leading-snug", TONE[stock.tone])}>{stock.text}</span>
-        </span>
-        <span aria-hidden className="mt-1 flex min-h-11 items-center justify-between gap-2 border-t border-border pt-2 text-xs font-semibold text-primary">
-          <span>{shades ? "Choose shade" : "Add to sale"}</span>
-          {inCart > 0 ? <Check className="h-4 w-4 shrink-0" /> : <Plus className="h-4 w-4 shrink-0" />}
+        <span className="mt-auto flex items-end justify-between gap-2 pt-1">
+          <span className="tabular text-base font-bold">{shades ? <span className="text-xs font-medium text-muted-foreground">from </span> : null}{formatNPR(fromPrice)}</span>
+          <span className={cn("text-right text-[11px] leading-tight", TONE[stock.tone])}>{stock.text}</span>
         </span>
       </span>
     </button>

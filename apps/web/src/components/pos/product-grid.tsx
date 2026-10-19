@@ -43,7 +43,7 @@ export function ProductGrid({ products, inCart, onPick, query, emptyHint }: {
   }
 
   return (
-    <ul className="grid grid-cols-2 gap-3 @min-[520px]:grid-cols-3 @min-[760px]:grid-cols-4 @min-[1040px]:grid-cols-5" aria-label="Products">
+    <ul className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5" aria-label="Products">
       {products.slice(0, limit).map((p) => (
         <li key={p.id} className="cv-tile">
           <ProductTile product={p} inCart={inCart.get(p.id) ?? 0} onPick={onPick} />

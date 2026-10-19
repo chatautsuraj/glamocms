@@ -372,14 +372,14 @@ export default function PosPage() {
                     onSearchEnter();
                   }
                 }}
-                placeholder="Search or scan…"
-                className="h-14 w-full rounded-full border-2 border-input bg-card pl-12 pr-12 text-base font-medium shadow-card placeholder:font-normal placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
+                placeholder="Scan or search"
+                className="h-14 w-full rounded-full border-2 border-input bg-card pl-12 pr-12 text-base font-medium shadow-card placeholder:font-normal placeholder:text-muted-foreground focus-visible:border-rose focus-visible:outline-none"
                 autoComplete="off"
                 spellCheck={false}
                 enterKeyHint="search"
               />
               {query && (
-                <button type="button" aria-label="Clear search" className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:bg-accent" onClick={() => { setQuery(""); searchRef.current?.focus(); }}>
+                <button type="button" aria-label="Clear search" className="absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:bg-accent" onClick={() => { setQuery(""); searchRef.current?.focus(); }}>
                   <X className="h-5 w-5" />
                 </button>
               )}
@@ -410,14 +410,15 @@ export default function PosPage() {
             </DropdownMenu>
           </div>
           {categories.length > 1 && (
-            <div className="no-scrollbar -mx-3 flex gap-2 overflow-x-auto px-3 sm:-mx-4 sm:px-4" role="group" aria-label="Category">
+            <div className="no-scrollbar scroll-fade-x -mx-3 flex gap-2 overflow-x-auto px-3 sm:-mx-4 sm:px-4" role="radiogroup" aria-label="Category">
               {[{ name: ALL_CATEGORIES, count: products.length }, ...categories].map((c) => {
                 const active = c.name === category;
                 return (
                   <button
                     key={c.name || "all"}
                     type="button"
-                    aria-pressed={active}
+                    role="radio"
+                    aria-checked={active}
                     onClick={() => setCategory(c.name)}
                     className={cn(
                       "h-11 shrink-0 rounded-full border px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
@@ -432,10 +433,9 @@ export default function PosPage() {
           )}
         </div>
 
-        <div className="@container min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3 scrollbar-thin sm:px-4">
-          {loaded && products.length > 0 && <p role="status" aria-live="polite" aria-atomic="true" className="mb-3 text-sm text-muted-foreground">{results.length} {results.length === 1 ? "product" : "products"}{deferredQuery.trim() ? ` matching “${deferredQuery.trim()}”` : category ? ` in ${category}` : ""}{(query || category) && <button type="button" className="ml-2 inline-flex min-h-11 items-center font-semibold text-primary underline underline-offset-4" onClick={() => { setQuery(""); setCategory(ALL_CATEGORIES); searchRef.current?.focus(); }}>Clear filters</button>}</p>}
+        <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3 scrollbar-thin sm:px-4">
           {!loaded ? (
-            <div className="grid grid-cols-2 gap-3 @min-[520px]:grid-cols-3 @min-[760px]:grid-cols-4" role="status" aria-label="Loading products">
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" role="status" aria-label="Loading products">
               {Array.from({ length: 8 }, (_, i) => <Skeleton key={i} className="aspect-[3/4] rounded-xl" />)}
             </div>
           ) : !products.length ? (
@@ -463,9 +463,9 @@ export default function PosPage() {
       <aside className="hidden min-h-0 border-l border-border md:flex md:flex-col">{cartPanel}</aside>
 
       {/* Phones: sale summary bar + full-height sheet. */}
-      <div className="border-t border-border bg-card p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:hidden">
+      <div className="border-t border-border bg-card p-2 md:hidden">
         <Button variant={lines.length ? "brand" : "outline"} size="xl" className="w-full justify-between" onClick={() => setCartSheet(true)}>
-          <span className="flex items-center gap-2"><ShoppingBag className="h-5 w-5" aria-hidden /> {itemCount ? `${itemCount} ${itemCount === 1 ? "item" : "items"}` : "Sale is empty"}</span>
+          <span className="flex items-center gap-2"><ShoppingBag className="h-5 w-5" aria-hidden /> {itemCount ? `${itemCount} ${itemCount === 1 ? "item" : "items"} · view sale` : "No items yet"}</span>
           <span className="tabular">{formatNPR(totals.total)}</span>
         </Button>
       </div>
