@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
   BarChart3, Boxes, ChevronLeft, ChevronRight, FileBarChart, LayoutDashboard, Mail, MessageCircle, Package, Phone, Receipt,
-  ScanLine, Settings, Truck, Users,
+  ScanLine, Settings, Truck, Users, X,
 } from "lucide-react";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { NAV, hasAny } from "@/lib/auth/permissions";
@@ -32,7 +32,7 @@ function StoreLogo({ src }: { src: string | undefined }) {
   return <img src={url} alt="" width={40} height={24} onError={() => setFailed(true)} className="h-7 w-11 shrink-0 object-contain" />;
 }
 
-export function Sidebar({ collapsed, mobileOpen = false, onToggle }: { collapsed: boolean; mobileOpen?: boolean; onToggle: () => void }) {
+export function Sidebar({ collapsed, mobileOpen = false, onToggle, onClose }: { collapsed: boolean; mobileOpen?: boolean; onToggle: () => void; onClose?: () => void }) {
   const pathname = usePathname();
   const permissions = useAuthStore((s) => s.permissions);
   const store = useAuthStore((s) => s.store);
@@ -45,21 +45,22 @@ export function Sidebar({ collapsed, mobileOpen = false, onToggle }: { collapsed
     <aside
       aria-label="Main menu"
       className={cn(
-        "fixed inset-y-0 left-0 z-50 flex flex-col border-r border-sidebar-border bg-sidebar transition-[width,transform] duration-200 md:translate-x-0",
-        mobileOpen ? "visible w-64 translate-x-0" : "invisible -translate-x-full md:visible",
+        "flex flex-col border-r border-sidebar-border bg-sidebar",
+        mobileOpen ? "h-full w-full" : "fixed inset-y-0 left-0 z-40",
         !mobileOpen && (collapsed ? "md:w-[72px]" : "md:w-60"),
       )}
     >
       <div className={cn("flex h-16 items-center gap-2.5 border-b border-sidebar-border px-4", compact && "justify-center px-2")}>
         <StoreLogo src={store?.logoUrl} />
         {!compact && (
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="truncate font-display text-lg font-bold leading-none tracking-wide">GLAMO POS</p>
             <p className="truncate text-xs text-muted-foreground">{store?.name}</p>
           </div>
         )}
+        {mobileOpen && <button type="button" onClick={onClose} aria-label="Close navigation" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sidebar-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><X className="h-5 w-5" aria-hidden /></button>}
       </div>
-      <nav className="flex-1 overflow-y-auto p-2 scrollbar-thin">
+      <nav aria-label="Main" className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] scrollbar-thin">
         {SECTIONS.map((section) => {
           const sectionItems = items.filter((i) => i.section === section);
           if (!sectionItems.length) return null;
@@ -82,7 +83,7 @@ export function Sidebar({ collapsed, mobileOpen = false, onToggle }: { collapsed
                           compact && "justify-center px-2",
                         )}
                       >
-                        <Icon className="h-5 w-5 shrink-0" />
+                        <Icon className="h-5 w-5 shrink-0" aria-hidden />
                         {compact ? <span className="sr-only">{item.label}</span> : <span className="truncate">{item.label}</span>}
                       </Link>
                     </li>

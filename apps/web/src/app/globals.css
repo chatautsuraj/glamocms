@@ -7,6 +7,7 @@
  * white, so the brand colour stays high-contrast at the counter.
  */
 :root {
+  color-scheme: light;
   /* brand */
   --rose: #d97898;
   --rose-light: #efb4c5;
@@ -66,6 +67,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   --rose: #d97898;
   --rose-light: #efb4c5;
   --rose-dark: #efb4c5;
@@ -248,3 +250,9 @@ body {
     transition-duration: 1ms !important;
   }
 }
+
+/* Keep keyboard focus clear of sticky chrome and make taps deliberate. */
+html { scroll-padding-top: 5rem; }
+a, button, input, select, textarea { touch-action: manipulation; }
+:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
+main:focus { outline: none; }

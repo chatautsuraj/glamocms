@@ -85,13 +85,13 @@ export default function LoginPage() {
   const disabled = busy || status === "loading";
 
   return (
-    <main id="main" className="flex min-h-dvh items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-sm border-t-4 border-t-rose">
-        <CardContent className="space-y-6 p-8 text-center">
+    <main id="main" className="flex min-h-dvh items-center justify-center bg-background px-4 py-8 sm:py-12">
+      <Card className="w-full max-w-md">
+        <CardContent className="space-y-6 p-5 text-center sm:p-8">
           <Image src="/images/logo.png" alt="GLAMO Nepal" width={160} height={96} priority className="mx-auto h-auto w-40" />
           <div>
-            <h1 className="font-display text-3xl font-bold tracking-wide">GLAMO POS</h1>
-            <p className="mt-1 text-sm text-muted-foreground">Staff sign-in with your GLAMO Google account or email and password.</p>
+            <h1 className="text-2xl font-semibold tracking-tight">GLAMO POS</h1>
+            <p className="mt-1 text-sm text-muted-foreground">Sign in to the GLAMO Nepal counter and back office.</p>
           </div>
           {message && (
             <p role="alert" className="rounded-lg border border-danger/30 bg-danger/5 px-3 py-2 text-sm text-danger">
@@ -113,6 +113,8 @@ export default function LoginPage() {
             <Field label="Email">
               <Input
                 type="email"
+                name="email"
+                spellCheck={false}
                 autoComplete="email"
                 inputMode="email"
                 placeholder="you@glamonepal.com"
@@ -122,9 +124,12 @@ export default function LoginPage() {
                 disabled={disabled}
               />
             </Field>
-            <Field label="Password">
+            <div className="space-y-1.5">
+              <label htmlFor="staff-password" className="text-sm font-medium">Password</label>
               <span className="relative block">
                 <Input
+                  id="staff-password"
+                  name="password"
                   type={showPassword ? "text" : "password"}
                   autoComplete="current-password"
                   className="pr-11"
@@ -139,13 +144,13 @@ export default function LoginPage() {
                   disabled={disabled}
                   aria-label={showPassword ? "Hide password" : "Show password"}
                   aria-pressed={showPassword}
-                  className="absolute right-1 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+                  className="absolute right-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
                 >
                   {showPassword ? <EyeOff aria-hidden="true" className="h-4 w-4" /> : <Eye aria-hidden="true" className="h-4 w-4" />}
                 </button>
               </span>
-            </Field>
-            <Button type="submit" variant="secondary" size="lg" className="w-full" disabled={disabled || !email || !password} aria-busy={busy}>
+            </div>
+            <Button type="submit" variant="secondary" size="lg" className="w-full" disabled={disabled} aria-busy={busy}>
               {busy ? "Signing in…" : "Sign in"}
             </Button>
           </form>

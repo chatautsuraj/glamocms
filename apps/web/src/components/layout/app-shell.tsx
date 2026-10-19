@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { navItemFor } from "@/lib/auth/permissions";
 import { cn } from "@/lib/utils";
+import { Dialog } from "@/components/ui/dialog";
 import { OfflineBanner } from "@/components/offline-banner";
 import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
@@ -25,21 +26,25 @@ export function AppShell({ children }: { children: ReactNode }) {
     document.title = label ? `${label} · GLAMO POS` : "GLAMO POS";
   }, [pathname]);
   useEffect(() => {
-    if (!mobileOpen) return;
-    const close = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMobileOpen(false);
+    const desktop = window.matchMedia("(min-width: 768px)");
+    const closeOnDesktop = () => {
+      if (desktop.matches) setMobileOpen(false);
     };
-    window.addEventListener("keydown", close);
-    return () => window.removeEventListener("keydown", close);
+    desktop.addEventListener("change", closeOnDesktop);
+    return () => desktop.removeEventListener("change", closeOnDesktop);
   }, [mobileOpen]);
 
   return (
     <div className="min-h-dvh bg-background">
-      {mobileOpen && <button aria-label="Close menu" className="fixed inset-0 z-40 bg-ink-strong/40 md:hidden" onClick={() => setMobileOpen(false)} />}
-      <Sidebar collapsed={collapsed} mobileOpen={mobileOpen} onToggle={() => setUserCollapsed(!collapsed)} />
-      <div className={cn("flex min-w-0 flex-col transition-[padding] duration-200", collapsed ? "md:pl-[72px]" : "md:pl-60", fullBleed ? "h-dvh" : "min-h-dvh")}>
+      <div inert={mobileOpen} className="hidden md:block">
+        <Sidebar collapsed={collapsed} onToggle={() => setUserCollapsed(!collapsed)} />
+      </div>
+      <Dialog open={mobileOpen} onOpenChange={setMobileOpen} label="Main navigation" className="fixed inset-y-0 left-0 h-dvh max-h-none w-[min(20rem,calc(100vw-3rem))] max-w-none rounded-none bg-sidebar sm:rounded-none">
+        <Sidebar collapsed={false} mobileOpen onToggle={() => setMobileOpen(false)} onClose={() => setMobileOpen(false)} />
+      </Dialog>
+      <div inert={mobileOpen} className={cn("flex min-w-0 flex-col", collapsed ? "md:pl-[72px]" : "md:pl-60", fullBleed ? "h-dvh" : "min-h-dvh")}>
         <Topbar onMenuToggle={() => setMobileOpen((open) => !open)} mobileOpen={mobileOpen} />
-        <main id="main" className={cn("min-w-0 flex-1", fullBleed ? "flex min-h-0 flex-col" : "p-4 md:p-6")}>
+        <main id="main" tabIndex={-1} className={cn("min-w-0 flex-1", fullBleed ? "flex min-h-0 flex-col" : "p-4 md:p-6")}>
           <OfflineBanner className={fullBleed ? "m-3 mb-0" : undefined} />
           {fullBleed ? <div className="min-h-0 flex-1">{children}</div> : <div className="mx-auto w-full max-w-[1480px]">{children}</div>}
         </main>
