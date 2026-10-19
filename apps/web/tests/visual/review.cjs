@@ -212,6 +212,10 @@ async function runStep(page, step, width) {
     await page.getByRole("button", { name: "Complete sale" }).click().catch(() => undefined);
     await page.waitForTimeout(800);
   }
+  if (step === "chat") {
+    await page.getByRole("button", { name: /Aashma/ }).first().click().catch(() => undefined);
+    await page.waitForTimeout(600);
+  }
   if (step === "shade") {
     await page.locator("main button[aria-label*='shades']").first().click().catch(() => undefined);
     await page.waitForTimeout(400);
@@ -220,7 +224,7 @@ async function runStep(page, step, width) {
 
 const PAGES = [
   "/login", "/dashboard", "/pos", "/pos#cart", "/pos#pay", "/pos#shade", "/pos#done", "/orders", "/orders/o-1", "/customers", "/customers/c-0", "/phone", "/products", "/inventory",
-  "/delivery", "/whatsapp", "/marketing", "/analytics", "/reports", "/settings",
+  "/delivery", "/whatsapp", "/whatsapp#chat", "/marketing", "/analytics", "/reports", "/settings",
 ];
 
 /** Fake signed-in owner + fixture API on a browser context. */

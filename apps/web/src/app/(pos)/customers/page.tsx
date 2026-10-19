@@ -61,16 +61,19 @@ function CustomerRow({ c }: { c: Customer }) {
       <div className="min-w-0 flex-1">
         <div className="flex min-w-0 items-center gap-2">
           <span className="truncate font-medium">{c.name}</span>
-          {repeat && <Badge variant="brand">Repeat</Badge>}
-          {fresh && <Badge variant="success">New</Badge>}
+          {/* On phones the badges move to the second line so the name isn't cut to a first name. */}
+          {repeat && <Badge variant="brand" className="hidden sm:inline-flex">Repeat</Badge>}
+          {fresh && <Badge variant="success" className="hidden sm:inline-flex">New</Badge>}
         </div>
         <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
           {c.phone && <span className="tabular">{c.phone}</span>}
           {c.email && <span className="max-w-52 truncate">{c.email}</span>}
           {!c.phone && !c.email && <span>No contact details</span>}
           <span className="sm:hidden">
-            {formatNumber(c.orders ?? 0)} orders · {formatNPR(c.totalSpent ?? 0)}
+            {formatNumber(c.orders ?? 0)} {c.orders === 1 ? "order" : "orders"} · {formatNPR(c.totalSpent ?? 0)}
           </span>
+          {repeat && <Badge variant="brand" className="sm:hidden">Repeat</Badge>}
+          {fresh && <Badge variant="success" className="sm:hidden">New</Badge>}
         </div>
       </div>
       <div className="hidden w-28 shrink-0 text-right sm:block">
@@ -114,7 +117,7 @@ export default function CustomersPage() {
         }
       />
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <Stat label="Customers" value={formatNumber(stats?.total ?? 0)} hint="In the customer book" />
         <Stat label="Repeat buyers" value={formatNumber(stats?.repeat ?? 0)} hint="Two or more orders" tone="rose" />
         <Stat label="New" value={formatNumber(stats?.newCustomers ?? 0)} hint="Added in the last 30 days" />
