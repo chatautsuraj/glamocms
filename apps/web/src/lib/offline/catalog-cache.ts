@@ -4,6 +4,13 @@ import type { PosProduct } from "@/lib/api/types";
 import { db, getMeta, setMeta, toCached, type CachedProduct } from "./db";
 
 const CURSOR = "catalogServerTime";
+/**
+ * Bump when the cached product shape or media source changes. Devices pull a
+ * full snapshot instead of a delta, so image-only changes reach the till even
+ * though `products.updated_at` never moved.
+ */
+const CACHE_VERSION_KEY = "catalogCacheVersion";
+const CACHE_VERSION = "2026-10-images-1";
 
 type SnapshotFn = (updatedSince?: string) => Promise<{ products: PosProduct[]; serverTime: string | null }>;
 
@@ -14,8 +21,9 @@ type SnapshotFn = (updatedSince?: string) => Promise<{ products: PosProduct[]; s
  * so the POS never shows stock that has already been sold locally.
  */
 export async function refreshCatalog(opts: { full?: boolean; snapshot?: SnapshotFn } = {}) {
-  const snapshot = opts.snapshot ?? catalogApi.snapshot;
-  const since = opts.full ? undefined : await getMeta<string>(CURSOR);
+    const snapshot = opts.snapshot ?? catalogApi.snapshot;
+    const storedVersion = opts.full ? undefined : await getMeta<string>(CACHE_VERSION_KEY);
+    const since = opts.full || storedVersion !== CACHE_VERSION ? undefined : await getMeta<string>(CURSOR);
   const { products, serverTime } = await snapshot(since);
   const table = db().products;
   await db().transaction("rw", table, db().meta, async () => {
@@ -24,7 +32,10 @@ export async function refreshCatalog(opts: { full?: boolean; snapshot?: Snapshot
     const gone = products.filter((p) => p.deleted).map((p) => p.id);
     if (gone.length) await table.bulkDelete(gone);
     if (live.length) await table.bulkPut(live.map(toCached));
-    if (serverTime) await setMeta(CURSOR, serverTime);
+      if (serverTime) {
+        await setMeta(CURSOR, serverTime);
+        await setMeta(CACHE_VERSION_KEY, CACHE_VERSION);
+      }
   });
   await reapplyPendingStock(since ? new Set(products.map((p) => p.id)) : undefined);
   return { count: products.length, full: !since, serverTime };

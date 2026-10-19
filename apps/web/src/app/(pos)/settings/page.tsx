@@ -300,7 +300,7 @@ function MethodCard({ title, enabled, onToggle, lockedNote, children }: { title:
   );
 }
 
-const LABEL_SIZES: LabelSize[] = ["38x25", "50x25", "A4-65"];
+const LABEL_SIZES: LabelSize[] = ["38x25", "50x25", "A4-65", "A4-96"];
 
 function LabelsForm({ s, disabled, onSave }: FormProps) {
   const sec = useSection(s.labels);
@@ -323,14 +323,14 @@ function LabelsForm({ s, disabled, onSave }: FormProps) {
     >
       <fieldset>
         <legend className="mb-2 text-sm font-medium">Label size</legend>
-        <div className="grid gap-3 sm:grid-cols-3" role="radiogroup">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" role="radiogroup">
           {LABEL_SIZES.map((size) => (
             <label key={size} className={cn("flex min-h-24 cursor-pointer flex-col justify-between gap-2 rounded-xl border p-4", f.size === size ? "border-rose bg-rose-tint" : "border-border hover:border-rose")}>
               <span className="flex items-center gap-2">
                 <input type="radio" name="label-size" className="h-5 w-5 accent-[var(--rose-dark)]" checked={f.size === size} onChange={() => sec.set("size", size)} />
                 <span className="font-semibold">{LABEL_SIZE_NAME[size]}</span>
               </span>
-              <span className="text-xs text-muted-foreground">{size === "A4-65" ? "Normal printer, A4 label sheets (5 × 13)." : "Label printer roll, one label each."}</span>
+              <span className="text-xs text-muted-foreground">{size === "A4-65" ? "Normal printer, A4 label sheets (5 × 13)." : size === "A4-96" ? "A4 label sheets (6 × 16), densest. Test one scan before a full run." : "Label printer roll, one label each."}</span>
             </label>
           ))}
         </div>

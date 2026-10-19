@@ -76,7 +76,7 @@ export default function PosPage() {
   const [cartSheet, setCartSheet] = useState(false);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<BillData | null>(null);
-  const [autoPrint, setAutoPrint] = useState(true);
+  const [autoPrint, setAutoPrint] = useState(false);
   const [sound, setSound] = useState(true);
   const [announce, setAnnounce] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
@@ -85,7 +85,7 @@ export default function PosPage() {
   const checkoutRef = useRef<string | null>(null);
 
   useEffect(() => {
-    setAutoPrint(window.localStorage.getItem(AUTO_PRINT_KEY) !== "off");
+    setAutoPrint(window.localStorage.getItem(AUTO_PRINT_KEY) === "on");
     setSound(scanSoundEnabled());
     focusSearch(searchRef.current);
     // Load the bill printer code while online so printing keeps working offline.

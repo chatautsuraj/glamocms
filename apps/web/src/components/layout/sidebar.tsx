@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
-  BarChart3, Boxes, ChevronLeft, ChevronRight, FileBarChart, LayoutDashboard, MessageCircle, Package, Phone, Receipt,
+  BarChart3, Boxes, ChevronLeft, ChevronRight, FileBarChart, LayoutDashboard, Mail, MessageCircle, Package, Phone, Receipt,
   ScanLine, Settings, Truck, Users,
 } from "lucide-react";
 import { useAuthStore } from "@/lib/auth/auth-store";
@@ -12,7 +12,7 @@ import { NAV, hasAny } from "@/lib/auth/permissions";
 import { cn } from "@/lib/utils";
 
 const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
-  LayoutDashboard, ScanLine, Receipt, Users, Phone, Package, Boxes, Truck, MessageCircle, BarChart3, FileBarChart, Settings,
+  LayoutDashboard, ScanLine, Receipt, Users, Phone, Package, Boxes, Truck, MessageCircle, Mail, BarChart3, FileBarChart, Settings,
 };
 
 const SECTIONS = ["Sell", "Commerce", "Channels", "Insights", "Admin"] as const;

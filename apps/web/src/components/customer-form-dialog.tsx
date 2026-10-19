@@ -58,7 +58,7 @@ export function CustomerFormDialog({ open, onOpenChange, customer, onSaved }: { 
           <Field label="Mobile *" hint="10 digits, starting with 98 or 97" error={errors.phone}><Input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" aria-invalid={Boolean(errors.phone)} autoComplete="off" /></Field>
           <Field label="Email" error={errors.email}><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} aria-invalid={Boolean(errors.email)} autoComplete="off" /></Field>
           <Field label="Address"><Input value={address} onChange={(e) => setAddress(e.target.value)} autoComplete="off" /></Field>
-          <CheckField label="Agrees to receive offers on WhatsApp" hint="Needed before offer messages can be sent to this customer." checked={consent} onChange={setConsent} />
+          <CheckField label="Agrees to receive offers by email and WhatsApp" hint="Required before marketing campaigns or WhatsApp offers can include this customer." checked={consent} onChange={setConsent} />
           <Button type="submit" variant="brand" className="w-full" disabled={busy}>{busy ? "Saving…" : "Save"}</Button>
         </form>
       </DialogContent>

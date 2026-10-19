@@ -90,7 +90,7 @@ export interface PaymentSettings {
   bank: { enabled: boolean; bankName: string; accountName: string; accountNumber: string; branch: string; qrImageUrl: string };
 }
 
-export type LabelSize = "38x25" | "50x25" | "A4-65";
+export type LabelSize = "38x25" | "50x25" | "A4-65" | "A4-96";
 
 export interface LabelSettings {
   size: LabelSize;
@@ -480,6 +480,15 @@ export interface Customer {
   marketingConsent: boolean;
   createdAt: string | null;
   orders?: number;
+  totalSpent?: number;
+  lastOrderAt?: string | null;
+}
+
+export interface CustomerStats {
+  total: number;
+  repeat: number;
+  newCustomers: number;
+  marketing: number;
 }
 
 export interface CustomerDetail extends Customer {

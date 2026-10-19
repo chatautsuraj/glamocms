@@ -20,6 +20,7 @@ export const NAV: NavItem[] = [
   { href: "/inventory", label: "Stock", icon: "Boxes", anyOf: ["inventory.write"], section: "Commerce" },
   { href: "/delivery", label: "Delivery", icon: "Truck", anyOf: ["delivery.manage"], section: "Channels" },
   { href: "/whatsapp", label: "WhatsApp", icon: "MessageCircle", anyOf: ["whatsapp.inbox"], section: "Channels" },
+  { href: "/marketing", label: "Email campaigns", icon: "Mail", anyOf: ["settings.read"], section: "Channels" },
   { href: "/analytics", label: "Analytics", icon: "BarChart3", anyOf: ["analytics.read"], section: "Insights" },
   { href: "/reports", label: "Reports", icon: "FileBarChart", anyOf: ["reports.read"], section: "Insights" },
   { href: "/settings", label: "Settings", icon: "Settings", anyOf: ["settings.read", "staff.manage"], section: "Admin" },

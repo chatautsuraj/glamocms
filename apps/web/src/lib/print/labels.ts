@@ -38,12 +38,14 @@ export const LABEL_LAYOUTS: Record<LabelSize, LabelLayout> = {
   "38x25": { width: 38, height: 25, barcodeHeight: 10.5, nameSize: 6.5, smallSize: 5.2, priceSize: 8, nameChars: 34, sheet: null },
   "50x25": { width: 50, height: 25, barcodeHeight: 10.5, nameSize: 7, smallSize: 5.5, priceSize: 8.5, nameChars: 46, sheet: null },
   "A4-65": { width: 38.1, height: 21.2, barcodeHeight: 8.5, nameSize: 6, smallSize: 5, priceSize: 7.5, nameChars: 34, sheet: { cols: 5, rows: 13, marginTop: 10.7, marginLeft: 4.75, gapX: 2.5 } },
+  "A4-96": { width: 32, height: 17, barcodeHeight: 6.8, nameSize: 5.4, smallSize: 4.6, priceSize: 6.8, nameChars: 28, sheet: { cols: 6, rows: 16, marginTop: 11.5, marginLeft: 3, gapX: 3 } },
 };
 
 export const LABEL_SIZE_NAME: Record<LabelSize, string> = {
   "38x25": "38 × 25 mm roll",
   "50x25": "50 × 25 mm roll",
   "A4-65": "A4 sheet, 65 labels",
+  "A4-96": "A4 sheet, 96 labels (dense)",
 };
 
 /** Hard cap per print job so a mistyped quantity can't spool thousands of pages. */
@@ -96,7 +98,7 @@ function styles(size: LabelSize): string {
   .name{font-size:${l.nameSize}pt;font-weight:700;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .variant{font-size:${l.smallSize}pt;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .code{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:0}
-  .bc{display:block;width:${l.width - 7}mm;max-width:100%;height:${l.barcodeHeight}mm}
+    .bc{display:block;width:${l.width - 5}mm;max-width:100%;height:${l.barcodeHeight}mm}
   .digits{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:${l.smallSize + 0.6}pt;letter-spacing:.06em;line-height:1.1}
   .bc rect{shape-rendering:crispEdges}
   .bc-fallback{font-family:ui-monospace,monospace;font-size:${l.nameSize}pt}
