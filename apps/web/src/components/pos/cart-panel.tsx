@@ -82,7 +82,7 @@ export function CartPanel({ lines, lastKey, addSeq, totals, vat, discount, custo
           <div className="flex h-full flex-col items-center justify-center gap-2 px-6 py-10 text-center">
             <ScanLine className="h-10 w-10 text-rose" aria-hidden />
             <p className="font-semibold">Scan a barcode to start</p>
-            <p className="text-sm text-muted-foreground">Or tap a product on the left.</p>
+            <p className="text-sm text-muted-foreground">Or choose a product from the catalog.</p>
           </div>
         )}
       </div>
@@ -96,7 +96,7 @@ export function CartPanel({ lines, lastKey, addSeq, totals, vat, discount, custo
               <input
                 inputMode="numeric"
                 autoFocus={showDiscount && discount === 0}
-                className="tabular h-10 w-24 rounded-md border border-input bg-card px-2 text-sm focus-visible:border-ring focus-visible:outline-none"
+                className="tabular h-11 w-24 rounded-md border border-input bg-card px-2 text-base md:text-sm focus-visible:border-ring focus-visible:outline-none"
                 value={discount || ""}
                 placeholder="0"
                 onChange={(e) => actions.setDiscount(digitsToInt(e.target.value))}
@@ -105,7 +105,7 @@ export function CartPanel({ lines, lastKey, addSeq, totals, vat, discount, custo
               {discountProblem && <span role="alert" className="w-full text-xs font-medium text-danger">{discountProblem}</span>}
             </label>
           ) : (
-            <Button variant="link" size="sm" className="h-8" onClick={() => setShowDiscount(true)}>
+            <Button variant="link" size="sm" className="min-h-11" onClick={() => setShowDiscount(true)}>
               <Percent className="h-3.5 w-3.5" aria-hidden /> Add discount
             </Button>
           )
@@ -124,7 +124,7 @@ export function CartPanel({ lines, lastKey, addSeq, totals, vat, discount, custo
             })}
           </div>
         )}
-        <Button variant="brand" size="xl" className="w-full text-xl" onClick={() => onCharge("CASH")} disabled={blocked}>
+        <Button variant="brand" size="xl" className="w-full min-w-0 gap-2 px-3 text-lg" onClick={() => onCharge("CASH")} disabled={blocked}>
           Charge {formatNPR(totals.total)}
           <kbd className="ml-1 hidden rounded border border-brand-foreground/30 px-1.5 text-xs font-medium sm:inline">F4</kbd>
         </Button>

@@ -20,9 +20,9 @@ export function Totals({ subtotal, discount, deliveryCharge = 0, vatAmount, vat,
       {vat.enabled && (
         <div className="flex justify-between text-xs"><dt className="text-muted-foreground">Includes VAT {vat.rate}%</dt><dd className="tabular text-muted-foreground">{formatNPR(vatAmount)}</dd></div>
       )}
-      <div className="flex items-baseline justify-between border-t border-border pt-2">
+      <div className="flex flex-wrap items-baseline justify-between gap-2 border-t border-border pt-2">
         <dt className="text-base font-semibold">Total</dt>
-        <dd className="tabular font-display text-4xl font-bold leading-none" aria-live="polite">{formatNPR(total)}</dd>
+        <dd className="tabular break-words text-2xl font-semibold leading-tight sm:text-3xl" aria-live="polite">{formatNPR(total)}</dd>
       </div>
     </dl>
   );
