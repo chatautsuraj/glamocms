@@ -1,14 +1,14 @@
 /**
  * Firebase Auth — same project as glamonepal.com (env names match the
- * storefront). Google sign-in only; the ID token is the API Bearer.
+ * storefront). Google sign-in + email/password; the ID token is the API Bearer.
  */
 import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
-import { GoogleAuthProvider, getAuth, onIdTokenChanged, signInWithPopup, signOut, type Auth, type User } from "firebase/auth";
+import { GoogleAuthProvider, getAuth, onIdTokenChanged, signInWithEmailAndPassword, signInWithPopup, signOut, type Auth, type User } from "firebase/auth";
 
 /** Public web config of the shared GLAMO Firebase project (not secret). Env vars override. */
 const FALLBACK = {
   apiKey: "AIzaSyA13D6Q461WTxyWCN8-Qtv53rtvyH0quMw",
-  authDomain: "www.glamonepal.com",
+  authDomain: "ankura-studio.firebaseapp.com",
   projectId: "ankura-studio",
   storageBucket: "ankura-studio.firebasestorage.app",
   messagingSenderId: "935024312436",
@@ -39,6 +39,12 @@ export async function signInWithGoogle(): Promise<User> {
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: "select_account" });
   const cred = await signInWithPopup(firebaseAuth(), provider);
+  return cred.user;
+}
+
+/** Staff email/password sign-in (e.g. the shared admin account). */
+export async function signInWithEmailPassword(email: string, password: string): Promise<User> {
+  const cred = await signInWithEmailAndPassword(firebaseAuth(), email.trim(), password);
   return cred.user;
 }
 
