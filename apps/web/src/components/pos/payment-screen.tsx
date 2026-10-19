@@ -112,7 +112,7 @@ export function PaymentScreen({ account, amount, reference, onReference, onRecei
       <div className="flex flex-col gap-4">
         <div>
           <p className="text-sm font-medium text-muted-foreground">{account.title} · amount to pay</p>
-          <p className="tabular font-display text-5xl font-bold leading-tight">{formatNPR(amount)}</p>
+          <p className="money text-5xl leading-tight">{formatNPR(amount)}</p>
         </div>
         {hasQr && hasDetails && <AccountDetails account={account} />}
         {!hasQr && account.extra.length > 0 && <p className="text-sm text-muted-foreground">{account.extra.join(" · ")}</p>}
@@ -139,7 +139,7 @@ export function PaymentScreen({ account, amount, reference, onReference, onRecei
           ) : (
             account.idValue && <p className="tabular font-mono text-6xl font-bold tracking-wide">{account.idValue}</p>
           )}
-          <p className="tabular font-display text-6xl font-bold sm:text-7xl">{formatNPR(amount)}</p>
+          <p className="money text-6xl sm:text-7xl">{formatNPR(amount)}</p>
           {(account.accountName || (hasQr && account.idValue)) && (
             <p className="text-center text-2xl font-semibold">
               {account.accountName}

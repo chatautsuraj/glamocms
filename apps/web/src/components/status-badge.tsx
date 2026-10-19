@@ -1,16 +1,20 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-type Variant = "success" | "warning" | "danger" | "secondary" | "muted" | "default";
+/**
+ * One grammar for every status pill: amber = waiting on us, outlined ink = moving,
+ * green = done, red = stopped, grey = closed. No solid fills — they shout louder than the order total.
+ */
+type Variant = "success" | "warning" | "danger" | "outline" | "muted";
 
 const statusMap: Record<string, { label: string; variant: Variant }> = {
   // order
   PENDING: { label: "Pending", variant: "warning" },
-  CONFIRMED: { label: "Confirmed", variant: "default" },
-  PROCESSING: { label: "Processing", variant: "secondary" },
-  PACKED: { label: "Packed", variant: "secondary" },
-  SHIPPED: { label: "Shipped", variant: "default" },
-  OUT_FOR_DELIVERY: { label: "Out for delivery", variant: "default" },
+  CONFIRMED: { label: "Confirmed", variant: "outline" },
+  PROCESSING: { label: "Processing", variant: "outline" },
+  PACKED: { label: "Packed", variant: "outline" },
+  SHIPPED: { label: "Shipped", variant: "outline" },
+  OUT_FOR_DELIVERY: { label: "Out for delivery", variant: "outline" },
   DELIVERED: { label: "Delivered", variant: "success" },
   CANCELLED: { label: "Cancelled", variant: "danger" },
   RETURNED: { label: "Returned", variant: "danger" },
@@ -22,10 +26,10 @@ const statusMap: Record<string, { label: string; variant: Variant }> = {
   // shipment
   CREATING: { label: "Creating", variant: "muted" },
   ERROR: { label: "NCM problem", variant: "danger" },
-  ORDER_CREATED: { label: "Booked", variant: "secondary" },
-  PICKED_UP: { label: "Picked up", variant: "default" },
-  IN_TRANSIT: { label: "In transit", variant: "default" },
-  ARRIVED_AT_HUB: { label: "At hub", variant: "default" },
+  ORDER_CREATED: { label: "Booked", variant: "outline" },
+  PICKED_UP: { label: "Picked up", variant: "outline" },
+  IN_TRANSIT: { label: "In transit", variant: "outline" },
+  ARRIVED_AT_HUB: { label: "At hub", variant: "outline" },
   RETURNED_TO_SENDER: { label: "Returned to sender", variant: "danger" },
   // stock problems from offline sales / misc
   open: { label: "To sort out", variant: "warning" },
@@ -36,9 +40,10 @@ const statusMap: Record<string, { label: string; variant: Variant }> = {
 };
 
 export function StatusBadge({ status, className }: { status: string; className?: string }) {
-  const config = statusMap[status] ?? { label: status.replace(/_/g, " ").toLowerCase(), variant: "secondary" as const };
+  const known = statusMap[status];
+  const config = known ?? { label: status.replace(/_/g, " ").toLowerCase(), variant: "outline" as const };
   return (
-    <Badge variant={config.variant} className={cn("whitespace-nowrap capitalize", className)}>
+    <Badge variant={config.variant} className={cn("whitespace-nowrap", !known && "capitalize", className)}>
       {config.label}
     </Badge>
   );

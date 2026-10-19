@@ -133,7 +133,7 @@ export function PaymentDialog({ open, onOpenChange, total, methods, initialMetho
           <form className="space-y-5" onSubmit={(e) => { e.preventDefault(); void complete(); }}>
             <DialogHeader className="space-y-0">
               <DialogTitle>{title}</DialogTitle>
-              <p className="tabular font-display text-5xl font-bold leading-tight" aria-live="polite">{formatNPR(total)}</p>
+              <p className="money text-5xl leading-tight" aria-live="polite">{formatNPR(total)}</p>
             </DialogHeader>
 
             {mode === "single" ? (
@@ -196,7 +196,7 @@ export function PaymentDialog({ open, onOpenChange, total, methods, initialMetho
                     </div>
                     <div className={cn("flex items-baseline justify-between rounded-xl px-4 py-3", summary.change > 0 ? "bg-success/10" : "bg-muted")}>
                       <span className="text-sm font-semibold">{summary.remaining > 0 ? "Still to pay" : "Change to give"}</span>
-                      <span className={cn("tabular font-display text-4xl font-bold", summary.remaining > 0 ? "text-danger" : summary.change > 0 ? "text-success" : "")} aria-live="polite">
+                      <span className={cn("money text-4xl", summary.remaining > 0 ? "text-danger" : summary.change > 0 ? "text-success" : "")} aria-live="polite">
                         {formatNPR(summary.remaining > 0 ? summary.remaining : summary.change)}
                       </span>
                     </div>

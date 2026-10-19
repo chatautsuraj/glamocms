@@ -205,6 +205,18 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/*
+ * Big amounts at the counter (totals, change, customer-facing QR screen). Outfit with lining,
+ * tabular figures: Cormorant's old-style numerals made "Rs 0" read as "Rs o" across a counter.
+ * The serif stays for the brand mark only.
+ */
+.money {
+  font-family: var(--font-glamo-sans), system-ui, sans-serif;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
 /* Long product grids: let the browser skip off-screen tiles. */
 .cv-tile {
   content-visibility: auto;
@@ -246,5 +258,15 @@ body {
     animation-duration: 1ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 1ms !important;
+  }
+}
+
+/* Horizontally scrolling chip rows: fade the trailing edge so a cut-off chip reads as "more this way". */
+.scroll-fade-x {
+  mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+}
+@media (min-width: 1024px) {
+  .scroll-fade-x {
+    mask-image: none;
   }
 }

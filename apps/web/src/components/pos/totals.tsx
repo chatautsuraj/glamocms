@@ -22,7 +22,7 @@ export function Totals({ subtotal, discount, deliveryCharge = 0, vatAmount, vat,
       )}
       <div className="flex items-baseline justify-between border-t border-border pt-2">
         <dt className="text-base font-semibold">Total</dt>
-        <dd className="tabular font-display text-4xl font-bold leading-none" aria-live="polite">{formatNPR(total)}</dd>
+        <dd className="money text-4xl leading-none" aria-live="polite">{formatNPR(total)}</dd>
       </div>
     </dl>
   );

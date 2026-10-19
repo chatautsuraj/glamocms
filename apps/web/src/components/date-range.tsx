@@ -24,8 +24,8 @@ const PRESETS = [
 /** Kathmandu-day range picker (from/to are YYYY-MM-DD as the API expects). */
 export function DateRangeControls({ value, onChange, className }: { value: DayRange; onChange: (r: DayRange) => void; className?: string }) {
   return (
-    <div className={cn("flex flex-wrap items-end gap-2", className)}>
-      <div className="flex flex-wrap gap-1" role="group" aria-label="Date presets">
+    <div className={cn("flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end", className)}>
+      <div className="-mx-1 flex gap-1 overflow-x-auto px-1 no-scrollbar" role="group" aria-label="Date presets">
         {PRESETS.map((p) => {
           const r = presetRange(p.key);
           const active = r.from === value.from && r.to === value.to;
@@ -36,7 +36,7 @@ export function DateRangeControls({ value, onChange, className }: { value: DayRa
               aria-pressed={active}
               onClick={() => onChange(r)}
               className={cn(
-                "min-h-9 rounded-lg border px-3 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                "min-h-9 shrink-0 rounded-lg border px-3 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 active ? "border-primary bg-primary/10 text-primary" : "border-border bg-card hover:bg-accent",
               )}
             >
@@ -45,14 +45,16 @@ export function DateRangeControls({ value, onChange, className }: { value: DayRa
           );
         })}
       </div>
-      <label className="text-xs">
+      <div className="grid grid-cols-2 gap-2 sm:flex">
+      <label className="min-w-0 text-xs">
         <span className="sr-only">From</span>
-        <Input type="date" className="h-9 w-[150px]" value={value.from} max={value.to} onChange={(e) => e.target.value && onChange({ ...value, from: e.target.value })} aria-label="From date" />
+        <Input type="date" className="h-9 w-full sm:w-[150px]" value={value.from} max={value.to} onChange={(e) => e.target.value && onChange({ ...value, from: e.target.value })} aria-label="From date" />
       </label>
-      <label className="text-xs">
+      <label className="min-w-0 text-xs">
         <span className="sr-only">To</span>
-        <Input type="date" className="h-9 w-[150px]" value={value.to} min={value.from} onChange={(e) => e.target.value && onChange({ ...value, to: e.target.value })} aria-label="To date" />
+        <Input type="date" className="h-9 w-full sm:w-[150px]" value={value.to} min={value.from} onChange={(e) => e.target.value && onChange({ ...value, to: e.target.value })} aria-label="To date" />
       </label>
+      </div>
     </div>
   );
 }
