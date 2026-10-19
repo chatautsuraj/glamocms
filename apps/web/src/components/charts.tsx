@@ -2,15 +2,15 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Download, Table2 } from "lucide-react";
-import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { ChannelSwitcher } from "@/components/channel-switcher";
+import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ErrorPanel } from "@/components/loading";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Channel } from "@/lib/api/types";
 import { formatNPR } from "@/lib/format";
-import { CHANNEL_LABEL } from "@/lib/labels";
+import { CHANNEL_FILTERS, CHANNEL_LABEL } from "@/lib/labels";
 import { downloadCsv } from "@/lib/notify";
 import { useApi } from "@/lib/use-api";
 
@@ -32,10 +32,12 @@ export interface TableSpec {
 }
 
 /**
- * Chart card with its own channel switcher (All/Counter/Website/WhatsApp/Phone),
+ * Chart card with its own channel override (follows the page-wide channel until changed),
  * table view (accessibility + exact values) and CSV export of what is shown.
+ * `fluid` for HTML content (ranked lists) that sizes itself; charts get a fixed 16rem box.
  */
-export function ChartCard<T>({ title, description, initialChannel, load, deps, render, table, filename }: {
+export function ChartCard<T>({ title, description, initialChannel, load, deps, render, table, filename, fluid = false }: {
+  fluid?: boolean;
   title: string;
   description?: string;
   initialChannel: Channel | "";
@@ -59,18 +61,21 @@ export function ChartCard<T>({ title, description, initialChannel, load, deps, r
             <CardTitle className="text-base">{title}</CardTitle>
             {description && <p className="text-xs text-muted-foreground">{description}</p>}
           </div>
-          <div className="flex gap-1">
+          <div className="flex items-center gap-1">
+            {/* One compact select instead of a second row of five chips on every card. */}
+            <Select aria-label={`${title}: channel`} value={channel} onChange={(e) => setChannel(e.target.value as Channel | "")} className="h-9 w-auto min-w-0 py-1 pl-2.5 text-xs">
+              {CHANNEL_FILTERS.map((o) => <option key={o.label} value={o.value}>{o.value ? o.label : "All channels"}</option>)}
+            </Select>
             <Button size="sm" variant="ghost" aria-pressed={showTable} onClick={() => setShowTable((v) => !v)}><Table2 className="h-3.5 w-3.5" /> {showTable ? "Chart" : "Table"}</Button>
             <Button size="sm" variant="ghost" disabled={!spec?.rows.length} onClick={() => spec && downloadCsv(spec.rows, spec.columns.map((c) => c.key), `${filename}${channel ? `-${channel.toLowerCase()}` : ""}.csv`)}>
               <Download className="h-3.5 w-3.5" /> CSV
             </Button>
           </div>
         </div>
-        <ChannelSwitcher value={channel} onChange={setChannel} label={`${title} channel`} />
       </CardHeader>
       <CardContent>
         {error ? <ErrorPanel error={error} onRetry={reload} /> : loading && data === undefined ? <Skeleton className="h-64 w-full" /> : data !== undefined && spec ? (
-          !spec.rows.length ? <p className="py-16 text-center text-sm text-muted-foreground">No sales in this range.</p> : showTable ? <DataTableView spec={spec} /> : <div className="h-64" aria-hidden="false">{render(data, channel)}</div>
+          !spec.rows.length ? <p className="py-16 text-center text-sm text-muted-foreground">No sales in this range.</p> : showTable ? <DataTableView spec={spec} /> : <div className={fluid ? undefined : "h-64"}>{render(data, channel)}</div>
         ) : null}
       </CardContent>
     </Card>
@@ -138,21 +143,27 @@ export function RevenueLines({ series }: { series: Array<{ date: string; channel
   );
 }
 
-/** Horizontal bars for ranked breakdowns (single measure → single hue, labels name each bar). */
+/**
+ * Ranked breakdowns as a list with inline bars: full names (product names are long), exact
+ * amounts, and it reads the same to a screen reader as it looks. Single measure → single hue.
+ */
 export function RankedBars({ rows, colorFor }: { rows: Array<{ label: string; revenue: number; key?: string }>; colorFor?: (key: string) => string }) {
   const data = rows.slice(0, 10);
+  const max = Math.max(1, ...data.map((r) => r.revenue));
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <BarChart data={data} layout="vertical" margin={{ top: 0, right: 16, left: 0, bottom: 0 }} barCategoryGap={2}>
-        <CartesianGrid stroke="var(--chart-grid)" horizontal={false} />
-        <XAxis type="number" tick={axis} tickLine={false} axisLine={false} tickFormatter={compact} />
-        <YAxis type="category" dataKey="label" tick={axis} tickLine={false} axisLine={false} width={130} tickFormatter={(v: string) => (v.length > 20 ? `${v.slice(0, 19)}…` : v)} />
-        <Tooltip content={<TooltipBox />} cursor={{ fill: "var(--accent)" }} />
-        <Bar dataKey="revenue" name="Sales" radius={[0, 4, 4, 0]} maxBarSize={22}>
-          {data.map((r) => <Cell key={r.key ?? r.label} fill={colorFor?.(r.key ?? r.label) ?? "var(--series-1)"} />)}
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
+    <ol className="space-y-2.5">
+      {data.map((r, i) => (
+        <li key={r.key ?? r.label} className="text-sm">
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="min-w-0 truncate" title={r.label}><span className="tabular mr-2 text-xs text-muted-foreground">{i + 1}</span>{r.label}</span>
+            <span className="tabular shrink-0 font-semibold">{formatNPR(r.revenue)}</span>
+          </div>
+          <div className="mt-1 h-1.5 rounded-full bg-muted" aria-hidden>
+            <div className="h-full rounded-full" style={{ width: `${Math.max(2, (r.revenue / max) * 100)}%`, background: colorFor?.(r.key ?? r.label) ?? "var(--series-1)" }} />
+          </div>
+        </li>
+      ))}
+    </ol>
   );
 }
 

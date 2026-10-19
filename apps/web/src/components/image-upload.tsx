@@ -53,9 +53,9 @@ export function ImageUpload({ value, onChange, label, disabled, error, square = 
             <span className="px-2 text-center text-xs text-[#5e5650]">{value ? "Can't show this image" : "None yet"}</span>
           )}
         </div>
-        <div className="flex min-w-0 flex-1 flex-col gap-2">
+        <div className="flex min-w-0 flex-1 basis-56 flex-col gap-2">
           <div className="flex flex-wrap gap-2">
-            <input ref={ref} type="file" accept={TYPES.join(",")} className="sr-only" onChange={(e) => void upload(e.target.files?.[0])} disabled={disabled || busy} tabIndex={-1} />
+            <input ref={ref} type="file" aria-label={`Upload ${label}`} accept={TYPES.join(",")} className="sr-only" onChange={(e) => void upload(e.target.files?.[0])} disabled={disabled || busy} tabIndex={-1} />
             <Button variant="outline" onClick={() => ref.current?.click()} disabled={disabled || busy}>
               <ImagePlus className="h-4 w-4" aria-hidden /> {busy ? "Uploading…" : value ? "Replace" : "Upload"}
             </Button>
