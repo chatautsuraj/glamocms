@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Barcode, Check, PackagePlus, RefreshCw, SlidersHorizontal } from "lucide-react";
+import { Barcode, Check, History, MoreHorizontal, PackagePlus, RefreshCw, SlidersHorizontal } from "lucide-react";
+import { DropdownMenu, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { ErrorPanel, LoadingRows } from "@/components/loading";
 import { PageHeader } from "@/components/page-header";
 import { Pager } from "@/components/pager";
@@ -73,18 +74,38 @@ function StockTab({ onMovements }: { onMovements: (p: PosProduct) => void }) {
     <Card>
       <CardContent className="space-y-3 p-2 sm:p-4">
         <div className="flex flex-wrap items-end gap-3 p-2 sm:p-0">
-          <SearchInput className="min-w-[240px] flex-1" value={q} onChange={setQ} label="Search stock" placeholder="Name, barcode or SKU" />
+          <SearchInput className="min-w-0 flex-1 basis-56" value={q} onChange={setQ} label="Search stock" placeholder="Name, barcode or SKU" />
           <CheckField label="Running low only" checked={lowStock} onChange={(v) => { setLowStock(v); setPage(1); }} />
         </div>
         {error ? <ErrorPanel error={error} onRetry={reload} /> : loading && !data ? <LoadingRows /> : (
-          <div className="overflow-x-auto">
+          <div>
+            {/* Phones: name gets the width; count is big on the right; Receive stays one tap away. */}
+            <ul className="divide-y divide-border md:hidden" aria-label="Stock levels">
+              {(data?.items ?? []).map((p) => (
+                <li key={p.id} className="cv-row flex items-center gap-3 px-2 py-2.5">
+                  <ProductImage src={p.imageUrl} name={p.name} className="h-11 w-11 shrink-0 border border-border" />
+                  <div className="min-w-0 flex-1">
+                    <p className="line-clamp-2 text-sm font-semibold leading-snug">{p.name}</p>
+                    <p className="mt-1 text-xs"><StockBadge stock={p.stock} threshold={p.lowStockThreshold} track={p.trackInventory ?? true} /></p>
+                  </div>
+                  <span className="tabular w-10 shrink-0 text-right text-lg font-bold" aria-label={`${p.stock} in stock`}>{p.stock}</span>
+                  <DropdownMenu trigger={(t) => <Button {...t} variant="ghost" size="icon" className="shrink-0" aria-label={`Stock actions for ${p.name}`}><MoreHorizontal className="h-5 w-5" /></Button>}>
+                    <DropdownMenuItem onClick={() => setAdjust({ product: p, reason: "RECEIVE" })}><PackagePlus className="h-4 w-4" aria-hidden /> Receive stock</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setAdjust({ product: p, reason: "COUNT" })}><SlidersHorizontal className="h-4 w-4" aria-hidden /> Correct the count</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setLabelFor(p)}><Barcode className="h-4 w-4" aria-hidden /> Print labels</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onMovements(p)}><History className="h-4 w-4" aria-hidden /> Stock history</DropdownMenuItem>
+                  </DropdownMenu>
+                </li>
+              ))}
+            </ul>
+            <div className="hidden overflow-x-auto md:block">
             <table className="w-full text-sm">
               <caption className="sr-only">Stock levels</caption>
               <thead className="text-left text-xs font-medium text-muted-foreground">
                 <tr className="border-b border-border">
                   <th scope="col" className="py-2 pl-2 pr-3">Product</th>
-                  <th scope="col" className="py-2 pr-3 text-right">In stock</th>
-                  <th scope="col" className="hidden py-2 pr-3 text-right sm:table-cell">Warn at</th>
+                  <th scope="col" className="whitespace-nowrap py-2 pr-3 text-right">In stock</th>
+                  <th scope="col" className="hidden whitespace-nowrap py-2 pr-3 text-right sm:table-cell">Warn at</th>
                   <th scope="col" className="py-2 pr-3">Status</th>
                   <th scope="col" className="py-2"><span className="sr-only">Actions</span></th>
                 </tr>
@@ -96,8 +117,8 @@ function StockTab({ onMovements }: { onMovements: (p: PosProduct) => void }) {
                       <div className="flex items-center gap-3">
                         <ProductImage src={p.imageUrl} name={p.name} className="h-11 w-11 shrink-0 border border-border" />
                         <div className="min-w-0">
-                          <span className="block font-semibold">{p.name}</span>
-                          <span className="text-xs text-muted-foreground">{p.variants.length ? p.variants.map((v) => `${v.name}: ${v.stock}`).join(" · ") : (p.barcode ?? p.sku ?? "")}</span>
+                          <span className="line-clamp-2 block font-semibold leading-snug">{p.name}</span>
+                          <span className="block truncate text-xs text-muted-foreground">{p.variants.length ? p.variants.map((v) => `${v.name}: ${v.stock}`).join(" · ") : (p.barcode ?? p.sku ?? "")}</span>
                         </div>
                       </div>
                     </td>
@@ -105,17 +126,30 @@ function StockTab({ onMovements }: { onMovements: (p: PosProduct) => void }) {
                     <td className="tabular hidden py-2 pr-3 text-right sm:table-cell">{p.lowStockThreshold}</td>
                     <td className="py-2 pr-3"><StockBadge stock={p.stock} threshold={p.lowStockThreshold} track={p.trackInventory ?? true} /></td>
                     <td className="py-2 text-right">
-                      <span className="inline-flex flex-wrap justify-end gap-1">
-                        <Button size="sm" onClick={() => setAdjust({ product: p, reason: "RECEIVE" })}><PackagePlus className="h-4 w-4" aria-hidden /> Receive</Button>
-                        <Button size="sm" variant="outline" onClick={() => setAdjust({ product: p, reason: "COUNT" })}><SlidersHorizontal className="h-4 w-4" aria-hidden /> Correct</Button>
-                        <Button size="sm" variant="ghost" onClick={() => setLabelFor(p)} aria-label={`Print labels for ${p.name}`}><Barcode className="h-4 w-4" aria-hidden /> Label</Button>
-                        <Button size="sm" variant="ghost" onClick={() => onMovements(p)}>History</Button>
+                      {/* "Receive" is the everyday action; the rest live in one menu until there is room for them. */}
+                      <span className="inline-flex items-center justify-end gap-1">
+                        <Button variant="outline" className="h-11 px-3.5" onClick={() => setAdjust({ product: p, reason: "RECEIVE" })} aria-label={`Receive stock for ${p.name}`}>
+                          <PackagePlus className="h-4 w-4" aria-hidden /> <span className="hidden sm:inline">Receive</span>
+                        </Button>
+                        <span className="hidden items-center gap-1 xl:inline-flex">
+                          <Button size="sm" variant="ghost" className="h-11" onClick={() => setAdjust({ product: p, reason: "COUNT" })}><SlidersHorizontal className="h-4 w-4" aria-hidden /> Correct</Button>
+                          <Button size="sm" variant="ghost" className="h-11" onClick={() => setLabelFor(p)} aria-label={`Print labels for ${p.name}`}><Barcode className="h-4 w-4" aria-hidden /> Label</Button>
+                          <Button size="sm" variant="ghost" className="h-11" onClick={() => onMovements(p)}>History</Button>
+                        </span>
+                        <span className="xl:hidden">
+                          <DropdownMenu trigger={(t) => <Button {...t} variant="ghost" size="icon" aria-label={`More for ${p.name}`}><MoreHorizontal className="h-5 w-5" /></Button>}>
+                            <DropdownMenuItem onClick={() => setAdjust({ product: p, reason: "COUNT" })}><SlidersHorizontal className="h-4 w-4" aria-hidden /> Correct the count</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setLabelFor(p)}><Barcode className="h-4 w-4" aria-hidden /> Print labels</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => onMovements(p)}><History className="h-4 w-4" aria-hidden /> Stock history</DropdownMenuItem>
+                          </DropdownMenu>
+                        </span>
                       </span>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            </div>
             {!data?.items.length && <p className="py-8 text-center text-sm text-muted-foreground">{query || lowStock ? "No products match." : "No products yet."}</p>}
           </div>
         )}
@@ -229,19 +263,19 @@ function MovementsTab({ product, onClear }: { product: PosProduct | null; onClea
               <thead className="text-left text-xs font-medium text-muted-foreground">
                 <tr className="border-b border-border">
                   <th scope="col" className="py-2 pr-3">When</th><th scope="col" className="py-2 pr-3">Product</th><th scope="col" className="py-2 pr-3">What</th>
-                  <th scope="col" className="py-2 pr-3 text-right">Change</th><th scope="col" className="py-2 pr-3 text-right">Stock</th><th scope="col" className="py-2 pr-3">By</th><th scope="col" className="py-2">Note</th>
+                  <th scope="col" className="py-2 pr-3 text-right">Change</th><th scope="col" className="hidden py-2 pr-3 text-right sm:table-cell">Stock</th><th scope="col" className="hidden py-2 pr-3 lg:table-cell">By</th><th scope="col" className="hidden py-2 lg:table-cell">Note</th>
                 </tr>
               </thead>
               <tbody>
                 {(data?.items ?? []).map((m) => (
                   <tr key={m.id} className="border-b border-border/60">
-                    <td className="py-2 pr-3 text-xs">{m.createdAt && formatDateTime(m.createdAt)}</td>
-                    <td className="py-2 pr-3">{m.productName}{m.variantName && <span className="text-muted-foreground"> — {m.variantName}</span>}</td>
+                    <td className="whitespace-nowrap py-2 pr-3 text-xs">{m.createdAt && formatDateTime(m.createdAt)}</td>
+                    <td className="py-2 pr-3">{m.productName}{m.variantName && <span className="text-muted-foreground"> — {m.variantName}</span>}{m.reason && <span className="block text-xs text-muted-foreground lg:hidden">{m.reason}</span>}</td>
                     <td className="py-2 pr-3 text-xs">{MOVEMENT_LABEL[m.type] ?? m.type.replace(/_/g, " ").toLowerCase()}</td>
-                    <td className={`py-2 pr-3 text-right font-medium ${m.delta < 0 ? "text-danger" : "text-success"}`}>{m.delta > 0 ? "+" : ""}{m.delta}</td>
-                    <td className="py-2 pr-3 text-right">{m.previousStock} → {m.newStock}</td>
-                    <td className="py-2 pr-3 text-xs">{m.performedByName ?? "—"}</td>
-                    <td className="py-2 text-xs text-muted-foreground">{m.reason}</td>
+                    <td className={`tabular py-2 pr-3 text-right font-medium ${m.delta < 0 ? "text-danger" : "text-success"}`}>{m.delta > 0 ? "+" : ""}{m.delta}</td>
+                    <td className="tabular hidden whitespace-nowrap py-2 pr-3 text-right sm:table-cell">{m.previousStock} → {m.newStock}</td>
+                    <td className="hidden py-2 pr-3 text-xs lg:table-cell">{m.performedByName ?? "—"}</td>
+                    <td className="hidden py-2 text-xs text-muted-foreground lg:table-cell">{m.reason}</td>
                   </tr>
                 ))}
               </tbody>
