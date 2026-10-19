@@ -256,3 +256,16 @@ html { scroll-padding-top: 5rem; }
 a, button, input, select, textarea { touch-action: manipulation; }
 :focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
 main:focus { outline: none; }
+
+/* Record tables become labelled records when the workspace is narrow.
+   Native table headers stay available to assistive technology. */
+@media (width < 1024px) {
+  .mobile-record-table { display: block; }
+  .mobile-record-table thead { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .mobile-record-table tbody { display: block; }
+  .mobile-record-table tbody > tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.25rem 1rem; padding: 1rem 0; }
+  .mobile-record-table tbody > tr > td { min-width: 0; padding: 0.25rem 0; white-space: normal; overflow-wrap: anywhere; text-align: left; }
+  .mobile-record-table tbody > tr > td:first-child,
+  .mobile-record-table tbody > tr > td:last-child { grid-column: 1 / -1; }
+  .mobile-record-table td[data-label]::before { content: attr(data-label); display: block; margin-bottom: 0.25rem; color: var(--muted-foreground); font-family: var(--font-glamo-sans), system-ui, sans-serif; font-size: 0.75rem; font-weight: 400; }
+}

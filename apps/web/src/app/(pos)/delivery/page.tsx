@@ -15,7 +15,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { deliveryApi } from "@/lib/api/delivery";
 import { ordersApi } from "@/lib/api/orders";
 import type { Channel, NcmBranch, NcmRate, PosOrder } from "@/lib/api/types";
@@ -80,9 +79,9 @@ export default function DeliveryPage() {
         <Card>
           <CardHeader className="space-y-3">
             <div className="flex flex-wrap items-center gap-3">
-              <Tabs value={stage} onValueChange={(v) => { setStage(v); setPage(1); }}>
-                <TabsList label="Delivery stage">{STAGES.map((s) => <TabsTrigger key={s.key} value={s.key}>{s.label}</TabsTrigger>)}</TabsList>
-              </Tabs>
+              <div role="group" aria-label="Delivery stage" className="flex flex-wrap gap-2">
+                {STAGES.map((s) => <Button key={s.key} size="sm" variant={stage === s.key ? "default" : "outline"} aria-pressed={stage === s.key} onClick={() => { setStage(s.key); setPage(1); }}>{s.label}</Button>)}
+              </div>
               <Button variant="outline" size="sm" className="ml-auto" disabled={!selected.size} onClick={printSelected}><Printer className="h-3.5 w-3.5" aria-hidden /> Print delivery notes ({selected.size})</Button>
             </div>
             <ChannelSwitcher value={channel} onChange={(c) => { setChannel(c); setPage(1); }} />

@@ -18,12 +18,12 @@ export function StatCard({ title, value, icon: Icon, subtitle, loading, classNam
       <CardContent className="flex items-start justify-between gap-3 p-5">
         <div className="min-w-0 space-y-1.5">
           <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          {loading ? <Skeleton className="h-8 w-28" /> : <p className="tabular text-2xl font-bold tracking-tight">{value}</p>}
+          {loading ? <Skeleton className="h-8 w-28" /> : <p className="tabular break-words text-2xl font-bold tracking-tight">{value}</p>}
           {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
         </div>
         {Icon && (
-          <div className="shrink-0 rounded-full bg-rose-tint p-2.5">
-            <Icon className="h-5 w-5 text-foreground" aria-hidden />
+          <div className="shrink-0 pt-1">
+            <Icon className="h-5 w-5 text-muted-foreground" aria-hidden />
           </div>
         )}
       </CardContent>

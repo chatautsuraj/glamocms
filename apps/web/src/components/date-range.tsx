@@ -36,7 +36,7 @@ export function DateRangeControls({ value, onChange, className }: { value: DayRa
               aria-pressed={active}
               onClick={() => onChange(r)}
               className={cn(
-                "min-h-9 rounded-lg border px-3 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                "min-h-11 rounded-lg border px-3 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 active ? "border-primary bg-primary/10 text-primary" : "border-border bg-card hover:bg-accent",
               )}
             >
@@ -47,11 +47,11 @@ export function DateRangeControls({ value, onChange, className }: { value: DayRa
       </div>
       <label className="text-xs">
         <span className="sr-only">From</span>
-        <Input type="date" className="h-9 w-[150px]" value={value.from} max={value.to} onChange={(e) => e.target.value && onChange({ ...value, from: e.target.value })} aria-label="From date" />
+        <Input type="date" className="h-11 w-[150px]" value={value.from} max={value.to} onChange={(e) => e.target.value && onChange({ ...value, from: e.target.value })} aria-label="From date" />
       </label>
       <label className="text-xs">
         <span className="sr-only">To</span>
-        <Input type="date" className="h-9 w-[150px]" value={value.to} min={value.from} onChange={(e) => e.target.value && onChange({ ...value, to: e.target.value })} aria-label="To date" />
+        <Input type="date" className="h-11 w-[150px]" value={value.to} min={value.from} onChange={(e) => e.target.value && onChange({ ...value, to: e.target.value })} aria-label="To date" />
       </label>
     </div>
   );

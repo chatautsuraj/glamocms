@@ -73,12 +73,12 @@ function StockTab({ onMovements }: { onMovements: (p: PosProduct) => void }) {
     <Card>
       <CardContent className="space-y-3 p-2 sm:p-4">
         <div className="flex flex-wrap items-end gap-3 p-2 sm:p-0">
-          <SearchInput className="min-w-[240px] flex-1" value={q} onChange={setQ} label="Search stock" placeholder="Name, barcode or SKU" />
+          <SearchInput className="min-w-0 basis-full sm:min-w-[240px] sm:flex-1" value={q} onChange={setQ} label="Search stock" placeholder="Name, barcode or SKU" />
           <CheckField label="Running low only" checked={lowStock} onChange={(v) => { setLowStock(v); setPage(1); }} />
         </div>
         {error ? <ErrorPanel error={error} onRetry={reload} /> : loading && !data ? <LoadingRows /> : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="mobile-record-table w-full text-sm">
               <caption className="sr-only">Stock levels</caption>
               <thead className="text-left text-xs font-medium text-muted-foreground">
                 <tr className="border-b border-border">
@@ -91,7 +91,7 @@ function StockTab({ onMovements }: { onMovements: (p: PosProduct) => void }) {
               </thead>
               <tbody>
                 {(data?.items ?? []).map((p) => (
-                  <tr key={p.id} className="cv-row border-b border-border/60">
+                  <tr key={p.id} className="border-b border-border/60">
                     <td className="py-2 pl-2 pr-3">
                       <div className="flex items-center gap-3">
                         <ProductImage src={p.imageUrl} name={p.name} className="h-11 w-11 shrink-0 border border-border" />
@@ -101,9 +101,9 @@ function StockTab({ onMovements }: { onMovements: (p: PosProduct) => void }) {
                         </div>
                       </div>
                     </td>
-                    <td className="tabular py-2 pr-3 text-right text-base font-bold">{p.stock}</td>
-                    <td className="tabular hidden py-2 pr-3 text-right sm:table-cell">{p.lowStockThreshold}</td>
-                    <td className="py-2 pr-3"><StockBadge stock={p.stock} threshold={p.lowStockThreshold} track={p.trackInventory ?? true} /></td>
+                    <td data-label="In stock" className="tabular py-2 pr-3 text-right text-base font-bold">{p.stock}</td>
+                    <td data-label="Warn at" className="tabular hidden py-2 pr-3 text-right sm:table-cell">{p.lowStockThreshold}</td>
+                    <td data-label="Status" className="py-2 pr-3"><StockBadge stock={p.stock} threshold={p.lowStockThreshold} track={p.trackInventory ?? true} /></td>
                     <td className="py-2 text-right">
                       <span className="inline-flex flex-wrap justify-end gap-1">
                         <Button size="sm" onClick={() => setAdjust({ product: p, reason: "RECEIVE" })}><PackagePlus className="h-4 w-4" aria-hidden /> Receive</Button>
@@ -119,6 +119,7 @@ function StockTab({ onMovements }: { onMovements: (p: PosProduct) => void }) {
             {!data?.items.length && <p className="py-8 text-center text-sm text-muted-foreground">{query || lowStock ? "No products match." : "No products yet."}</p>}
           </div>
         )}
+        {data && !data.items.length && (q || lowStock) && <Button variant="outline" onClick={() => { setQ(""); setLowStock(false); setPage(1); }}>Clear filters</Button>}
         {data && <Pager page={data.page} limit={data.limit} total={data.total} onPage={setPage} />}
       </CardContent>
       <AdjustDialog target={adjust} onClose={() => setAdjust(null)} onDone={() => void reload()} />

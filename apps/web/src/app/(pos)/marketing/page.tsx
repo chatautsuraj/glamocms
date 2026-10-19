@@ -127,10 +127,10 @@ export default function MarketingPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <Field label="Subject" hint="What lands in the inbox — keep it under 60 characters.">
-              <Input value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={160} placeholder="New arrivals: glow season is here" disabled={!canWrite || busy !== null} />
+              <Input value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={160} placeholder="Write a subject" disabled={!canWrite || busy !== null} />
             </Field>
             <Field label="Preview text" hint="The grey line next to the subject. Optional.">
-              <Input value={previewText} onChange={(e) => setPreviewText(e.target.value)} maxLength={200} placeholder="A first look at the new serum everyone asked about." disabled={!canWrite || busy !== null} />
+              <Input value={previewText} onChange={(e) => setPreviewText(e.target.value)} maxLength={200} placeholder="A short preview of your message." disabled={!canWrite || busy !== null} />
             </Field>
             <Field label="Message" hint="Plain text. Blank lines become paragraphs; we add the branding and unsubscribe line.">
               <Textarea

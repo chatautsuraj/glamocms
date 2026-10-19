@@ -9,6 +9,7 @@ import { OrdersTable } from "@/components/orders-table";
 import { PageHeader } from "@/components/page-header";
 import { Pager } from "@/components/pager";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { ordersApi } from "@/lib/api/orders";
@@ -57,7 +58,7 @@ export default function OrdersPage() {
                 <option value="REFUNDED">Refunded</option>
               </Select>
             </label>
-            <form className="relative min-w-[220px] flex-1" onSubmit={(e) => { e.preventDefault(); setQuery(q.trim()); setPage(1); }}>
+            <form className="relative w-full min-w-0 flex-1 sm:min-w-[220px]" onSubmit={(e) => { e.preventDefault(); setQuery(q.trim()); setPage(1); }}>
               <label>
                 <span className="sr-only">Search orders</span>
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
@@ -71,6 +72,7 @@ export default function OrdersPage() {
       <Card>
         <CardContent className="space-y-3 p-4">
           {error ? <ErrorPanel error={error} onRetry={reload} /> : loading && !data ? <LoadingRows /> : <OrdersTable orders={data?.items ?? []} />}
+          {data && !data.items.length && (channel || status || paymentStatus || query) && <Button variant="outline" onClick={() => { setChannel(""); setStatus(""); setPaymentStatus(""); setQ(""); setQuery(""); setPage(1); }}>Clear filters</Button>}
           {data && <Pager page={data.page} limit={data.limit} total={data.total} onPage={setPage} />}
         </CardContent>
       </Card>

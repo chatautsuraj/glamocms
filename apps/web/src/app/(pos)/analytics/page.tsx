@@ -42,7 +42,7 @@ export default function AnalyticsPage() {
         </CardContent>
       </Card>
       {summary.error ? <ErrorPanel error={summary.error} onRetry={summary.reload} /> : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard title="Sales" value={t ? formatNPR(t.revenue) : "…"} loading={summary.loading && !t} icon={TrendingUp} subtitle={t?.netRevenue !== undefined ? `${formatNPR(t.netRevenue)} after refunds` : undefined} />
           <StatCard title="Orders" value={t ? formatNumber(t.orders) : "…"} loading={summary.loading && !t} icon={Receipt} subtitle={t ? `${formatNumber(t.items)} items` : undefined} />
           <StatCard title="Average order" value={t ? formatNPR(t.aov) : "…"} loading={summary.loading && !t} icon={ShoppingBag} />

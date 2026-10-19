@@ -9,7 +9,6 @@ import { ErrorPanel, LoadingRows } from "@/components/loading";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { analyticsApi } from "@/lib/api/analytics";
 import type { Channel, ReportType } from "@/lib/api/types";
 import { formatDateTime, formatNPR, formatNumber } from "@/lib/format";
@@ -81,9 +80,9 @@ export default function ReportsPage() {
       <PageHeader title="Reports" description={meta.hint} actions={<Button onClick={csv} disabled={downloading}><Download className="h-4 w-4" aria-hidden /> {downloading ? "Preparing…" : "Download for Excel (CSV)"}</Button>} />
       <Card>
         <CardContent className="space-y-3 p-4">
-          <Tabs value={type} onValueChange={(v) => setType(v as ReportType)}>
-            <TabsList label="Report">{REPORTS.map((r) => <TabsTrigger key={r.type} value={r.type}>{r.label}</TabsTrigger>)}</TabsList>
-          </Tabs>
+          <div role="group" aria-label="Report" className="flex flex-wrap gap-2">
+            {REPORTS.map((r) => <Button key={r.type} size="sm" variant={type === r.type ? "default" : "outline"} aria-pressed={type === r.type} onClick={() => setType(r.type)}>{r.label}</Button>)}
+          </div>
           <div className="flex flex-wrap items-end justify-between gap-3">
             <DateRangeControls value={range} onChange={setRange} />
             {meta.channel && <ChannelSwitcher value={channel} onChange={setChannel} />}

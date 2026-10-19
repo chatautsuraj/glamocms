@@ -39,7 +39,7 @@ export default function DashboardPage() {
         description={`Today · ${formatDate(new Date())}`}
         actions={canSell && <Link href="/pos" className={buttonVariants({ variant: "brand", size: "lg" })}><ScanLine className="h-5 w-5" aria-hidden /> Start selling</Link>}
       />
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {canAnalytics ? (
           <>
             <StatCard title="Sales today" value={t ? formatNPR(t.revenue) : "…"} icon={TrendingUp} loading={summary.loading && !t} />

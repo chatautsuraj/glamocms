@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { CheckCircle2, Printer, UserPlus } from "lucide-react";
 import { ImageUpload } from "@/components/image-upload";
@@ -119,6 +119,10 @@ function SectionCard({ title, description, children, onSubmit, disabled, busy, d
   extra?: ReactNode;
 }) {
   const hasErrors = Boolean(errors && Object.keys(errors).length);
+  const form = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    if (errors && Object.keys(errors).length) form.current?.querySelector<HTMLElement>("[aria-invalid='true']")?.focus();
+  }, [errors]);
   return (
     <Card>
       <CardHeader>
@@ -126,10 +130,10 @@ function SectionCard({ title, description, children, onSubmit, disabled, busy, d
         {description && <CardDescription>{description}</CardDescription>}
       </CardHeader>
       <CardContent>
-        <form className="space-y-5" noValidate onSubmit={(e) => { e.preventDefault(); onSubmit(); }}>
+        <form ref={form} className="space-y-5" noValidate onSubmit={(e) => { e.preventDefault(); onSubmit(); }}>
           <fieldset disabled={disabled} className="space-y-5">{children}</fieldset>
           {!disabled && (
-            <div className="sticky bottom-0 -mx-5 flex flex-wrap items-center gap-3 border-t border-border bg-card px-5 pt-4">
+            <div className="-mx-5 flex flex-wrap items-center gap-3 border-t border-border bg-card px-5 pb-[env(safe-area-inset-bottom)] pt-4">
               <Button type="submit" variant="brand" disabled={busy || !dirty}>{busy ? "Saving…" : "Save"}</Button>
               <span role="status" aria-live="polite" className={cn("text-sm", dirty ? "font-medium text-warning" : "text-muted-foreground")}>
                 {hasErrors ? <span className="text-danger">Please fix the highlighted fields.</span> : dirty ? "Unsaved changes" : savedAt ? <span className="inline-flex items-center gap-1 text-success"><CheckCircle2 className="h-4 w-4" aria-hidden /> Saved at {formatTime(savedAt)}</span> : "All changes saved"}

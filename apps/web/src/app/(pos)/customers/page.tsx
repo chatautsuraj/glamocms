@@ -42,7 +42,7 @@ function isNewCustomer(createdAt: string | null): boolean {
 function Stat({ label, value, hint, tone }: { label: string; value: string; hint: string; tone?: "rose" | "ink" }) {
   return (
     <div className="rounded-xl border border-border bg-card p-4">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="text-sm font-medium text-muted-foreground">{label}</p>
       <p className={cn("mt-1 text-2xl font-semibold tabular", tone === "rose" && "text-rose-dark")}>{value}</p>
       <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>
     </div>
@@ -60,7 +60,7 @@ function CustomerRow({ c }: { c: Customer }) {
       <Avatar initials={initials(c.name)} size="md" />
       <div className="min-w-0 flex-1">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="truncate font-medium">{c.name}</span>
+          <span className="break-words font-medium">{c.name}</span>
           {repeat && <Badge variant="brand">Repeat</Badge>}
           {fresh && <Badge variant="success">New</Badge>}
         </div>
@@ -133,7 +133,7 @@ export default function CustomersPage() {
                   aria-pressed={filter === f.key}
                   onClick={() => setFilter(f.key)}
                   className={cn(
-                    "min-h-9 rounded-full border px-3 text-sm font-medium transition-colors",
+                    "min-h-11 rounded-full border px-3 text-sm font-medium transition-colors",
                     filter === f.key ? "border-rose-dark bg-rose-tint text-foreground" : "border-border text-muted-foreground hover:border-rose hover:text-foreground",
                   )}
                 >
