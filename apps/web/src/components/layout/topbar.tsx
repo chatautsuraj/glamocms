@@ -22,7 +22,7 @@ export function Topbar({ onMenuToggle, mobileOpen }: { onMenuToggle?: () => void
 
   return (
     <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-2 border-b border-border bg-card px-3 md:gap-4 md:px-5">
-      <Button variant="ghost" size="icon" className="shrink-0 md:hidden" aria-label="Open navigation" aria-expanded={mobileOpen} onClick={onMenuToggle}>
+      <Button variant="ghost" size="icon" className="shrink-0 md:hidden" aria-label={mobileOpen ? "Close navigation" : "Open navigation"} aria-expanded={mobileOpen} onClick={onMenuToggle}>
         <Menu className="h-5 w-5" />
       </Button>
       <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -44,7 +44,7 @@ export function Topbar({ onMenuToggle, mobileOpen }: { onMenuToggle?: () => void
         trigger={(p) => (
           <button {...p} type="button" aria-label="Account menu" className="flex min-h-11 items-center gap-2 rounded-full px-2 py-1.5 transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             <Avatar initials={initials} size="sm" />
-            <span className="hidden text-sm font-medium sm:inline">{user?.name}</span>
+            <span className="hidden max-w-40 truncate text-sm font-medium sm:inline">{user?.name}</span>
           </button>
         )}
       >

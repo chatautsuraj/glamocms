@@ -97,7 +97,7 @@ export function Dialog({ open, onOpenChange, children, className, label }: Dialo
         aria-modal="true"
         aria-label={label}
         tabIndex={-1}
-        className={cn("relative z-10 max-h-[94dvh] w-full max-w-lg animate-pop-in overflow-y-auto rounded-t-2xl focus:outline-none sm:rounded-xl", className)}
+        className={cn("relative z-10 max-h-[94dvh] w-full max-w-lg animate-pop-in overflow-y-auto overscroll-contain rounded-t-2xl focus:outline-none sm:rounded-xl", className)}
       >
         {children}
       </div>

@@ -2,7 +2,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { forwardRef, type ButtonHTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 
-/** Pill buttons (DESIGN.md). Every size except `sm` meets the 44px touch target. */
+/** Pill buttons (DESIGN.md). Every size meets the 44px touch target. */
 const buttonVariants = cva(
   "inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-semibold transition-[background-color,color,box-shadow,transform] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-45",
   {
@@ -19,11 +19,11 @@ const buttonVariants = cva(
       },
       size: {
         default: "h-11 px-5",
-        sm: "h-9 px-3.5 text-xs",
+        sm: "min-h-11 px-3.5 text-xs",
         lg: "h-12 px-6 text-base",
         xl: "h-14 px-7 text-lg",
         icon: "h-11 w-11",
-        "icon-sm": "h-9 w-9",
+        "icon-sm": "h-11 w-11",
       },
     },
     defaultVariants: {
