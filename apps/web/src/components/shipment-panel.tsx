@@ -29,7 +29,7 @@ export function ShipmentPanel({ order, branches, onChange }: { order: PosOrder; 
     try {
       const shipment = await deliveryApi.send(order.id, { branch: branch || undefined, codAmount: Number(cod) || 0, instruction: instruction || undefined });
       onChange(shipment);
-      toast.success(`Sent to Nepal Can Move${shipment.trackingCode ? ` — tracking ${shipment.trackingCode}` : ""}`);
+      toast.success(`Sent to Nepal Can Move${shipment.trackingCode ? `, tracking ${shipment.trackingCode}` : ""}`);
     } catch (err) {
       toastError(err);
     } finally {
@@ -47,7 +47,7 @@ export function ShipmentPanel({ order, branches, onChange }: { order: PosOrder; 
     }
   };
 
-  if (pickup) return <p className="text-sm text-muted-foreground">Counter pickup — no delivery needed.</p>;
+  if (pickup) return <p className="text-sm text-muted-foreground">Picked up at the counter. No delivery needed.</p>;
 
   if (!s || s.status === "ERROR") {
     return (
@@ -58,7 +58,7 @@ export function ShipmentPanel({ order, branches, onChange }: { order: PosOrder; 
             {branches?.length ? (
               <Select value={branch} onChange={(e) => setBranch(e.target.value)}>
                 <option value="">Auto (from city)</option>
-                {branches.map((b) => <option key={b.code || b.name} value={b.name}>{b.name}{b.district ? ` — ${b.district}` : ""}</option>)}
+                {branches.map((b) => <option key={b.code || b.name} value={b.name}>{b.name}{b.district ? `, ${b.district}` : ""}</option>)}
               </Select>
             ) : (
               <Input value={branch} onChange={(e) => setBranch(e.target.value)} placeholder="e.g. POKHARA" />

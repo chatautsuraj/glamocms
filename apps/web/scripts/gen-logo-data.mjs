@@ -1,6 +1,6 @@
-// Regenerates src/lib/print-logo.ts from public/images/logo.png so bills
+// Regenerates src/lib/print/logo.ts from public/images/logo.png so bills
 // and delivery notes embed the GLAMO logo as a data URL (works offline, in
-// print popups and in jsPDF). Run: npm run gen:logo
+// the print frame and in jsPDF). Run: npm run gen:logo
 import { readFileSync, writeFileSync } from "node:fs";
 
 const png = readFileSync(new URL("../public/images/logo.png", import.meta.url));
@@ -12,5 +12,5 @@ export const LOGO_HEIGHT = ${height};
 export const LOGO_DATA_URL =
   "data:image/png;base64,${png.toString("base64")}";
 `;
-writeFileSync(new URL("../src/lib/print-logo.ts", import.meta.url), out);
-console.log(`logo-data.ts written (${width}x${height}, ${png.length} bytes)`);
+writeFileSync(new URL("../src/lib/print/logo.ts", import.meta.url), out);
+process.stdout.write(`src/lib/print/logo.ts written (${width}x${height}, ${png.length} bytes)\n`);

@@ -81,7 +81,7 @@ export function DataTableView({ spec }: { spec: TableSpec }) {
   return (
     <div className="max-h-72 overflow-auto">
       <table className="w-full text-sm">
-        <thead className="sticky top-0 bg-card text-left text-xs uppercase text-muted-foreground">
+        <thead className="sticky top-0 bg-card text-left text-xs font-medium text-muted-foreground">
           <tr className="border-b border-border">{spec.columns.map((c) => <th key={c.key} scope="col" className={`py-2 pr-3 ${c.money ? "text-right" : ""}`}>{c.label}</th>)}</tr>
         </thead>
         <tbody>
@@ -148,7 +148,7 @@ export function RankedBars({ rows, colorFor }: { rows: Array<{ label: string; re
         <XAxis type="number" tick={axis} tickLine={false} axisLine={false} tickFormatter={compact} />
         <YAxis type="category" dataKey="label" tick={axis} tickLine={false} axisLine={false} width={130} tickFormatter={(v: string) => (v.length > 20 ? `${v.slice(0, 19)}…` : v)} />
         <Tooltip content={<TooltipBox />} cursor={{ fill: "var(--accent)" }} />
-        <Bar dataKey="revenue" name="Revenue" radius={[0, 4, 4, 0]} maxBarSize={22}>
+        <Bar dataKey="revenue" name="Sales" radius={[0, 4, 4, 0]} maxBarSize={22}>
           {data.map((r) => <Cell key={r.key ?? r.label} fill={colorFor?.(r.key ?? r.label) ?? "var(--series-1)"} />)}
         </Bar>
       </BarChart>
@@ -165,7 +165,7 @@ export function ColumnBars({ rows }: { rows: Array<{ label: string; revenue: num
         <XAxis dataKey="label" tick={axis} tickLine={false} axisLine={false} />
         <YAxis tick={axis} tickLine={false} axisLine={false} tickFormatter={compact} width={56} />
         <Tooltip content={<TooltipBox />} cursor={{ fill: "var(--accent)" }} />
-        <Bar dataKey="revenue" name="Revenue" fill="var(--series-1)" radius={[4, 4, 0, 0]} maxBarSize={28} />
+        <Bar dataKey="revenue" name="Sales" fill="var(--series-1)" radius={[4, 4, 0, 0]} maxBarSize={28} />
       </BarChart>
     </ResponsiveContainer>
   );

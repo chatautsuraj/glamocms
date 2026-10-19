@@ -32,9 +32,9 @@ export default function LoginPage() {
         code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request"
           ? "Sign-in was cancelled."
           : code === "auth/popup-blocked"
-            ? "Your browser blocked the Google sign-in popup — allow popups for this site."
+            ? "Your browser blocked the Google sign-in window. Allow pop-ups for this site and try again."
             : code === "auth/network-request-failed"
-              ? "No internet connection — sign-in needs to be online the first time."
+              ? "No internet connection. Signing in needs the internet the first time."
               : "Google sign-in failed. Try again.",
       );
       useAuthStore.getState().setSignedOut();
@@ -46,26 +46,26 @@ export default function LoginPage() {
   const message = popupError ?? error;
 
   return (
-    <main id="main" className="atmospheric-bg flex min-h-screen items-center justify-center p-4">
-      <Card className="w-full max-w-sm">
+    <main id="main" className="flex min-h-dvh items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-sm border-t-4 border-t-rose">
         <CardContent className="space-y-6 p-8 text-center">
           <Image src="/images/logo.png" alt="GLAMO Nepal" width={160} height={96} priority className="mx-auto h-auto w-40" />
           <div>
-            <h1 className="font-display text-2xl font-semibold">GLAMO POS</h1>
-            <p className="mt-1 text-sm text-muted-foreground">Staff sign-in with your GLAMO Google account.</p>
+            <h1 className="font-display text-3xl font-bold tracking-wide">GLAMO POS</h1>
+            <p className="mt-1 text-sm text-muted-foreground">Sign in with your staff Google account.</p>
           </div>
           {message && (
             <p role="alert" className="rounded-lg border border-danger/30 bg-danger/5 px-3 py-2 text-sm text-danger">
               {message}
             </p>
           )}
-          <Button size="lg" className="w-full" onClick={signIn} disabled={busy || status === "loading"} aria-busy={busy}>
+          <Button size="lg" variant="brand" className="w-full" onClick={signIn} disabled={busy || status === "loading"} aria-busy={busy}>
             <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5">
-              <path fill="#fff" d="M21.35 11.1H12v2.98h5.35c-.23 1.4-1.65 4.1-5.35 4.1-3.22 0-5.85-2.67-5.85-5.95S8.78 6.28 12 6.28c1.83 0 3.06.78 3.76 1.45l2.57-2.47C16.69 3.74 14.55 2.8 12 2.8 6.92 2.8 2.8 6.92 2.8 12s4.12 9.2 9.2 9.2c5.31 0 8.83-3.73 8.83-8.99 0-.6-.07-1.06-.15-1.51z" />
+              <path fill="currentColor" d="M21.35 11.1H12v2.98h5.35c-.23 1.4-1.65 4.1-5.35 4.1-3.22 0-5.85-2.67-5.85-5.95S8.78 6.28 12 6.28c1.83 0 3.06.78 3.76 1.45l2.57-2.47C16.69 3.74 14.55 2.8 12 2.8 6.92 2.8 2.8 6.92 2.8 12s4.12 9.2 9.2 9.2c5.31 0 8.83-3.73 8.83-8.99 0-.6-.07-1.06-.15-1.51z" />
             </svg>
             {busy || status === "loading" ? "Signing in…" : "Sign in with Google"}
           </Button>
-          <p className="text-xs text-muted-foreground">Access is limited to GLAMO staff (cashier, manager, admin).</p>
+          <p className="text-xs text-muted-foreground">Only staff added in Settings → Staff can sign in.</p>
         </CardContent>
       </Card>
     </main>

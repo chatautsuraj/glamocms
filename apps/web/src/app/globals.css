@@ -1,41 +1,61 @@
 @import "tailwindcss";
 
+/*
+ * GLAMO POS design tokens — "Operate" adaptation of glamo-nepal/DESIGN.md.
+ * Warm neutrals carry the surfaces; GLAMO rose (#D97898) is an accent only
+ * (primary CTA fill, active markers, focus). Text-on-rose uses ink, never
+ * white, so the brand colour stays high-contrast at the counter.
+ */
 :root {
-  --background: #fff8f6;
-  --foreground: #1c1412;
+  /* brand */
+  --rose: #d97898;
+  --rose-light: #efb4c5;
+  --rose-dark: #ad4b64;
+  --rose-tint: #fbeff3;
+  --ink: #1a1512;
+  --ink-strong: #0f0c0a;
+
+  /* surfaces */
+  --background: #f8f4f4;
+  --foreground: #1a1512;
   --card: #ffffff;
-  --card-foreground: #1c1412;
+  --card-foreground: #1a1512;
   --popover: #ffffff;
-  --popover-foreground: #1c1412;
-  --muted: #f5ebe8;
-  --muted-foreground: #6b534e;
-  --accent: #fce8e6;
-  --accent-foreground: #1c1412;
-  --border: #edd5d0;
-  --input: #edd5d0;
-  --ring: #9f2d4a;
-  --primary: #9f2d4a;
-  --primary-foreground: #fffaf9;
-  --secondary: #f5ebe8;
-  --secondary-foreground: #3f2a27;
-  --success: #2f6b4f;
+  --popover-foreground: #1a1512;
+  --muted: #f2ecec;
+  --muted-foreground: #5e5650;
+  --accent: #f4eeef;
+  --accent-foreground: #1a1512;
+  --border: #e8e1e3;
+  --input: #ddd4d6;
+  --ring: #ad4b64;
+
+  /* actions */
+  --primary: #ad4b64;
+  --primary-foreground: #ffffff;
+  --secondary: #f2ecec;
+  --secondary-foreground: #3d3530;
+  --brand: var(--rose);
+  --brand-foreground: var(--ink-strong);
+
+  /* status */
+  --success: #1e7a4c;
   --success-foreground: #ffffff;
-  --warning: #b45309;
+  --warning: #9a5b0a;
   --warning-foreground: #ffffff;
-  --danger: #b91c1c;
+  --danger: #b4321f;
   --danger-foreground: #ffffff;
-  --sidebar: #fffaf9;
-  --sidebar-foreground: #4a3532;
-  --sidebar-border: #edd5d0;
-  --sidebar-accent: #fce8e6;
-  --sidebar-accent-foreground: #9f2d4a;
-  --radius: 0.875rem;
-  --shadow-sm: 0 1px 2px 0 rgb(28 20 18 / 0.04);
-  --shadow: 0 1px 3px 0 rgb(28 20 18 / 0.06), 0 1px 2px -1px rgb(28 20 18 / 0.06);
-  --shadow-md: 0 4px 6px -1px rgb(28 20 18 / 0.06), 0 2px 4px -2px rgb(28 20 18 / 0.06);
-  --shadow-lg: 0 10px 15px -3px rgb(28 20 18 / 0.08), 0 4px 6px -4px rgb(28 20 18 / 0.06);
-  --glass: rgba(255, 250, 249, 0.78);
-  --glass-border: rgba(255, 255, 255, 0.45);
+
+  /* chrome */
+  --sidebar: #ffffff;
+  --sidebar-foreground: #3d3530;
+  --sidebar-border: #e8e1e3;
+  --sidebar-accent: #fbeff3;
+  --sidebar-accent-foreground: #1a1512;
+
+  --elev-card: 0 1px 2px rgb(26 21 18 / 0.04), 0 6px 16px -10px rgb(173 75 100 / 0.18);
+  --elev-pop: 0 12px 32px -12px rgb(26 21 18 / 0.28);
+
   /* Chart series — validated categorical palette, fixed order (one per channel). */
   --series-1: #2a78d6;
   --series-2: #eb6834;
@@ -46,46 +66,56 @@
 }
 
 .dark {
+  --rose: #d97898;
+  --rose-light: #efb4c5;
+  --rose-dark: #efb4c5;
+  --rose-tint: rgb(217 120 152 / 0.14);
+  --ink: #fffbfc;
+  --ink-strong: #0f0c0a;
+
+  --background: #0f0c0a;
+  --foreground: #fbf6f4;
+  --card: #1a1512;
+  --card-foreground: #fbf6f4;
+  --popover: #1f1916;
+  --popover-foreground: #fbf6f4;
+  --muted: #241e1a;
+  --muted-foreground: #bdb2aa;
+  --accent: #2a2320;
+  --accent-foreground: #fbf6f4;
+  --border: #3d3530;
+  --input: #4a403a;
+  --ring: #efb4c5;
+
+  --primary: #efb4c5;
+  --primary-foreground: #1a1512;
+  --secondary: #2a2320;
+  --secondary-foreground: #fbf6f4;
+  --brand: #d97898;
+  --brand-foreground: #0f0c0a;
+
+  --success: #5fd49a;
+  --success-foreground: #06240f;
+  --warning: #f2b84b;
+  --warning-foreground: #2b1700;
+  --danger: #ff8a7a;
+  --danger-foreground: #3a0700;
+
+  --sidebar: #15110f;
+  --sidebar-foreground: #d9cfc8;
+  --sidebar-border: #3d3530;
+  --sidebar-accent: rgb(217 120 152 / 0.16);
+  --sidebar-accent-foreground: #fbf6f4;
+
+  --elev-card: 0 1px 2px rgb(0 0 0 / 0.4);
+  --elev-pop: 0 12px 32px -12px rgb(0 0 0 / 0.7);
+
   --series-1: #3987e5;
   --series-2: #d95926;
   --series-3: #199e70;
   --series-4: #c98500;
   --series-5: #d55181;
   --chart-grid: #33282a;
-  --background: #140f0e;
-  --foreground: #faf4f2;
-  --card: #1c1514;
-  --card-foreground: #faf4f2;
-  --popover: #1c1514;
-  --popover-foreground: #faf4f2;
-  --muted: #2a1f1d;
-  --muted-foreground: #c4a8a2;
-  --accent: #2a1f1d;
-  --accent-foreground: #faf4f2;
-  --border: #3a2b28;
-  --input: #3a2b28;
-  --ring: #e8a0b0;
-  --primary: #d46a82;
-  --primary-foreground: #1c0f12;
-  --secondary: #2a1f1d;
-  --secondary-foreground: #faf4f2;
-  --success: #4ade80;
-  --success-foreground: #052e16;
-  --warning: #fbbf24;
-  --warning-foreground: #422006;
-  --danger: #f87171;
-  --danger-foreground: #450a0a;
-  --sidebar: #120d0c;
-  --sidebar-foreground: #c4a8a2;
-  --sidebar-border: #3a2b28;
-  --sidebar-accent: rgba(212, 106, 130, 0.14);
-  --sidebar-accent-foreground: #f5c0cb;
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.35);
-  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.4);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.45), 0 4px 6px -4px rgb(0 0 0 / 0.4);
-  --glass: rgba(28, 21, 20, 0.82);
-  --glass-border: rgba(255, 255, 255, 0.06);
 }
 
 @theme inline {
@@ -106,6 +136,14 @@
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-rose: var(--rose);
+  --color-rose-light: var(--rose-light);
+  --color-rose-dark: var(--rose-dark);
+  --color-rose-tint: var(--rose-tint);
+  --color-ink: var(--ink);
+  --color-ink-strong: var(--ink-strong);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
@@ -117,13 +155,33 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent: var(--sidebar-accent);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+
+  /* One radius system (DESIGN.md): inputs/chips md, media lg, cards xl, buttons pill. */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+
+  --shadow-card: var(--elev-card);
+  --shadow-pop: var(--elev-pop);
+
   --font-sans: var(--font-glamo-sans);
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   --font-display: var(--font-glamo-display);
+
+  --animate-scan-flash: scan-flash 900ms ease-out;
+  --animate-pop-in: pop-in 160ms ease-out;
+}
+
+@keyframes scan-flash {
+  0% { background-color: var(--rose-tint); box-shadow: inset 3px 0 0 var(--rose); }
+  100% { background-color: transparent; box-shadow: inset 3px 0 0 transparent; }
+}
+
+@keyframes pop-in {
+  from { opacity: 0; transform: translateY(4px) scale(0.98); }
+  to { opacity: 1; transform: none; }
 }
 
 * {
@@ -142,25 +200,20 @@ body {
   font-family: var(--font-glamo-display), Georgia, serif;
 }
 
-.atmospheric-bg {
-  background-image:
-    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(159, 45, 74, 0.12), transparent),
-    radial-gradient(ellipse 55% 45% at 100% 10%, rgba(196, 92, 74, 0.08), transparent),
-    radial-gradient(ellipse 40% 30% at 0% 100%, rgba(159, 45, 74, 0.06), transparent);
+/* Money columns line up. */
+.tabular {
+  font-variant-numeric: tabular-nums;
 }
 
-.dark .atmospheric-bg {
-  background-image:
-    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(212, 106, 130, 0.16), transparent),
-    radial-gradient(ellipse 55% 45% at 100% 10%, rgba(212, 106, 130, 0.08), transparent),
-    radial-gradient(ellipse 40% 30% at 0% 100%, rgba(196, 92, 74, 0.06), transparent);
+/* Long product grids: let the browser skip off-screen tiles. */
+.cv-tile {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 232px;
 }
 
-.glass {
-  background: var(--glass);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--glass-border);
+.cv-row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 64px;
 }
 
 .scrollbar-thin {
@@ -178,21 +231,20 @@ body {
   border-radius: 9999px;
 }
 
-@media print {
-  body * {
-    visibility: hidden;
-  }
-  #invoice-print,
-  #invoice-print * {
-    visibility: visible;
-  }
-  #invoice-print {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    padding: 24px;
-    color: #000;
-    background: #fff;
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
   }
 }

@@ -5,7 +5,8 @@
  * Firebase ID token → POST /pos/session → Zustand {user, permissions, store}.
  * Tokens refresh via onIdTokenChanged / getIdToken(); 401 → forced refresh →
  * sign-out to /login; 403 → toast. When the API is unreachable a cached
- * session (IndexedDB) keeps the till usable offline.
+ * session (IndexedDB) keeps the POS usable offline. The session also carries
+ * posConfig (VAT, payment methods, labels) which every screen reads.
  */
 import { useEffect, type ReactNode } from "react";
 import { toast } from "sonner";
@@ -17,7 +18,7 @@ import { currentIdToken, signOutFirebase, watchIdToken } from "@/lib/auth/fireba
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { getMeta, setMeta } from "@/lib/offline/db";
 import { startOfflineRunner } from "@/lib/offline/sync-runner";
-import { useSettingsStore } from "@/lib/settings-store";
+import { usePosConfig } from "@/lib/pos/config-store";
 
 let lastForbiddenToast = 0;
 
@@ -35,7 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       getToken: (force) => currentIdToken(force),
       onUnauthorized: () => {
         if (useAuthStore.getState().status === "ready") {
-          toast.error("Your session expired — please sign in again.");
+          toast.error("Your session has ended. Please sign in again.");
           void signOut("Session expired");
         }
       },
@@ -64,13 +65,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const session = await sessionApi.create();
         store.setSession(session);
+        if (session.posConfig) usePosConfig.getState().set(session.posConfig);
         await setMeta(`session:${fbUser.uid}`, session);
       } catch (err) {
         if (err instanceof ApiError && err.isNetwork) {
           const cached = await getMeta<PosSession>(`session:${fbUser.uid}`);
           if (cached) {
             store.setSession(cached, true);
-            toast.warning("Offline — using your last session. Sales will queue until the connection returns.");
+            if (cached.posConfig) usePosConfig.getState().set(cached.posConfig);
+            else await usePosConfig.getState().hydrate();
+            toast.warning("You're offline. You can keep selling; sales will be sent when the internet is back.");
           } else {
             store.setSignedOut("Can't reach the GLAMO server to start your first session. Connect to the internet and try again.");
           }
@@ -82,7 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
       const ready = useAuthStore.getState();
-      void useSettingsStore.getState().load(ready.permissions.includes("settings.read"));
+      if (!usePosConfig.getState().config) void usePosConfig.getState().refresh();
       if (!stopRunner && ready.permissions.includes("pos.sell")) stopRunner = startOfflineRunner();
     });
 

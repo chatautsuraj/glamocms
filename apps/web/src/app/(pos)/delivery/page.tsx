@@ -22,9 +22,8 @@ import type { Channel, NcmBranch, NcmRate, PosOrder } from "@/lib/api/types";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { formatDateTime, formatNPR } from "@/lib/format";
 import { toastError } from "@/lib/notify";
-import { companyFromStore } from "@/lib/print-bill";
-import { printDeliveryNotes } from "@/lib/print-delivery";
-import { useSettingsStore } from "@/lib/settings-store";
+import { printDeliveryNotesFor } from "@/lib/print/print-sale";
+import { useDefaultDeliveryType } from "@/lib/use-delivery-defaults";
 import { useApi } from "@/lib/use-api";
 
 const STAGES = [
@@ -54,12 +53,12 @@ export default function DeliveryPage() {
     try {
       if (kind === "pack") {
         replace(await ordersApi.setStatus(o.id, "PACKED"));
-        toast.success(`${o.printableRef || o.orderNumber} packed — booking NCM`);
+        toast.success(`${o.printableRef || o.orderNumber} packed. Booking Nepal Can Move…`);
         setTimeout(() => void reload(), 1500);
       } else {
         const shipment = kind === "send" ? await deliveryApi.send(o.id) : await deliveryApi.refresh(o.id);
         replace({ ...o, shipment });
-        if (kind === "send") toast.success(`Sent to NCM${shipment.trackingCode ? ` — ${shipment.trackingCode}` : ""}`);
+        if (kind === "send") toast.success(`Sent to Nepal Can Move${shipment.trackingCode ? `, tracking ${shipment.trackingCode}` : ""}`);
       }
     } catch (err) {
       toastError(err);
@@ -71,20 +70,20 @@ export default function DeliveryPage() {
   const printSelected = () => {
     const list = orders.filter((o) => selected.has(o.id));
     if (!store || !list.length) return;
-    printDeliveryNotes({ orders: list, company: companyFromStore(store), rangeLabel: STAGES.find((s) => s.key === stage)?.label });
+    void printDeliveryNotesFor(list, store, STAGES.find((s) => s.key === stage)?.label);
   };
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Delivery" description="Nepal Can Move shipments for phone, WhatsApp, website and manual orders. Marking an order PACKED books NCM automatically when enabled." />
+      <PageHeader title="Delivery" description="Orders to deliver with Nepal Can Move. Mark an order Packed when it is ready; NCM is booked automatically if that is switched on in Settings." />
       <div className="grid gap-4 xl:grid-cols-[1fr_340px]">
         <Card>
           <CardHeader className="space-y-3">
             <div className="flex flex-wrap items-center gap-3">
               <Tabs value={stage} onValueChange={(v) => { setStage(v); setPage(1); }}>
-                <TabsList>{STAGES.map((s) => <TabsTrigger key={s.key} value={s.key}>{s.label}</TabsTrigger>)}</TabsList>
+                <TabsList label="Delivery stage">{STAGES.map((s) => <TabsTrigger key={s.key} value={s.key}>{s.label}</TabsTrigger>)}</TabsList>
               </Tabs>
-              <Button variant="outline" size="sm" className="ml-auto" disabled={!selected.size} onClick={printSelected}><Printer className="h-3.5 w-3.5" /> Delivery notes ({selected.size})</Button>
+              <Button variant="outline" size="sm" className="ml-auto" disabled={!selected.size} onClick={printSelected}><Printer className="h-3.5 w-3.5" aria-hidden /> Print delivery notes ({selected.size})</Button>
             </div>
             <ChannelSwitcher value={channel} onChange={(c) => { setChannel(c); setPage(1); }} />
           </CardHeader>
@@ -93,7 +92,7 @@ export default function DeliveryPage() {
               <ul className="divide-y divide-border">
                 {orders.map((o) => (
                   <li key={o.id} className="flex flex-wrap items-start gap-3 py-3 text-sm">
-                    <input type="checkbox" className="mt-1 h-5 w-5" aria-label={`Select ${o.printableRef || o.orderNumber}`} checked={selected.has(o.id)}
+                    <input type="checkbox" className="mt-1 h-5 w-5 accent-[var(--rose-dark)]" aria-label={`Select ${o.printableRef || o.orderNumber}`} checked={selected.has(o.id)}
                       onChange={(e) => { const next = new Set(selected); if (e.target.checked) next.add(o.id); else next.delete(o.id); setSelected(next); }} />
                     <div className="min-w-[200px] flex-1 space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
@@ -139,12 +138,15 @@ export default function DeliveryPage() {
 }
 
 function NcmTools() {
-  const settings = useSettingsStore((s) => s.settings);
+  const defaultType = useDefaultDeliveryType();
   const [branches, setBranches] = useState<NcmBranch[]>([]);
   const [err, setErr] = useState<unknown>(null);
   const [filter, setFilter] = useState("");
   const [destination, setDestination] = useState("");
-  const [type, setType] = useState(settings?.delivery.defaultDeliveryType || "Pickup/Collect");
+  const [type, setType] = useState("");
+  useEffect(() => {
+    if (defaultType) setType((t) => t || defaultType);
+  }, [defaultType]);
   const [rate, setRate] = useState<NcmRate | null>(null);
   const load = (refresh = false) => deliveryApi.branches(refresh).then((b) => { setBranches(b); setErr(null); }).catch(setErr);
   useEffect(() => { void load(); }, []);
@@ -177,12 +179,12 @@ function NcmTools() {
       <Card>
         <CardHeader className="flex-row items-center justify-between space-y-0">
           <CardTitle className="text-base">NCM branches</CardTitle>
-          <Button variant="ghost" size="sm" onClick={() => void load(true)}><RefreshCw className="h-3.5 w-3.5" /> Refresh</Button>
+          <Button variant="ghost" size="sm" onClick={() => void load(true)}><RefreshCw className="h-3.5 w-3.5" aria-hidden /> Refresh</Button>
         </CardHeader>
         <CardContent className="space-y-2">
           {err ? <ErrorPanel error={err} onRetry={() => void load()} /> : (
             <>
-              <Input aria-label="Filter branches" placeholder="Filter…" value={filter} onChange={(e) => setFilter(e.target.value)} />
+              <Input aria-label="Find a branch" placeholder="Find a branch or district" value={filter} onChange={(e) => setFilter(e.target.value)} />
               <ul className="max-h-80 divide-y divide-border overflow-y-auto text-sm">
                 {shown.map((b) => <li key={b.code || b.name} className="py-1.5"><span className="font-medium">{b.name}</span> <span className="text-xs text-muted-foreground">{b.district}{b.phone ? ` · ${b.phone}` : ""}</span></li>)}
               </ul>

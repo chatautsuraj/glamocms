@@ -14,13 +14,7 @@ const sizeMap = {
 
 export function Avatar({ initials, className, size = "md" }: AvatarProps) {
   return (
-    <div
-      className={cn(
-        "inline-flex shrink-0 items-center justify-center rounded-xl bg-primary/10 font-semibold text-primary",
-        sizeMap[size],
-        className
-      )}
-    >
+    <div aria-hidden className={cn("inline-flex shrink-0 items-center justify-center rounded-full bg-rose-tint font-semibold text-foreground", sizeMap[size], className)}>
       {initials}
     </div>
   );

@@ -39,16 +39,16 @@ export default function WhatsAppPage() {
     <div className="space-y-4">
       <PageHeader
         title="WhatsApp inbox"
-        description="Customer chats from the GLAMO WhatsApp number. Handoff = the bot needs a human."
-        actions={canBroadcast && <Button variant="outline" onClick={() => setBroadcastOpen(true)}><Megaphone className="h-4 w-4" /> Broadcast</Button>}
+        description="Customer chats from the shop WhatsApp number. Chats marked “needs a person” are waiting for staff."
+        actions={canBroadcast && <Button variant="outline" onClick={() => setBroadcastOpen(true)}><Megaphone className="h-4 w-4" aria-hidden /> Send offer message</Button>}
       />
       <div className="grid gap-4 lg:grid-cols-[340px_1fr]">
         <Card>
           <CardContent className="space-y-3 p-3">
             <div className="flex gap-2">
               <Select aria-label="Conversation filter" value={status} onChange={(e) => setStatus(e.target.value as typeof status)}>
-                <option value="open">Open</option>
-                <option value="handoff">Needs a human</option>
+                <option value="open">Open chats</option>
+                <option value="handoff">Needs a person</option>
                 <option value="all">All</option>
               </Select>
               <Button variant="ghost" size="icon" aria-label="Refresh conversations" onClick={() => void list.reload()}><RefreshCw className="h-4 w-4" /></Button>
@@ -65,7 +65,7 @@ export default function WhatsAppPage() {
                     >
                       <span className="flex items-center gap-2">
                         <span className="truncate font-medium">{c.name || c.phone}</span>
-                        {c.handoff && <Badge variant="warning">Handoff</Badge>}
+                        {c.handoff && <Badge variant="warning">Needs a person</Badge>}
                         {c.unread > 0 && <Badge>{c.unread}</Badge>}
                         <span className="ml-auto shrink-0 text-[11px] text-muted-foreground">{c.lastAt && formatDateTime(c.lastAt)}</span>
                       </span>
@@ -73,14 +73,14 @@ export default function WhatsAppPage() {
                     </button>
                   </li>
                 ))}
-                {!list.data?.items.length && <li className="py-8 text-center text-sm text-muted-foreground">No conversations.</li>}
+                {!list.data?.items.length && <li className="py-8 text-center text-sm text-muted-foreground">No chats here.</li>}
               </ul>
             )}
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-0">
-            {active ? <Thread key={active.waId} waId={active.waId} onChanged={() => void list.reload()} /> : <p className="p-10 text-center text-sm text-muted-foreground">Pick a conversation.</p>}
+            {active ? <Thread key={active.waId} waId={active.waId} onChanged={() => void list.reload()} /> : <p className="p-10 text-center text-sm text-muted-foreground">Choose a chat on the left.</p>}
           </CardContent>
         </Card>
       </div>
@@ -121,7 +121,7 @@ function Thread({ waId, onChanged }: { waId: string; onChanged: () => void }) {
   const resolve = async () => {
     try {
       await whatsappApi.resolve(waId);
-      toast.success("Conversation resolved — bot takes over again");
+      toast.success("Marked done. Automatic replies take over again.");
       await convo.reload();
       onChanged();
     } catch (err) {
@@ -135,10 +135,10 @@ function Thread({ waId, onChanged }: { waId: string; onChanged: () => void }) {
         <UserRound className="h-5 w-5 text-muted-foreground" aria-hidden />
         <div>
           <p className="font-medium">{d.name || d.phone}</p>
-          <p className="text-xs text-muted-foreground">{d.phone} · {d.state}{d.handoff ? " · human handoff" : ""}</p>
+          <p className="text-xs text-muted-foreground">{d.phone} · {d.state}{d.handoff ? " · needs a person" : ""}</p>
         </div>
         {d.userId && <Link className="text-xs text-primary hover:underline" href={`/customers/${encodeURIComponent(d.userId)}`}>Customer profile</Link>}
-        <Button size="sm" variant="outline" className="ml-auto" onClick={resolve}><CheckCheck className="h-3.5 w-3.5" /> Resolve</Button>
+        <Button size="sm" variant="outline" className="ml-auto" onClick={resolve}><CheckCheck className="h-3.5 w-3.5" aria-hidden /> Mark done</Button>
       </div>
       <div className="flex-1 space-y-2 overflow-y-auto p-4" aria-live="polite">
         {d.messages.map((m) => (
@@ -152,12 +152,12 @@ function Thread({ waId, onChanged }: { waId: string; onChanged: () => void }) {
         <div ref={end} />
       </div>
       <form className="flex gap-2 border-t border-border p-3" onSubmit={(e) => { e.preventDefault(); void send(); }}>
-        {!d.windowOpen && <p className="w-full text-xs text-warning">The 24-hour reply window is closed — free-text replies will be rejected; use a broadcast template.</p>}
+        {!d.windowOpen && <p className="w-full text-xs text-warning">More than 24 hours since the customer wrote. WhatsApp only allows an approved template message now.</p>}
         <label className="flex-1">
           <span className="sr-only">Reply</span>
           <Textarea rows={2} value={text} onChange={(e) => setText(e.target.value)} placeholder="Type a reply…" onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void send(); } }} />
         </label>
-        <Button type="submit" className="self-end" disabled={busy || !text.trim()}><Send className="h-4 w-4" /> Send</Button>
+        <Button type="submit" className="self-end" disabled={busy || !text.trim()}><Send className="h-4 w-4" aria-hidden /> Send</Button>
       </form>
     </div>
   );
@@ -173,6 +173,7 @@ function BroadcastDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
   const [result, setResult] = useState<BroadcastResult | null>(null);
   useEffect(() => { if (open) setResult(null); }, [open]);
   const send = async (offset = 0) => {
+    if (offset === 0 && !window.confirm(audience === "consented" ? "Send this message to every customer who agreed to WhatsApp offers?" : "Send this message to the listed customers?")) return;
     setBusy(true);
     try {
       const res = await whatsappApi.broadcast({
@@ -189,11 +190,11 @@ function BroadcastDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
     }
   };
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} label="WhatsApp broadcast">
+    <Dialog open={open} onOpenChange={onOpenChange} label="Offer message">
       <DialogContent onClose={() => onOpenChange(false)}>
         <DialogHeader>
-          <DialogTitle>WhatsApp broadcast</DialogTitle>
-          <DialogDescription>Only customers who opted in to WhatsApp offers receive it. Template must be approved by Meta. Up to 250 per send.</DialogDescription>
+          <DialogTitle>Send an offer message</DialogTitle>
+          <DialogDescription>Only customers who agreed to WhatsApp offers receive it. The message template must be approved by WhatsApp. Up to 250 customers per send.</DialogDescription>
         </DialogHeader>
         <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); void send(0); }}>
           <Field label="Template name" hint="lowercase_with_underscores"><Input value={templateName} onChange={(e) => setTemplateName(e.target.value)} required pattern="[a-z0-9_]+" /></Field>
@@ -213,7 +214,7 @@ function BroadcastDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
           )}
           <div className="flex justify-end gap-2">
             {result?.nextOffset != null && result.remaining > 0 && <Button type="button" variant="outline" disabled={busy} onClick={() => void send(result.nextOffset ?? 0)}>Send next batch</Button>}
-            <Button type="submit" disabled={busy || !templateName.trim() || Boolean(result)}>{busy ? "Sending…" : "Send broadcast"}</Button>
+            <Button type="submit" disabled={busy || !templateName.trim() || Boolean(result)}>{busy ? "Sending…" : "Send"}</Button>
           </div>
         </form>
       </DialogContent>

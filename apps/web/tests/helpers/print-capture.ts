@@ -1,7 +1,8 @@
 /**
- * Test harness for print output: registers a DOM (happy-dom), captures HTML
- * written to print popups and records every jsPDF drawing call, so bill /
- * delivery-note layouts can be compared byte-for-byte across refactors.
+ * Test harness for print output: registers a DOM (happy-dom, needed by
+ * jsbarcode) and records every jsPDF drawing call, so bill layouts can be
+ * compared across refactors. HTML documents are tested through their pure
+ * builders (billHtml, deliveryNotesHtml, labelsHtml).
  */
 process.env.TZ = "Asia/Kathmandu";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
@@ -30,24 +31,13 @@ type JsPdfWithEvents = typeof jsPDF & { API: { events: Array<[string, (this: Rec
   },
 ]);
 
-let htmlWrites: string[] = [];
-Object.defineProperty(window, "open", {
-  configurable: true,
-  value: () => ({
-    document: { open() {}, write(html: string) { htmlWrites.push(html); }, close() {} },
-    focus() {},
-    print() {},
-  }),
-});
-
-export function captureHtml(fn: () => unknown): string {
-  htmlWrites = [];
-  fn();
-  return htmlWrites.join("");
-}
-
 export function capturePdf(fn: () => unknown): PdfOp[] {
   pdfOps = [];
   fn();
   return JSON.parse(JSON.stringify(pdfOps)) as PdfOp[];
+}
+
+/** Text drawn into the PDF, in order. */
+export function pdfTexts(ops: PdfOp[]): string[] {
+  return ops.filter(([n]) => n === "text").map((op) => String(op[1]));
 }

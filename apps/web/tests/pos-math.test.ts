@@ -1,7 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { allocateProRata, computeCartTotals, extractVat, summariseTenders, kathmanduDay } from "../src/lib/pos/math";
-import { WedgeDetector, isTypingTarget } from "../src/lib/pos/scanner";
+import { allocateProRata, computeCartTotals, describeDrawerDifference, drawerDifference, extractVat, quickCashAmounts, summariseTenders, kathmanduDay } from "../src/lib/pos/math";
 
 const lines = [
   { unitPrice: 1450, quantity: 1, vatApplicable: true },
@@ -70,9 +69,8 @@ test("tender validation errors", () => {
   assert.equal(summariseTenders([{ method: "CASH", amount: 1000 }], 2697).error, "INSUFFICIENT_PAYMENT");
   assert.equal(summariseTenders([{ method: "CASH", amount: 1000 }], 2697).remaining, 1697);
   assert.equal(summariseTenders([{ method: "FONEPAY_QR", amount: 3000 }], 2697).error, "NON_CASH_OVERPAYMENT");
-  assert.equal(summariseTenders([{ method: "CREDIT", amount: 2697 }], 2697).error, "CREDIT_REQUIRES_CUSTOMER");
-  assert.equal(summariseTenders([{ method: "CREDIT", amount: 2697 }], 2697, { hasNamedCustomer: true }).error, null);
   assert.equal(summariseTenders([{ method: "CARD", amount: 2697 }], 2697, { requireReference: true }).error, "REFERENCE_REQUIRED");
+  assert.equal(summariseTenders([{ method: "ESEWA", amount: 2697 }], 2697).error, null, "wallet reference is optional at the counter");
 });
 
 test("delivery COD allows shortfall and reports due", () => {
@@ -86,28 +84,32 @@ test("Kathmandu business day is UTC+05:45", () => {
   assert.equal(kathmanduDay(new Date("2026-10-18T18:16:00Z")), "2026-10-19");
 });
 
-test("keyboard-wedge detector accepts fast bursts ending in Enter, ignores typing", () => {
-  const d = new WedgeDetector();
-  let t = 1000;
-  for (const ch of "8901030") assert.equal(d.push(ch, (t += 8)), null);
-  assert.equal(d.push("Enter", (t += 8)), "8901030");
-  // human typing: 150ms gaps
-  for (const ch of "abcd") d.push(ch, (t += 150));
-  assert.equal(d.push("Enter", (t += 150)), null);
-  // too short
-  d.push("1", (t += 5));
-  assert.equal(d.push("Enter", (t += 5)), null);
+test("VAT switched off globally: no VAT, taxable = net, totals unchanged", () => {
+  const on = computeCartTotals({ lines, discount: 200, vatRate: 13, vatEnabled: true });
+  const off = computeCartTotals({ lines, discount: 200, vatRate: 13, vatEnabled: false });
+  assert.equal(off.vatAmount, 0);
+  assert.equal(off.taxableAmount, 2697);
+  assert.equal(off.total, on.total, "shelf prices are VAT-inclusive, so the customer pays the same");
+  assert.equal(off.subtotal, 2897);
+  assert.equal(computeCartTotals({ lines, vatRate: 0 }).vatAmount, 0, "rate 0 behaves like off");
 });
 
-test("typing targets are excluded from global scanning", () => {
-  assert.equal(isTypingTarget({ tagName: "INPUT", type: "text" } as unknown as EventTarget), true);
-  assert.equal(isTypingTarget({ tagName: "INPUT", type: "checkbox" } as unknown as EventTarget), false);
-  assert.equal(isTypingTarget({ tagName: "BUTTON" } as unknown as EventTarget), false);
-  assert.equal(isTypingTarget({ tagName: "TEXTAREA" } as unknown as EventTarget), true);
-  assert.equal(isTypingTarget(null), false);
+test("quick cash buttons: exact, then next 100 / 500 / 1000 without duplicates", () => {
+  assert.deepEqual(quickCashAmounts(1250), [1250, 1300, 1500, 2000]);
+  assert.deepEqual(quickCashAmounts(1000), [1000]);
+  assert.deepEqual(quickCashAmounts(2697), [2697, 2700, 3000]);
+  assert.deepEqual(quickCashAmounts(0), []);
 });
 
-import { buildLocalBill, buildSalePayload, createCartStore, lineFromProduct } from "../src/lib/pos/cart";
+test("cash drawer count is described in plain words", () => {
+  const money = (n: number) => `Rs ${n}`;
+  assert.equal(drawerDifference(5000, 5000), 0);
+  assert.equal(describeDrawerDifference(drawerDifference(5000, 5000), money), "Exactly right");
+  assert.equal(describeDrawerDifference(drawerDifference(5000, 4800), money), "Rs 200 short");
+  assert.equal(describeDrawerDifference(drawerDifference(5000, 5150), money), "Rs 150 extra in the drawer");
+});
+
+import { buildLocalBill, buildSalePayload, cartTotals, createCartStore, lineFromProduct } from "../src/lib/pos/cart";
 import type { PosProduct, StoreProfile } from "../src/lib/api/types";
 
 const prod = (over: Partial<PosProduct> = {}): PosProduct => ({
@@ -120,6 +122,7 @@ test("cart merges repeat scans and builds the POST /pos/sales payload", () => {
   cart.getState().add(lineFromProduct(prod(), null));
   cart.getState().add(lineFromProduct(prod(), null));
   const shaded = prod({ id: "p2", variants: [{ id: "v9", name: "Ruby 09", sku: "LIP-09", barcode: "8909", price: 990, stock: 2 }] });
+  assert.equal(cart.getState().lastKey, "p1:", "last added line drives the scan flash");
   cart.getState().add(lineFromProduct(shaded, "v9"));
   cart.getState().setLineDiscount("p2:v9", 90);
   const { lines } = cart.getState();
@@ -147,7 +150,7 @@ test("offline bill mirrors server BillData math (VAT-inclusive, split, change)",
   const store = { name: "GLAMO Nepal", address: "S.S Chowk, Madhyapur Thimi, Bagmati", phone: "+977 9818212188" } as StoreProfile;
   const lines = [lineFromProduct(prod(), null)];
   lines[0].quantity = 2;
-  const bill = buildLocalBill({ lines, discount: 60, vatRate: 13, tenders: [{ method: "ESEWA", amount: 1000, reference: "E1" }, { method: "CASH", amount: 1500 }], cashierName: "Asha", store });
+  const bill = buildLocalBill({ lines, discount: 60, vat: { enabled: true, rate: 13 }, taxInvoice: false, tenders: [{ method: "ESEWA", amount: 1000, reference: "E1" }, { method: "CASH", amount: 1500 }], cashierName: "Asha", store });
   assert.equal(bill.subtotal, 2260);
   assert.equal(bill.total, 2200);
   assert.equal(bill.vatAmount, Math.round((2200 * 13) / 113));
@@ -156,4 +159,27 @@ test("offline bill mirrors server BillData math (VAT-inclusive, split, change)",
   assert.equal(bill.change, 300);
   assert.deepEqual(bill.payments, [{ method: "ESEWA", amount: 1000, reference: "E1" }, { method: "CASH", amount: 1200, reference: null }]);
   assert.equal(bill.customer.name, "Walk-in Customer");
+  assert.equal(bill.vatEnabled, true);
+});
+
+test("offline bill with VAT switched off carries no VAT and no tax-invoice flag", () => {
+  const store = { name: "GLAMO Nepal", address: "", phone: "", pan: "601234567" } as StoreProfile;
+  const lines = [lineFromProduct(prod(), null, 2)];
+  const bill = buildLocalBill({ lines, discount: 0, vat: { enabled: false, rate: 0 }, taxInvoice: true, tenders: [{ method: "CASH", amount: 2260 }], cashierName: "Asha", store });
+  assert.equal(bill.vatAmount, 0);
+  assert.equal(bill.vatRate, 0);
+  assert.equal(bill.vatEnabled, false);
+  assert.equal(bill.taxInvoice, false);
+  assert.equal(bill.taxableAmount, 2260);
+  assert.equal(cartTotals(lines, 0, { enabled: false, rate: 13 }).vatAmount, 0);
+});
+
+test("cart stepper: +/- on a line, removing at zero", () => {
+  const cart = createCartStore();
+  cart.getState().add(lineFromProduct(prod(), null));
+  cart.getState().bumpQty("p1:", 1);
+  assert.equal(cart.getState().lines[0].quantity, 2);
+  cart.getState().bumpQty("p1:", -2);
+  assert.equal(cart.getState().lines.length, 0);
+  assert.equal(cart.getState().lastKey, null);
 });

@@ -22,14 +22,14 @@ export function stockOf(p: PosProduct, variantId: string | null) {
  * Returns an error (block) or a warning (allow, but tell the cashier).
  */
 export function sellCheck(p: PosProduct, variantId: string | null, inCart: number, opts: { allowNegativeStock?: boolean; online?: boolean } = {}): { error?: string; warning?: string } {
-  if (!p.isActive) return { error: `${p.name} is inactive.` };
-  if (p.variants.length > 0 && !variantId) return { error: "Choose a shade / variant first." };
+  if (!p.isActive) return { error: `${p.name} is switched off in Products.` };
+  if (p.variants.length > 0 && !variantId) return { error: "Choose a shade first." };
   const exp = expiryState(p.attributes?.expiry);
-  if (exp === "expired") return { error: `${p.name} is past its expiry date (${p.attributes.expiry}). Remove it from the shelf.` };
+  if (exp === "expired") return { error: `${p.name} is past its expiry date (${p.attributes.expiry}). Take it off the shelf.` };
   const stock = stockOf(p, variantId);
   if ((p.trackInventory ?? true) && inCart + 1 > stock) {
-    if (opts.allowNegativeStock) return { warning: `Only ${Math.max(0, stock)} in stock — selling below zero.` };
-    if (opts.online === false) return { warning: `Cached stock shows ${Math.max(0, stock)}. Sale will be checked when it syncs.` };
+    if (opts.allowNegativeStock) return { warning: `Only ${Math.max(0, stock)} in stock. Selling anyway.` };
+    if (opts.online === false) return { warning: `This device shows ${Math.max(0, stock)} in stock. The sale will be checked when the internet is back.` };
     return { error: `Only ${Math.max(0, stock)} of ${p.name} in stock.` };
   }
   if (p.attributes?.tester) return { warning: "This is a tester item." };

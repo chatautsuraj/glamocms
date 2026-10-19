@@ -1,6 +1,6 @@
 /**
- * Types mirroring /workspace/task/POS-API-CONTRACT.md (v1) + backend
- * implementation notes. All money is whole-rupee integer NPR.
+ * Types mirroring docs/POS-API-CONTRACT.md (v2) + the backend implementation
+ * notes. All money is whole-rupee integer NPR.
  */
 
 export type Role = "CUSTOMER" | "CASHIER" | "MANAGER" | "ADMIN" | "SUPER_ADMIN" | "OWNER" | "STAFF";
@@ -42,8 +42,8 @@ export const ORDER_STATUSES: OrderStatus[] = [
   "PENDING", "CONFIRMED", "PROCESSING", "PACKED", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED", "CANCELLED", "RETURNED",
 ];
 
-export type PaymentMethod = "CASH" | "FONEPAY_QR" | "KHALTI" | "ESEWA" | "CARD" | "BANK_TRANSFER" | "CREDIT";
-export const PAYMENT_METHODS: PaymentMethod[] = ["CASH", "FONEPAY_QR", "KHALTI", "ESEWA", "CARD", "BANK_TRANSFER", "CREDIT"];
+export type PaymentMethod = "CASH" | "FONEPAY_QR" | "ESEWA" | "KHALTI" | "CARD" | "BANK_TRANSFER";
+export const PAYMENT_METHODS: PaymentMethod[] = ["CASH", "FONEPAY_QR", "ESEWA", "KHALTI", "CARD", "BANK_TRANSFER"];
 
 export interface Envelope<T> {
   success: boolean;
@@ -81,10 +81,45 @@ export interface SessionUser {
   photoUrl: string | null;
 }
 
+export interface PaymentSettings {
+  cash: { enabled: boolean };
+  fonepay: { enabled: boolean; merchantName: string; terminalId: string; qrImageUrl: string };
+  esewa: { enabled: boolean; accountName: string; accountId: string; qrImageUrl: string };
+  khalti: { enabled: boolean; accountName: string; accountId: string; qrImageUrl: string };
+  card: { enabled: boolean };
+  bank: { enabled: boolean; bankName: string; accountName: string; accountNumber: string; branch: string; qrImageUrl: string };
+}
+
+export type LabelSize = "38x25" | "50x25" | "A4-65";
+
+export interface LabelSettings {
+  size: LabelSize;
+  showPrice: boolean;
+  showName: boolean;
+}
+
+/** Non-secret selling config every POS user receives (session.posConfig = GET /pos/config). */
+export interface PosConfig {
+  vatEnabled: boolean;
+  /** 0 when VAT is off. */
+  vatRate: number;
+  receiptFooter: string;
+  billPrefix: string;
+  maxCashierDiscountPct: number;
+  allowNegativeStock: boolean;
+  requireCustomerForCounter: boolean;
+  /** vatEnabled && store.pan */
+  taxInvoice: boolean;
+  payments: PaymentSettings;
+  labels: LabelSettings;
+  store: StoreProfile;
+}
+
 export interface PosSession {
   user: SessionUser;
   permissions: Permission[];
   store: StoreProfile;
+  posConfig?: PosConfig;
 }
 
 export interface StaffUser {
@@ -103,8 +138,19 @@ export interface PosVariant {
   name: string;
   sku: string | null;
   barcode: string | null;
+  /** Effective selling price. */
   price: number;
+  basePrice?: number;
+  salePrice?: number | null;
   stock: number;
+  attributes?: Record<string, string>;
+}
+
+export interface PosImage {
+  id: string;
+  url: string;
+  isPrimary: boolean;
+  sortOrder: number;
 }
 
 export interface PosProductAttributes {
@@ -134,7 +180,9 @@ export interface PosProduct {
   trackInventory?: boolean;
   stock: number;
   lowStockThreshold: number;
+  /** Primary image (= images[0].url). */
   imageUrl: string | null;
+  images?: PosImage[];
   isActive: boolean;
   attributes: PosProductAttributes;
   variants: PosVariant[];
@@ -183,7 +231,17 @@ export interface InventoryMovement {
   createdAt: string | null;
 }
 
-export interface TillShift {
+export interface VariantWrite {
+  name: string;
+  sku?: string | null;
+  barcode?: string | null;
+  price?: number;
+  salePrice?: number | null;
+  attributes?: Record<string, string>;
+}
+
+/** Optional cash-drawer count (API: /pos/till/*). Selling never needs one. */
+export interface DrawerShift {
   id: string;
   cashierId: string;
   cashierName: string;
@@ -265,6 +323,10 @@ export interface BillData {
   taxableAmount: number;
   vatRate: number;
   vatAmount: number;
+  /** Global VAT switch at the time of the sale; false → no VAT lines on the bill. */
+  vatEnabled: boolean;
+  /** VAT on and store PAN set → "Tax invoice · PAN …". */
+  taxInvoice: boolean;
   total: number;
   payments: Array<{ method: string; amount: number; reference: string | null }>;
   tendered: number;
@@ -417,7 +479,6 @@ export interface Customer {
   address: string | null;
   marketingConsent: boolean;
   createdAt: string | null;
-  khataBalance?: number;
   orders?: number;
 }
 
@@ -433,19 +494,6 @@ export interface CustomerDetail extends Customer {
     totalAmount: number;
     createdAt: string | null;
   }>;
-  khataBalance: number;
-}
-
-export interface KhataEntry {
-  id: string;
-  type: "CHARGE" | "PAYMENT";
-  amount: number;
-  method: string | null;
-  orderId: string | null;
-  orderRef: string | null;
-  note: string | null;
-  createdBy: string | null;
-  createdAt: string | null;
 }
 
 export interface AnalyticsSummary {
@@ -486,18 +534,27 @@ export interface ReportData {
 export interface PosSettings {
   store: StoreProfile;
   pos: {
+    vatEnabled: boolean;
     vatRate: number;
     receiptFooter: string;
     allowNegativeStock: boolean;
     maxCashierDiscountPct: number;
     billPrefix: string;
+    requireCustomerForCounter: boolean;
   };
+  payments: PaymentSettings;
+  labels: LabelSettings;
   delivery: { ncmEnabled: boolean; ncmPickupBranch: string; ncmEnv: "dev" | "prod"; defaultDeliveryType: string };
   whatsapp: { enabled: boolean; phoneNumberDisplay: string; autoReplyEnabled: boolean; aiReplyEnabled: boolean };
 }
 
 export type PosSettingsPatch = {
-  [K in keyof PosSettings]?: Partial<PosSettings[K]>;
+  store?: Partial<StoreProfile>;
+  pos?: Partial<PosSettings["pos"]>;
+  payments?: { [K in keyof PaymentSettings]?: Partial<PaymentSettings[K]> };
+  labels?: Partial<LabelSettings>;
+  delivery?: Partial<PosSettings["delivery"]>;
+  whatsapp?: Partial<PosSettings["whatsapp"]>;
 };
 
 export interface NcmBranch {
@@ -577,11 +634,21 @@ export interface BroadcastResult {
 export interface Category {
   id: string;
   name: string;
-  slug?: string;
+  slug: string;
+  parentId: string | null;
+  description: string | null;
+  imageUrl: string | null;
+  sortOrder: number;
+  isActive: boolean;
 }
 
 export interface Brand {
   id: string;
   name: string;
-  slug?: string;
+  slug: string;
+  description: string | null;
+  logoUrl: string | null;
+  website: string | null;
+  isActive: boolean;
+  productCount: number;
 }

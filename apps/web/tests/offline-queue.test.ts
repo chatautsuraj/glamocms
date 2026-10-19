@@ -17,7 +17,7 @@ const product = (id: string, stock: number, extra: Partial<PosProduct> = {}): Po
 
 const bill = (total: number) => ({
   createdAt: new Date().toISOString(), cashierName: "Asha", customer: { name: "Walk-in", phone: null }, items: [], subtotal: total, discount: 0,
-  deliveryCharge: 0, taxableAmount: 0, vatRate: 13, vatAmount: 0, total, payments: [], tendered: total, change: 0, due: 0, footer: "",
+  deliveryCharge: 0, taxableAmount: 0, vatRate: 13, vatAmount: 0, vatEnabled: true, taxInvoice: false, total, payments: [], tendered: total, change: 0, due: 0, footer: "",
   store: { name: "GLAMO Nepal", legalName: "", address: "", phone: "", email: "", pan: "", vatNumber: "", logoUrl: "" },
 }) as Omit<BillData, "printableRef">;
 

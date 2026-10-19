@@ -17,8 +17,8 @@ import { useApi } from "@/lib/use-api";
 
 const breakdownTable = (rows: BreakdownRow[]): TableSpec => ({
   columns: [
-    { key: "label", label: "Name" }, { key: "revenue", label: "Revenue", money: true }, { key: "orders", label: "Orders" },
-    { key: "items", label: "Items" }, { key: "margin", label: "Margin", money: true },
+    { key: "label", label: "Name" }, { key: "revenue", label: "Sales", money: true }, { key: "orders", label: "Orders" },
+    { key: "items", label: "Items" }, { key: "margin", label: "Gross profit", money: true },
   ],
   rows: rows as unknown as Array<Record<string, unknown>>,
 });
@@ -34,7 +34,7 @@ export default function AnalyticsPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Analytics" description="Gross revenue = paid or refunded orders that weren't cancelled. Kathmandu business days." />
+      <PageHeader title="Analytics" description="Sales count paid orders (including ones later refunded) and leave out cancelled orders. Days follow Nepal time." />
       <Card>
         <CardContent className="flex flex-wrap items-end justify-between gap-3 p-4">
           <DateRangeControls value={range} onChange={setRange} />
@@ -43,22 +43,22 @@ export default function AnalyticsPage() {
       </Card>
       {summary.error ? <ErrorPanel error={summary.error} onRetry={summary.reload} /> : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard title="Revenue" value={t ? formatNPR(t.revenue) : "…"} icon={TrendingUp} subtitle={t?.netRevenue !== undefined ? `Net ${formatNPR(t.netRevenue)} after refunds` : undefined} />
-          <StatCard title="Orders" value={t ? formatNumber(t.orders) : "…"} icon={Receipt} subtitle={t ? `${formatNumber(t.items)} items` : undefined} />
-          <StatCard title="Average order" value={t ? formatNPR(t.aov) : "…"} icon={ShoppingBag} />
-          <StatCard title="Gross margin" value={t ? formatNPR(t.grossMargin) : "…"} icon={BadgePercent} subtitle={t ? `VAT ${formatNPR(t.vat)} · discounts ${formatNPR(t.discounts)} · refunds ${formatNPR(t.refunds)}` : undefined} />
+          <StatCard title="Sales" value={t ? formatNPR(t.revenue) : "…"} loading={summary.loading && !t} icon={TrendingUp} subtitle={t?.netRevenue !== undefined ? `${formatNPR(t.netRevenue)} after refunds` : undefined} />
+          <StatCard title="Orders" value={t ? formatNumber(t.orders) : "…"} loading={summary.loading && !t} icon={Receipt} subtitle={t ? `${formatNumber(t.items)} items` : undefined} />
+          <StatCard title="Average order" value={t ? formatNPR(t.aov) : "…"} loading={summary.loading && !t} icon={ShoppingBag} />
+          <StatCard title="Gross profit" value={t ? formatNPR(t.grossMargin) : "…"} loading={summary.loading && !t} icon={BadgePercent} subtitle={t ? `VAT ${formatNPR(t.vat)} · discounts ${formatNPR(t.discounts)} · refunds ${formatNPR(t.refunds)}` : undefined} />
         </div>
       )}
       <div className="grid gap-4 xl:grid-cols-2">
         <ChartCard<AnalyticsSummary>
-          title="Revenue over time" description="Per day, by channel" initialChannel={channel} load={loadSummary} deps={[range.from, range.to]} filename={`glamo-revenue-${range.from}_${range.to}`}
+          title="Sales per day" description="By channel" initialChannel={channel} load={loadSummary} deps={[range.from, range.to]} filename={`glamo-revenue-${range.from}_${range.to}`}
           render={(d) => <RevenueLines series={d.series} />}
-          table={(d) => ({ columns: [{ key: "date", label: "Date" }, { key: "channelLabel", label: "Channel" }, { key: "revenue", label: "Revenue", money: true }, { key: "orders", label: "Orders" }], rows: d.series.map((s) => ({ ...s, channelLabel: CHANNEL_LABEL[s.channel] ?? s.channel })) })}
+          table={(d) => ({ columns: [{ key: "date", label: "Date" }, { key: "channelLabel", label: "Channel" }, { key: "revenue", label: "Sales", money: true }, { key: "orders", label: "Orders" }], rows: d.series.map((s) => ({ ...s, channelLabel: CHANNEL_LABEL[s.channel] ?? s.channel })) })}
         />
         <ChartCard<AnalyticsSummary>
-          title="Revenue by channel" initialChannel={channel} load={loadSummary} deps={[range.from, range.to]} filename={`glamo-channels-${range.from}_${range.to}`}
+          title="Sales by channel" initialChannel={channel} load={loadSummary} deps={[range.from, range.to]} filename={`glamo-channels-${range.from}_${range.to}`}
           render={(d) => <RankedBars rows={d.byChannel.map((c) => ({ key: c.channel, label: CHANNEL_LABEL[c.channel] ?? c.channel, revenue: c.revenue }))} colorFor={(k) => CHANNEL_COLOR[k as Channel] ?? "var(--series-1)"} />}
-          table={(d) => ({ columns: [{ key: "label", label: "Channel" }, { key: "revenue", label: "Revenue", money: true }, { key: "orders", label: "Orders" }, { key: "aov", label: "AOV", money: true }, { key: "items", label: "Items" }], rows: d.byChannel.map((c) => ({ ...c, label: CHANNEL_LABEL[c.channel] ?? c.channel })) })}
+          table={(d) => ({ columns: [{ key: "label", label: "Channel" }, { key: "revenue", label: "Sales", money: true }, { key: "orders", label: "Orders" }, { key: "aov", label: "Average order", money: true }, { key: "items", label: "Items" }], rows: d.byChannel.map((c) => ({ ...c, label: CHANNEL_LABEL[c.channel] ?? c.channel })) })}
         />
         <ChartCard<BreakdownRow[]>
           title="Top products" initialChannel={channel} load={breakdown("product")} deps={[range.from, range.to]} filename={`glamo-products-${range.from}_${range.to}`}
@@ -73,11 +73,11 @@ export default function AnalyticsPage() {
           render={(rows) => <RankedBars rows={rows.map((r) => ({ ...r, label: paymentLabel(r.label || r.key) }))} />} table={breakdownTable}
         />
         <ChartCard<BreakdownRow[]>
-          title="Staff" description="Revenue per cashier" initialChannel={channel} load={breakdown("staff")} deps={[range.from, range.to]} filename={`glamo-staff-${range.from}_${range.to}`}
+          title="Staff" description="Sales per cashier" initialChannel={channel} load={breakdown("staff")} deps={[range.from, range.to]} filename={`glamo-staff-${range.from}_${range.to}`}
           render={(rows) => <RankedBars rows={rows} />} table={breakdownTable}
         />
         <ChartCard<BreakdownRow[]>
-          title="Sales by hour" description="Kathmandu time" initialChannel={channel} load={breakdown("hour")} deps={[range.from, range.to]} filename={`glamo-hours-${range.from}_${range.to}`}
+          title="Sales by hour" description="Nepal time" initialChannel={channel} load={breakdown("hour")} deps={[range.from, range.to]} filename={`glamo-hours-${range.from}_${range.to}`}
           render={(rows) => <ColumnBars rows={[...rows].sort((a, b) => Number(a.key) - Number(b.key)).map((r) => ({ label: r.label || r.key, revenue: r.revenue }))} />} table={breakdownTable}
         />
       </div>

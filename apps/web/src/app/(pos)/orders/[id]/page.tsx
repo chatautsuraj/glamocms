@@ -8,7 +8,6 @@ import { ChannelBadge } from "@/components/channel-badge";
 import { ErrorPanel, LoadingRows } from "@/components/loading";
 import { ShipmentPanel } from "@/components/shipment-panel";
 import { StatusBadge } from "@/components/status-badge";
-import { printBill } from "@/components/till/sale-complete-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -18,22 +17,22 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { deliveryApi } from "@/lib/api/delivery";
 import { ordersApi } from "@/lib/api/orders";
-import { PAYMENT_METHODS, type NcmBranch, type OrderStatus, type PaymentMethod, type PosOrder } from "@/lib/api/types";
+import type { NcmBranch, OrderStatus, PaymentMethod, PosOrder } from "@/lib/api/types";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { formatDateTime, formatNPR } from "@/lib/format";
 import { NEXT_STATUSES, STATUS_LABEL, paymentLabel } from "@/lib/labels";
+import { METHOD_SETTING } from "@/lib/pos/payments";
 import { toastError } from "@/lib/notify";
 import { billForOrder } from "@/lib/pos/order-bill";
-import { companyFromStore } from "@/lib/print-bill";
-import { printDeliveryNote } from "@/lib/print-delivery";
-import { useSettingsStore } from "@/lib/settings-store";
+import { useEnabledMethods, usePosConfig } from "@/lib/pos/config-store";
+import { printBill, printDeliveryNotesFor } from "@/lib/print/print-sale";
 import { useApi } from "@/lib/use-api";
 
 export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const can = useAuthStore((s) => s.permissions);
   const store = useAuthStore((s) => s.store);
-  const vatRate = useSettingsStore((s) => s.vatRate);
+  const config = usePosConfig((s) => s.config);
   const canWrite = can.includes("orders.write");
   const canDelivery = can.includes("delivery.manage");
   const { data: order, error, loading, reload, setData } = useApi(() => ordersApi.get(id), [id]);
@@ -60,7 +59,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
     setBusy(true);
     try {
       setData(await ordersApi.setStatus(order.id, nextStatus, note));
-      toast.success(`Order marked ${STATUS_LABEL[nextStatus]}${nextStatus === "PACKED" && isDelivery ? " — NCM shipment requested" : ""}`);
+      toast.success(`Order marked ${STATUS_LABEL[nextStatus]}${nextStatus === "PACKED" && isDelivery ? ". Booking Nepal Can Move…" : ""}`);
       setNextStatus("");
       setNote("");
       if (nextStatus === "PACKED") setTimeout(() => void reload(), 1500);
@@ -81,8 +80,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         <StatusBadge status={order.paymentStatus} />
         <span className="text-sm text-muted-foreground">{order.createdAt && formatDateTime(order.createdAt)}{order.cashier && ` · ${order.cashier.name}`}</span>
         <div className="ml-auto flex flex-wrap gap-2">
-          {store && <Button variant="outline" onClick={() => printBill(billForOrder(order, store, vatRate))}><Printer className="h-4 w-4" /> Bill</Button>}
-          {store && isDelivery && <Button variant="outline" onClick={() => printDeliveryNote(order, companyFromStore(store))}><FileText className="h-4 w-4" /> Delivery note</Button>}
+          {store && <Button variant="outline" onClick={() => void printBill(billForOrder(order, store, config))}><Printer className="h-4 w-4" aria-hidden /> Print bill</Button>}
+          {store && isDelivery && <Button variant="outline" onClick={() => void printDeliveryNotesFor([order], store)}><FileText className="h-4 w-4" /> Delivery note</Button>}
           {canWrite && !terminal && <Button variant="outline" onClick={() => setRefundOpen(true)} disabled={order.paymentStatus !== "PAID"}><Undo2 className="h-4 w-4" /> Refund</Button>}
           {canWrite && !terminal && <Button variant="destructive" onClick={() => setCancelOpen(true)}><Ban className="h-4 w-4" /> Cancel</Button>}
         </div>
@@ -94,8 +93,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             <CardHeader><CardTitle className="text-base">Items</CardTitle></CardHeader>
             <CardContent>
               <table className="w-full text-sm">
-                <thead className="text-left text-xs uppercase text-muted-foreground">
-                  <tr className="border-b border-border"><th scope="col" className="py-2">Item</th><th scope="col" className="py-2 text-right">Qty</th><th scope="col" className="py-2 text-right">Rate</th><th scope="col" className="py-2 text-right">Amount</th></tr>
+                <thead className="text-left text-xs font-medium text-muted-foreground">
+                  <tr className="border-b border-border"><th scope="col" className="py-2">Item</th><th scope="col" className="py-2 text-right">Qty</th><th scope="col" className="py-2 text-right">Price</th><th scope="col" className="py-2 text-right">Amount</th></tr>
                 </thead>
                 <tbody>
                   {order.items.map((i) => (
@@ -112,7 +111,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                 <div className="flex justify-between"><dt className="text-muted-foreground">Subtotal</dt><dd>{formatNPR(order.subtotal)}</dd></div>
                 {order.discountAmount > 0 && <div className="flex justify-between"><dt className="text-muted-foreground">Discount</dt><dd>−{formatNPR(order.discountAmount)}</dd></div>}
                 {order.shippingCharge > 0 && <div className="flex justify-between"><dt className="text-muted-foreground">Delivery</dt><dd>{formatNPR(order.shippingCharge)}</dd></div>}
-                <div className="flex justify-between text-xs"><dt className="text-muted-foreground">VAT incl.</dt><dd>{formatNPR(order.vatAmount)}</dd></div>
+                {order.vatAmount > 0 && <div className="flex justify-between text-xs"><dt className="text-muted-foreground">Includes VAT</dt><dd>{formatNPR(order.vatAmount)}</dd></div>}
                 <div className="flex justify-between font-semibold"><dt>Total</dt><dd>{formatNPR(order.totalAmount)}</dd></div>
                 {order.refundedAmount > 0 && <div className="flex justify-between text-danger"><dt>Refunded</dt><dd>{formatNPR(order.refundedAmount)}</dd></div>}
               </dl>
@@ -257,6 +256,10 @@ function RefundDialog({ order, open, onOpenChange, onDone }: { order: PosOrder; 
     }
   }, [open, order.payments]);
   const maxRefund = order.totalAmount - order.refundedAmount;
+  const enabled = useEnabledMethods();
+  // Refund to the methods the shop takes, plus whatever the customer originally paid with.
+  const paidWith = order.payments.filter((p) => p.kind === "PAYMENT").map((p) => p.method as PaymentMethod);
+  const refundMethods = [...new Set([...enabled, ...paidWith.filter((m) => m in METHOD_SETTING)])];
   const value = amount ? Number(amount) : suggested;
   const submit = async () => {
     setBusy(true);
@@ -276,7 +279,7 @@ function RefundDialog({ order, open, onOpenChange, onDone }: { order: PosOrder; 
       <DialogContent onClose={() => onOpenChange(false)}>
         <DialogHeader>
           <DialogTitle>Refund / return</DialogTitle>
-          <DialogDescription>Up to {formatNPR(maxRefund)} can still be refunded. Cash refunds come out of your open till.</DialogDescription>
+          <DialogDescription>Up to {formatNPR(maxRefund)} can still be refunded. Cash refunds are taken from your cash drawer count.</DialogDescription>
         </DialogHeader>
         <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
           <fieldset className="space-y-2">
@@ -295,11 +298,11 @@ function RefundDialog({ order, open, onOpenChange, onDone }: { order: PosOrder; 
             </Field>
             <Field label="Refund method">
               <Select value={method} onChange={(e) => setMethod(e.target.value as PaymentMethod)}>
-                {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{paymentLabel(m)}</option>)}
+                {refundMethods.map((m) => <option key={m} value={m}>{paymentLabel(m)}</option>)}
               </Select>
             </Field>
           </div>
-          {method !== "CASH" && method !== "CREDIT" && <Field label="Reference"><Input value={reference} onChange={(e) => setReference(e.target.value)} /></Field>}
+          {method !== "CASH" && <Field label="Reference (optional)"><Input value={reference} onChange={(e) => setReference(e.target.value)} /></Field>}
           <Field label="Reason (required)"><Textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} /></Field>
           <CheckField label="Return items to stock" checked={restock} onChange={setRestock} />
           <Button type="submit" className="w-full" disabled={busy || value <= 0 || value > maxRefund || reason.trim().length < 3}>{busy ? "Refunding…" : `Refund ${formatNPR(value)}`}</Button>
