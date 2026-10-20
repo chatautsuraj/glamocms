@@ -1,7 +1,7 @@
 /** POS email campaign endpoints. */
 import { api } from "./client";
 
-export type CampaignAudience = "customers" | "subscribers" | "all";
+export type CampaignAudience = "customers" | "registered" | "subscribers" | "all";
 
 export interface CampaignInput {
   subject: string;
@@ -12,6 +12,8 @@ export interface CampaignInput {
 
 export interface AudienceCounts {
   customers: number;
+  /** Older API versions don't send this; treat as 0. */
+  registered?: number;
   subscribers: number;
   all: number;
 }
