@@ -20,9 +20,10 @@ import { cn } from "@/lib/utils";
 import { useApi } from "@/lib/use-api";
 
 const AUDIENCES: Array<{ key: CampaignAudience; label: string; hint: string }> = [
-  { key: "customers", label: "Opted-in customers", hint: "Bought from you and agreed to offers" },
+  { key: "registered", label: "All registered customers", hint: "Everyone with a GLAMO account or past order" },
+  { key: "customers", label: "Opted-in customers", hint: "Only those who ticked “send me offers”" },
   { key: "subscribers", label: "Newsletter", hint: "People who joined the email list" },
-  { key: "all", label: "Everyone", hint: "Both lists, duplicates removed" },
+  { key: "all", label: "Everyone", hint: "All customers and subscribers, duplicates removed" },
 ];
 
 const STATUS: Record<Campaign["status"], { label: string; variant: "muted" | "warning" | "success" | "danger" }> = {
@@ -146,7 +147,7 @@ export default function MarketingPage() {
 
             <div>
               <p className="mb-2 text-sm font-medium">Audience</p>
-              <div className="grid gap-2 sm:grid-cols-3">
+              <div className="grid gap-2 sm:grid-cols-2">
                 {AUDIENCES.map((a) => {
                   const active = audience === a.key;
                   return (
@@ -163,7 +164,7 @@ export default function MarketingPage() {
                     >
                       <span className="text-sm font-semibold">{a.label}</span>
                       <span className="text-xs text-muted-foreground">{a.hint}</span>
-                      <span className="text-lg font-semibold tabular">{counts ? formatNumber(counts[a.key]) : "—"}</span>
+                      <span className="text-lg font-semibold tabular">{counts ? formatNumber(counts[a.key] ?? 0) : "—"}</span>
                     </button>
                   );
                 })}
@@ -206,10 +207,11 @@ export default function MarketingPage() {
                 <LoadingRows rows={3} />
               ) : (
                 <>
+                  <Row label="All registered customers" value={counts?.registered ?? 0} />
                   <Row label="Opted-in customers" value={counts?.customers ?? 0} />
                   <Row label="Newsletter" value={counts?.subscribers ?? 0} />
-                  <Row label="After de-duplication" value={counts?.all ?? 0} strong />
-                  <p className="pt-1 text-xs text-muted-foreground">People who unsubscribed are excluded automatically. Only addresses that consented are emailed.</p>
+                  <Row label="Everyone, after de-duplication" value={counts?.all ?? 0} strong />
+                  <p className="pt-1 text-xs text-muted-foreground">Every email has a one-click unsubscribe link, and people who unsubscribed are always left out.</p>
                 </>
               )}
             </CardContent>
