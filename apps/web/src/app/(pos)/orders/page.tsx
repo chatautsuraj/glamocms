@@ -39,31 +39,33 @@ export default function OrdersPage() {
       <PageHeader title="Orders" description={readAll ? "All sales and orders: counter, website, WhatsApp and phone." : "Your sales today."} />
       <Card>
         <CardContent className="space-y-3 p-4">
-          <div className="flex flex-wrap items-end gap-3">
-            <ChannelSwitcher value={channel} onChange={reset(setChannel)} />
-            <label className="w-44">
-              <span className="sr-only">Status</span>
-              <Select value={status} onChange={(e) => reset(setStatus)(e.target.value as OrderStatus | "")} aria-label="Status">
-                <option value="">All statuses</option>
-                {ORDER_STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
-              </Select>
+          <form className="relative" role="search" onSubmit={(e) => { e.preventDefault(); setQuery(q.trim()); setPage(1); }}>
+            <label>
+              <span className="sr-only">Search orders</span>
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+              <Input type="search" enterKeyHint="search" className="pl-9" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Bill no., customer name or phone" />
             </label>
-            <label className="w-40">
-              <span className="sr-only">Payment status</span>
-              <Select value={paymentStatus} onChange={(e) => reset(setPaymentStatus)(e.target.value)} aria-label="Payment status">
-                <option value="">Any payment</option>
-                <option value="PAID">Paid</option>
-                <option value="PENDING">Pending / COD</option>
-                <option value="REFUNDED">Refunded</option>
-              </Select>
-            </label>
-            <form className="relative min-w-[220px] flex-1" onSubmit={(e) => { e.preventDefault(); setQuery(q.trim()); setPage(1); }}>
-              <label>
-                <span className="sr-only">Search orders</span>
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-                <Input className="pl-9" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Bill no., order no., customer, phone… (Enter)" />
+          </form>
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+            <ChannelSwitcher value={channel} onChange={reset(setChannel)} className="scroll-fade-x max-w-full flex-nowrap self-start overflow-x-auto no-scrollbar" />
+            <div className="grid grid-cols-2 gap-3 lg:flex">
+              <label className="min-w-0 lg:w-44">
+                <span className="sr-only">Status</span>
+                <Select value={status} onChange={(e) => reset(setStatus)(e.target.value as OrderStatus | "")} aria-label="Status">
+                  <option value="">All statuses</option>
+                  {ORDER_STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
+                </Select>
               </label>
-            </form>
+              <label className="min-w-0 lg:w-44">
+                <span className="sr-only">Payment status</span>
+                <Select value={paymentStatus} onChange={(e) => reset(setPaymentStatus)(e.target.value)} aria-label="Payment status">
+                  <option value="">Any payment</option>
+                  <option value="PAID">Paid</option>
+                  <option value="PENDING">Pending / COD</option>
+                  <option value="REFUNDED">Refunded</option>
+                </Select>
+              </label>
+            </div>
           </div>
           {readAll && <DateRangeControls value={range} onChange={reset(setRange)} />}
         </CardContent>
