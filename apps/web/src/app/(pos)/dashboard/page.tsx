@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { AlertTriangle, Receipt, ScanLine, ShoppingBag, TrendingUp, Wallet } from "lucide-react";
+import { AlertTriangle, Receipt, ScanLine, ShoppingBag, TrendingUp } from "lucide-react";
 import { ChannelBadge } from "@/components/channel-badge";
 import { ErrorPanel, LoadingRows } from "@/components/loading";
 import { OrdersTable } from "@/components/orders-table";
@@ -39,7 +39,7 @@ export default function DashboardPage() {
         description={`Today · ${formatDate(new Date())}`}
         actions={canSell && <Link href="/pos" className={buttonVariants({ variant: "brand", size: "lg" })}><ScanLine className="h-5 w-5" aria-hidden /> Start selling</Link>}
       />
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {canAnalytics ? (
           <>
             <StatCard title="Sales today" value={t ? formatNPR(t.revenue) : "…"} icon={TrendingUp} loading={summary.loading && !t} />
@@ -48,17 +48,9 @@ export default function DashboardPage() {
           </>
         ) : (
           <>
-            <StatCard title="My sales (cash drawer)" value={drawer ? formatNPR(drawer.totals.sales) : "—"} icon={TrendingUp} subtitle={drawer ? undefined : "Shown after you enter the starting cash"} />
-            <StatCard title="My bills (cash drawer)" value={drawer ? formatNumber(drawer.totals.orders) : "—"} icon={Receipt} />
+            <StatCard title="My sales today" value={drawer ? formatNPR(drawer.totals.sales) : "—"} icon={TrendingUp} subtitle={drawer ? undefined : "Shown after you enter the starting cash"} />
+            <StatCard title="My bills today" value={drawer ? formatNumber(drawer.totals.orders) : "—"} icon={Receipt} />
           </>
-        )}
-        {canSell && (
-          <StatCard
-            title="Cash drawer"
-            value={drawer ? formatNPR(drawer.expectedCash) : "Not started"}
-            icon={Wallet}
-            subtitle={drawer ? "Cash that should be in the drawer now" : "Optional. Open POS → ⋮ → Cash drawer"}
-          />
         )}
       </div>
       {canAnalytics && summary.error ? <ErrorPanel error={summary.error} onRetry={summary.reload} /> : null}
