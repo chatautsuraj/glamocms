@@ -38,42 +38,42 @@ export default function AnalyticsPage() {
       <Card>
         <CardContent className="flex flex-wrap items-end justify-between gap-3 p-4">
           <DateRangeControls value={range} onChange={setRange} />
-          <ChannelSwitcher value={channel} onChange={setChannel} label="Channel for all charts" />
+          <ChannelSwitcher value={channel} onChange={setChannel} label="Channel for all charts" className="scroll-fade-x max-w-full flex-nowrap overflow-x-auto no-scrollbar" />
         </CardContent>
       </Card>
       {summary.error ? <ErrorPanel error={summary.error} onRetry={summary.reload} /> : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           <StatCard title="Sales" value={t ? formatNPR(t.revenue) : "…"} loading={summary.loading && !t} icon={TrendingUp} subtitle={t?.netRevenue !== undefined ? `${formatNPR(t.netRevenue)} after refunds` : undefined} />
           <StatCard title="Orders" value={t ? formatNumber(t.orders) : "…"} loading={summary.loading && !t} icon={Receipt} subtitle={t ? `${formatNumber(t.items)} items` : undefined} />
           <StatCard title="Average order" value={t ? formatNPR(t.aov) : "…"} loading={summary.loading && !t} icon={ShoppingBag} />
           <StatCard title="Gross profit" value={t ? formatNPR(t.grossMargin) : "…"} loading={summary.loading && !t} icon={BadgePercent} subtitle={t ? `VAT ${formatNPR(t.vat)} · discounts ${formatNPR(t.discounts)} · refunds ${formatNPR(t.refunds)}` : undefined} />
         </div>
       )}
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="grid gap-4 xl:grid-cols-2 [&>*]:min-w-0">
         <ChartCard<AnalyticsSummary>
           title="Sales per day" description="By channel" initialChannel={channel} load={loadSummary} deps={[range.from, range.to]} filename={`glamo-revenue-${range.from}_${range.to}`}
           render={(d) => <RevenueLines series={d.series} />}
           table={(d) => ({ columns: [{ key: "date", label: "Date" }, { key: "channelLabel", label: "Channel" }, { key: "revenue", label: "Sales", money: true }, { key: "orders", label: "Orders" }], rows: d.series.map((s) => ({ ...s, channelLabel: CHANNEL_LABEL[s.channel] ?? s.channel })) })}
         />
         <ChartCard<AnalyticsSummary>
-          title="Sales by channel" initialChannel={channel} load={loadSummary} deps={[range.from, range.to]} filename={`glamo-channels-${range.from}_${range.to}`}
+          title="Sales by channel" fluid initialChannel={channel} load={loadSummary} deps={[range.from, range.to]} filename={`glamo-channels-${range.from}_${range.to}`}
           render={(d) => <RankedBars rows={d.byChannel.map((c) => ({ key: c.channel, label: CHANNEL_LABEL[c.channel] ?? c.channel, revenue: c.revenue }))} colorFor={(k) => CHANNEL_COLOR[k as Channel] ?? "var(--series-1)"} />}
           table={(d) => ({ columns: [{ key: "label", label: "Channel" }, { key: "revenue", label: "Sales", money: true }, { key: "orders", label: "Orders" }, { key: "aov", label: "Average order", money: true }, { key: "items", label: "Items" }], rows: d.byChannel.map((c) => ({ ...c, label: CHANNEL_LABEL[c.channel] ?? c.channel })) })}
         />
         <ChartCard<BreakdownRow[]>
-          title="Top products" initialChannel={channel} load={breakdown("product")} deps={[range.from, range.to]} filename={`glamo-products-${range.from}_${range.to}`}
+          title="Top products" fluid initialChannel={channel} load={breakdown("product")} deps={[range.from, range.to]} filename={`glamo-products-${range.from}_${range.to}`}
           render={(rows) => <RankedBars rows={rows} />} table={breakdownTable}
         />
         <ChartCard<BreakdownRow[]>
-          title="Categories" initialChannel={channel} load={breakdown("category")} deps={[range.from, range.to]} filename={`glamo-categories-${range.from}_${range.to}`}
+          title="Categories" fluid initialChannel={channel} load={breakdown("category")} deps={[range.from, range.to]} filename={`glamo-categories-${range.from}_${range.to}`}
           render={(rows) => <RankedBars rows={rows} />} table={breakdownTable}
         />
         <ChartCard<BreakdownRow[]>
-          title="Payment methods" initialChannel={channel} load={breakdown("payment")} deps={[range.from, range.to]} filename={`glamo-payments-${range.from}_${range.to}`}
+          title="Payment methods" fluid initialChannel={channel} load={breakdown("payment")} deps={[range.from, range.to]} filename={`glamo-payments-${range.from}_${range.to}`}
           render={(rows) => <RankedBars rows={rows.map((r) => ({ ...r, label: paymentLabel(r.label || r.key) }))} />} table={breakdownTable}
         />
         <ChartCard<BreakdownRow[]>
-          title="Staff" description="Sales per cashier" initialChannel={channel} load={breakdown("staff")} deps={[range.from, range.to]} filename={`glamo-staff-${range.from}_${range.to}`}
+          title="Staff" fluid description="Sales per cashier" initialChannel={channel} load={breakdown("staff")} deps={[range.from, range.to]} filename={`glamo-staff-${range.from}_${range.to}`}
           render={(rows) => <RankedBars rows={rows} />} table={breakdownTable}
         />
         <ChartCard<BreakdownRow[]>
