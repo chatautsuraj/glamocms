@@ -179,70 +179,14 @@ function route(method, url) {
   }
   if (p === "/pos/campaigns") return ok([]);
   if (p === "/pos/campaigns/audience") return ok({ customers: 655, subscribers: 210, all: 812 });
-  if (p === "/pos/sales" && method === "POST") {
-    const bill = {
-      printableRef: "GLM-2424", createdAt: iso(0), cashierName: "Sita Sharma", customer: { name: "Walk-in", phone: null },
-      items: [{ name: catalog[2].name, sku: catalog[2].sku, qty: 1, unitPrice: catalog[2].price, lineDiscount: 0, vatApplicable: true, lineTotal: catalog[2].price }],
-      subtotal: 6280, discount: 0, deliveryCharge: 0, taxableAmount: 5558, vatRate: 13, vatAmount: 722, vatEnabled: true, taxInvoice: false,
-      total: 6280, payments: [{ method: "CASH", amount: 6280, reference: null }], tendered: 7000, change: 720, due: 0, footer: posConfig.receiptFooter, store,
-    };
-    return ok({ order: orders[0], bill, duplicate: false });
-  }
   if (method !== "GET") return ok({});
   return ok(null);
 }
 
-/** Scripted states behind "#step" suffixes: a filled cart, the payment dialog, the shade picker. */
-async function runStep(page, step, width) {
-  const tiles = page.locator("main button[aria-label*='Rs']");
-  if (step === "cart" || step === "pay") {
-    for (const i of [2, 4, 4, 6]) await tiles.nth(i).click().catch(() => undefined);
-    if (width < 768) await page.getByRole("button", { name: /view sale/ }).click().catch(() => undefined);
-    await page.waitForTimeout(400);
-  }
-  if (step === "pay") {
-    await page.keyboard.press("F4");
-    await page.waitForTimeout(500);
-  }
-  if (step === "done") {
-    for (const i of [2, 4, 4, 6]) await tiles.nth(i).click().catch(() => undefined);
-    await page.keyboard.press("F4");
-    await page.waitForTimeout(400);
-    await page.getByRole("button", { name: /Rs 7,000/ }).click().catch(() => undefined);
-    await page.getByRole("button", { name: "Complete sale" }).click().catch(() => undefined);
-    await page.waitForTimeout(800);
-  }
-  if (step === "shade") {
-    await page.locator("main button[aria-label*='shades']").first().click().catch(() => undefined);
-    await page.waitForTimeout(400);
-  }
-}
-
 const PAGES = [
-  "/login", "/dashboard", "/pos", "/pos#cart", "/pos#pay", "/pos#shade", "/pos#done", "/orders", "/orders/o-1", "/customers", "/customers/c-0", "/phone", "/products", "/inventory",
+  "/login", "/dashboard", "/pos", "/orders", "/orders/o-1", "/customers", "/customers/c-0", "/phone", "/products", "/inventory",
   "/delivery", "/whatsapp", "/marketing", "/analytics", "/reports", "/settings",
 ];
-
-/** Fake signed-in owner + fixture API on a browser context. */
-async function setup(context) {
-  await context.addInitScript(({ key, signedIn, theme }) => {
-    try { localStorage.setItem("theme", theme); } catch {}
-    if (!signedIn || location.pathname === "/login") return;
-    const user = {
-      uid: "u-review", email: "review@glamonepal.com", emailVerified: true, displayName: "Sita Sharma", isAnonymous: false,
-      providerData: [], stsTokenManager: { refreshToken: "review", accessToken: "review-token", expirationTime: Date.now() + 36e5 },
-      createdAt: "1700000000000", lastLoginAt: "1700000000000", apiKey: key, appName: "[DEFAULT]",
-    };
-    localStorage.setItem(`firebase:authUser:${key}:[DEFAULT]`, JSON.stringify(user));
-  }, { key: API_KEY, signedIn: true, theme: THEME });
-  await context.route(/identitytoolkit\.googleapis\.com|securetoken\.googleapis\.com/, (r) =>
-    r.fulfill({ json: { users: [{ localId: "u-review", email: "review@glamonepal.com", displayName: "Sita Sharma", emailVerified: true }], id_token: "review-token", refresh_token: "review", expires_in: "3600" } }));
-  await context.route(/\/api\/v1\//, (r) => {
-    const req = r.request();
-    if (req.method() === "OPTIONS") return r.fulfill({ status: 204 });
-    return r.fulfill({ json: route(req.method(), new URL(req.url())) });
-  });
-}
 
 async function main() {
   fs.mkdirSync(OUT, { recursive: true });
@@ -250,19 +194,33 @@ async function main() {
   const report = [];
   for (const width of WIDTHS) {
     const context = await browser.newContext({ viewport: { width, height: width < 500 ? 780 : width < 1000 ? 1024 : 900 }, colorScheme: THEME, deviceScaleFactor: 1, ignoreHTTPSErrors: true });
-    await setup(context);
+    await context.addInitScript(({ key, signedIn, theme }) => {
+      try { localStorage.setItem("theme", theme); } catch {}
+      if (!signedIn || location.pathname === "/login") return;
+      const user = {
+        uid: "u-review", email: "review@glamonepal.com", emailVerified: true, displayName: "Sita Sharma", isAnonymous: false,
+        providerData: [], stsTokenManager: { refreshToken: "review", accessToken: "review-token", expirationTime: Date.now() + 36e5 },
+        createdAt: "1700000000000", lastLoginAt: "1700000000000", apiKey: key, appName: "[DEFAULT]",
+      };
+      localStorage.setItem(`firebase:authUser:${key}:[DEFAULT]`, JSON.stringify(user));
+    }, { key: API_KEY, signedIn: true, theme: THEME });
+    await context.route(/identitytoolkit\.googleapis\.com|securetoken\.googleapis\.com/, (r) =>
+      r.fulfill({ json: { users: [{ localId: "u-review", email: "review@glamonepal.com", displayName: "Sita Sharma", emailVerified: true }], id_token: "review-token", refresh_token: "review", expires_in: "3600" } }));
+    await context.route(/\/api\/v1\//, (r) => {
+      const req = r.request();
+      if (req.method() === "OPTIONS") return r.fulfill({ status: 204 });
+      return r.fulfill({ json: route(req.method(), new URL(req.url())) });
+    });
     const page = await context.newPage();
     const errors = [];
     page.on("console", (m) => { if (m.type() === "error") errors.push(m.text().slice(0, 200)); });
     page.on("pageerror", (e) => errors.push(`pageerror: ${e.message.slice(0, 200)}`));
     for (const p of PAGES.filter((x) => !ONLY || ONLY.includes(x))) {
       errors.length = 0;
-      const [pathOnly, step] = p.split("#");
-      await page.goto(BASE + pathOnly, { waitUntil: "networkidle" }).catch(() => undefined);
+      await page.goto(BASE + p, { waitUntil: "networkidle" }).catch(() => undefined);
       await page.waitForTimeout(900);
-      if (step) await runStep(page, step, width);
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-      const name = `${p === "/" ? "root" : p.slice(1).replace(/[/#]/g, "_")}-${width}${THEME === "dark" ? "-dark" : ""}.png`;
+      const name = `${p === "/" ? "root" : p.slice(1).replace(/\//g, "_")}-${width}${THEME === "dark" ? "-dark" : ""}.png`;
       await page.screenshot({ path: path.join(OUT, name), fullPage: true });
       report.push({ page: p, width, overflow, errors: [...errors] });
     }
@@ -274,6 +232,4 @@ async function main() {
   console.log(`shots → ${OUT}`);
 }
 
-module.exports = { setup, runStep, BASE };
-
-if (require.main === module) main().catch((e) => { console.error(e); process.exit(1); });
+main().catch((e) => { console.error(e); process.exit(1); });

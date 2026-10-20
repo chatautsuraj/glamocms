@@ -29,7 +29,7 @@ export function SaleCompleteDialog({ bill, onClose }: { bill: BillData | null; o
             {bill.change > 0 && (
               <div className="rounded-xl bg-success/10 px-4 py-3">
                 <p className="text-sm font-semibold text-success">Give change</p>
-                <p className="tabular font-display text-5xl font-bold text-success" aria-live="assertive">{formatNPR(bill.change)}</p>
+                <p className="money text-5xl text-success" aria-live="assertive">{formatNPR(bill.change)}</p>
               </div>
             )}
             {bill.due > 0 && <p className="text-lg font-semibold text-warning">To collect on delivery: {formatNPR(bill.due)}</p>}

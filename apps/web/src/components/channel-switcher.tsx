@@ -18,7 +18,7 @@ export function ChannelSwitcher({ value, onChange, label = "Channel", className 
             aria-checked={active}
             onClick={() => onChange(opt.value)}
             className={cn(
-              "min-h-9 rounded-lg px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              "min-h-9 shrink-0 rounded-lg px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               active ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
             )}
           >
