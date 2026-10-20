@@ -39,7 +39,7 @@ export default function DashboardPage() {
         description={`Today · ${formatDate(new Date())}`}
         actions={canSell && <Link href="/pos" className={buttonVariants({ variant: "brand", size: "lg" })}><ScanLine className="h-5 w-5" aria-hidden /> Start selling</Link>}
       />
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {canAnalytics ? (
           <>
             <StatCard title="Sales today" value={t ? formatNPR(t.revenue) : "…"} icon={TrendingUp} loading={summary.loading && !t} />
@@ -65,9 +65,9 @@ export default function DashboardPage() {
       {canAnalytics && summary.data && summary.data.byChannel.length > 0 && (
         <Card>
           <CardHeader><CardTitle>Today by channel</CardTitle></CardHeader>
-          <CardContent className="flex flex-wrap gap-3">
+          <CardContent className="grid grid-cols-2 gap-3 md:grid-cols-4">
             {summary.data.byChannel.map((c) => (
-              <div key={c.channel} className="min-w-[150px] rounded-xl border border-border p-3">
+              <div key={c.channel} className="min-w-0 rounded-xl border border-border p-3">
                 <ChannelBadge channel={c.channel} />
                 <p className="tabular mt-2 text-lg font-semibold">{formatNPR(c.revenue)}</p>
                 <p className="text-xs text-muted-foreground">{formatNumber(c.orders)} {c.orders === 1 ? "bill" : "bills"}</p>
@@ -76,16 +76,16 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       )}
-      <div className="grid gap-4 xl:grid-cols-[2fr_1fr]">
-        <Card>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <Card className="min-w-0">
           <CardHeader className="flex-row items-center justify-between">
             <CardTitle>Latest sales</CardTitle>
             <Link href="/orders" className="text-sm font-medium text-primary hover:underline">All orders</Link>
           </CardHeader>
-          <CardContent>{recent.error ? <ErrorPanel error={recent.error} onRetry={recent.reload} /> : recent.loading && !recent.data ? <LoadingRows /> : <OrdersTable orders={recent.data?.items ?? []} showShipment={false} emptyText="No sales yet today." />}</CardContent>
+          <CardContent>{recent.error ? <ErrorPanel error={recent.error} onRetry={recent.reload} /> : recent.loading && !recent.data ? <LoadingRows /> : <OrdersTable orders={recent.data?.items ?? []} showShipment={false} compact emptyText="No sales yet today." />}</CardContent>
         </Card>
         {canStock && (
-          <Card>
+          <Card className="min-w-0">
             <CardHeader className="flex-row items-center justify-between">
               <CardTitle className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-warning" aria-hidden /> Running low</CardTitle>
               <Link href="/inventory" className="text-sm font-medium text-primary hover:underline">Stock</Link>
@@ -96,8 +96,8 @@ export default function DashboardPage() {
                   {(lowStock.data?.items ?? []).map((p) => (
                     <li key={p.id} className="flex items-center gap-3 py-2">
                       <ProductImage src={p.imageUrl} name={p.name} className="h-9 w-9 shrink-0 border border-border" />
-                      <span className="min-w-0 flex-1 truncate">{p.name}</span>
-                      <span className={p.stock <= 0 ? "font-semibold text-danger" : "font-semibold text-warning"}>{p.stock <= 0 ? "Out" : `${p.stock} left`}</span>
+                      <span className="min-w-0 flex-1 truncate" title={p.name}>{p.name}</span>
+                      <span className={p.stock <= 0 ? "shrink-0 font-semibold text-danger" : "tabular shrink-0 font-semibold text-warning"}>{p.stock <= 0 ? "Out" : `${p.stock} left`}</span>
                     </li>
                   ))}
                   {lowStock.data && !lowStock.data.items.length && <li className="py-4 text-center text-muted-foreground">Everything is well stocked.</li>}

@@ -76,16 +76,16 @@ export default function DeliveryPage() {
   return (
     <div className="space-y-4">
       <PageHeader title="Delivery" description="Orders to deliver with Nepal Can Move. Mark an order Packed when it is ready; NCM is booked automatically if that is switched on in Settings." />
-      <div className="grid gap-4 xl:grid-cols-[1fr_340px]">
-        <Card>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <Card className="min-w-0">
           <CardHeader className="space-y-3">
             <div className="flex flex-wrap items-center gap-3">
-              <Tabs value={stage} onValueChange={(v) => { setStage(v); setPage(1); }}>
+              <Tabs panels={false} className="min-w-0 max-w-full" value={stage} onValueChange={(v) => { setStage(v); setPage(1); }}>
                 <TabsList label="Delivery stage">{STAGES.map((s) => <TabsTrigger key={s.key} value={s.key}>{s.label}</TabsTrigger>)}</TabsList>
               </Tabs>
               <Button variant="outline" size="sm" className="ml-auto" disabled={!selected.size} onClick={printSelected}><Printer className="h-3.5 w-3.5" aria-hidden /> Print delivery notes ({selected.size})</Button>
             </div>
-            <ChannelSwitcher value={channel} onChange={(c) => { setChannel(c); setPage(1); }} />
+            <ChannelSwitcher value={channel} onChange={(c) => { setChannel(c); setPage(1); }} className="scroll-fade-x max-w-full flex-nowrap self-start overflow-x-auto no-scrollbar" />
           </CardHeader>
           <CardContent className="space-y-3">
             {error ? <ErrorPanel error={error} onRetry={reload} /> : loading && !data ? <LoadingRows /> : (

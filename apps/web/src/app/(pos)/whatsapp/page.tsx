@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { CheckCheck, Megaphone, RefreshCw, Send, UserRound } from "lucide-react";
+import { ArrowLeft, CheckCheck, Megaphone, RefreshCw, Send, UserRound } from "lucide-react";
 import { ErrorPanel, LoadingRows } from "@/components/loading";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -42,8 +42,9 @@ export default function WhatsAppPage() {
         description="Customer chats from the shop WhatsApp number. Chats marked “needs a person” are waiting for staff."
         actions={canBroadcast && <Button variant="outline" onClick={() => setBroadcastOpen(true)}><Megaphone className="h-4 w-4" aria-hidden /> Send offer message</Button>}
       />
-      <div className="grid gap-4 lg:grid-cols-[340px_1fr]">
-        <Card>
+      {/* Below lg this is master/detail: the list, or one open chat with a way back — never both stacked. */}
+      <div className="grid gap-4 lg:grid-cols-[340px_minmax(0,1fr)]">
+        <Card className={cn(active && "hidden lg:block")}>
           <CardContent className="space-y-3 p-3">
             <div className="flex gap-2">
               <Select aria-label="Conversation filter" value={status} onChange={(e) => setStatus(e.target.value as typeof status)}>
@@ -63,10 +64,10 @@ export default function WhatsAppPage() {
                       aria-current={active?.waId === c.waId ? "true" : undefined}
                       className={cn("w-full space-y-0.5 px-2 py-3 text-left hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", active?.waId === c.waId && "bg-accent")}
                     >
-                      <span className="flex items-center gap-2">
-                        <span className="truncate font-medium">{c.name || c.phone}</span>
-                        {c.handoff && <Badge variant="warning">Needs a person</Badge>}
-                        {c.unread > 0 && <Badge>{c.unread}</Badge>}
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span className="min-w-0 truncate font-medium">{c.name || c.phone}</span>
+                        {c.handoff && <Badge variant="warning" className="shrink-0">Needs a person</Badge>}
+                        {c.unread > 0 && <Badge variant="brand" className="shrink-0" aria-label={`${c.unread} unread`}>{c.unread}</Badge>}
                         <span className="ml-auto shrink-0 text-[11px] text-muted-foreground">{c.lastAt && formatDateTime(c.lastAt)}</span>
                       </span>
                       <span className="line-clamp-1 block text-xs text-muted-foreground">{c.lastMessage}</span>
@@ -78,9 +79,14 @@ export default function WhatsAppPage() {
             )}
           </CardContent>
         </Card>
-        <Card>
+        <Card className={cn("min-w-0", !active && "hidden lg:block")}>
           <CardContent className="p-0">
-            {active ? <Thread key={active.waId} waId={active.waId} onChanged={() => void list.reload()} /> : <p className="p-10 text-center text-sm text-muted-foreground">Choose a chat on the left.</p>}
+            {active && (
+              <button type="button" onClick={() => setActive(null)} className="flex min-h-11 w-full items-center gap-1 border-b border-border px-3 text-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring lg:hidden">
+                <ArrowLeft className="h-4 w-4" aria-hidden /> All chats
+              </button>
+            )}
+            {active ? <Thread key={active.waId} waId={active.waId} onChanged={() => void list.reload()} /> : <p className="p-10 text-center text-sm text-muted-foreground">Choose a chat from the list to read it and reply.</p>}
           </CardContent>
         </Card>
       </div>

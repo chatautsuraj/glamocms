@@ -33,7 +33,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
         <span className="text-sm text-muted-foreground">{[c.phone, c.email, c.address].filter(Boolean).join(" · ")}</span>
         {canWrite && <Button variant="outline" size="sm" className="ml-auto" onClick={() => setEdit(true)}><Pencil className="h-3.5 w-3.5" aria-hidden /> Edit</Button>}
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatCard title="Orders" value={formatNumber(c.stats.orders)} />
         <StatCard title="Total spent" value={formatNPR(c.stats.totalSpent)} />
         <StatCard title="Average order" value={formatNPR(c.stats.aov)} />

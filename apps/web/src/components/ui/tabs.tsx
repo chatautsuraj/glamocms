@@ -3,7 +3,7 @@
 import { createContext, useContext, useId, useState, type KeyboardEvent, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-type TabsContextValue = { value: string; setValue: (v: string) => void; baseId: string };
+type TabsContextValue = { value: string; setValue: (v: string) => void; baseId: string; panels: boolean };
 
 const TabsContext = createContext<TabsContextValue | null>(null);
 
@@ -13,8 +13,13 @@ function useTabs() {
   return ctx;
 }
 
-export function Tabs({ defaultValue, value: controlledValue, onValueChange, children, className }: {
+/**
+ * `panels={false}` when the tabs only filter one shared list (no TabsContent): triggers then
+ * omit aria-controls, which would otherwise point at panels that don't exist.
+ */
+export function Tabs({ defaultValue, value: controlledValue, onValueChange, children, className, panels = true }: {
   defaultValue?: string;
+  panels?: boolean;
   value?: string;
   onValueChange?: (v: string) => void;
   children: ReactNode;
@@ -28,7 +33,7 @@ export function Tabs({ defaultValue, value: controlledValue, onValueChange, chil
     onValueChange?.(v);
   };
   return (
-    <TabsContext.Provider value={{ value, setValue, baseId }}>
+    <TabsContext.Provider value={{ value, setValue, baseId, panels }}>
       <div className={className}>{children}</div>
     </TabsContext.Provider>
   );
@@ -63,7 +68,7 @@ export function TabsTrigger({ value, children, className }: { value: string; chi
       role="tab"
       id={`${ctx.baseId}-tab-${value}`}
       aria-selected={active}
-      aria-controls={`${ctx.baseId}-panel-${value}`}
+      aria-controls={ctx.panels ? `${ctx.baseId}-panel-${value}` : undefined}
       tabIndex={active ? 0 : -1}
       onClick={() => ctx.setValue(value)}
       className={cn(
