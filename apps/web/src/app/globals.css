@@ -7,7 +7,6 @@
  * white, so the brand colour stays high-contrast at the counter.
  */
 :root {
-  color-scheme: light;
   /* brand */
   --rose: #d97898;
   --rose-light: #efb4c5;
@@ -39,10 +38,10 @@
   --brand: var(--rose);
   --brand-foreground: var(--ink-strong);
 
-  /* status */
-  --success: #1e7a4c;
+  /* status — darkened so text-on-tint pills keep 4.5:1 on paper and muted surfaces */
+  --success: #1a6e44;
   --success-foreground: #ffffff;
-  --warning: #9a5b0a;
+  --warning: #8a5108;
   --warning-foreground: #ffffff;
   --danger: #b4321f;
   --danger-foreground: #ffffff;
@@ -67,7 +66,6 @@
 }
 
 .dark {
-  color-scheme: dark;
   --rose: #d97898;
   --rose-light: #efb4c5;
   --rose-dark: #efb4c5;
@@ -207,6 +205,18 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/*
+ * Big amounts at the counter (totals, change, customer-facing QR screen). Outfit with lining,
+ * tabular figures: Cormorant's old-style numerals made "Rs 0" read as "Rs o" across a counter.
+ * The serif stays for the brand mark only.
+ */
+.money {
+  font-family: var(--font-glamo-sans), system-ui, sans-serif;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
 /* Long product grids: let the browser skip off-screen tiles. */
 .cv-tile {
   content-visibility: auto;
@@ -251,8 +261,12 @@ body {
   }
 }
 
-/* Keep keyboard focus clear of sticky chrome and make taps deliberate. */
-html { scroll-padding-top: 5rem; }
-a, button, input, select, textarea { touch-action: manipulation; }
-:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
-main:focus { outline: none; }
+/* Horizontally scrolling chip rows: fade the trailing edge so a cut-off chip reads as "more this way". */
+.scroll-fade-x {
+  mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+}
+@media (min-width: 1024px) {
+  .scroll-fade-x {
+    mask-image: none;
+  }
+}

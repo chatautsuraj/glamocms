@@ -372,7 +372,7 @@ export default function PosPage() {
                     onSearchEnter();
                   }
                 }}
-                placeholder="Scan barcode or search name, brand, shade…"
+                placeholder="Scan or search"
                 className="h-14 w-full rounded-full border-2 border-input bg-card pl-12 pr-12 text-base font-medium shadow-card placeholder:font-normal placeholder:text-muted-foreground focus-visible:border-rose focus-visible:outline-none"
                 autoComplete="off"
                 spellCheck={false}
@@ -410,7 +410,7 @@ export default function PosPage() {
             </DropdownMenu>
           </div>
           {categories.length > 1 && (
-            <div className="no-scrollbar -mx-3 flex gap-2 overflow-x-auto px-3 sm:-mx-4 sm:px-4" role="radiogroup" aria-label="Category">
+            <div className="no-scrollbar scroll-fade-x -mx-3 flex gap-2 overflow-x-auto px-3 sm:-mx-4 sm:px-4" role="radiogroup" aria-label="Category">
               {[{ name: ALL_CATEGORIES, count: products.length }, ...categories].map((c) => {
                 const active = c.name === category;
                 return (
@@ -435,7 +435,7 @@ export default function PosPage() {
 
         <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3 scrollbar-thin sm:px-4">
           {!loaded ? (
-            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-4" role="status" aria-label="Loading products">
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" role="status" aria-label="Loading products">
               {Array.from({ length: 8 }, (_, i) => <Skeleton key={i} className="aspect-[3/4] rounded-xl" />)}
             </div>
           ) : !products.length ? (
@@ -465,7 +465,7 @@ export default function PosPage() {
       {/* Phones: sale summary bar + full-height sheet. */}
       <div className="border-t border-border bg-card p-2 md:hidden">
         <Button variant={lines.length ? "brand" : "outline"} size="xl" className="w-full justify-between" onClick={() => setCartSheet(true)}>
-          <span className="flex items-center gap-2"><ShoppingBag className="h-5 w-5" aria-hidden /> {itemCount ? `${itemCount} ${itemCount === 1 ? "item" : "items"}` : "Sale is empty"}</span>
+          <span className="flex items-center gap-2"><ShoppingBag className="h-5 w-5" aria-hidden /> {itemCount ? `${itemCount} ${itemCount === 1 ? "item" : "items"} · view sale` : "No items yet"}</span>
           <span className="tabular">{formatNPR(totals.total)}</span>
         </Button>
       </div>

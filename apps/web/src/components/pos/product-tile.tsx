@@ -33,11 +33,11 @@ export const ProductTile = memo(function ProductTile({ product, inCart, onPick }
       className={cn(
         "group relative flex h-full w-full flex-col overflow-hidden rounded-xl border bg-card text-left transition-[border-color,box-shadow] hover:border-rose hover:shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         inCart > 0 ? "border-rose" : "border-border",
-        stock.tone === "out" && "opacity-70",
       )}
       aria-label={`${product.name}${shades ? `, ${shades} shades` : ""}, ${formatNPR(fromPrice)}, ${stock.text}${inCart ? `, ${inCart} in sale` : ""}`}
     >
-      <ProductImage src={product.imageUrl} name={product.name} rounded="rounded-none" className="aspect-square w-full border-b border-border" />
+      {/* Out of stock: only the photo fades, so the name, price and "Out of stock" keep full contrast. */}
+      <ProductImage src={product.imageUrl} name={product.name} rounded="rounded-none" className={cn("aspect-square w-full border-b border-border", stock.tone === "out" && "opacity-50 grayscale")} />
       {inCart > 0 && (
         <span aria-hidden className="absolute right-2 top-2 inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-brand px-2 text-sm font-bold text-brand-foreground shadow-card">
           {inCart}

@@ -73,22 +73,28 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   return (
     <div className="space-y-4">
       <Link href="/orders" className="inline-flex min-h-11 items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" /> Orders</Link>
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="font-mono text-xl font-semibold">{order.printableRef || order.orderNumber}</h1>
-        <ChannelBadge channel={order.channel} />
-        <StatusBadge status={order.status} />
-        <StatusBadge status={order.paymentStatus} />
-        <span className="text-sm text-muted-foreground">{order.createdAt && formatDateTime(order.createdAt)}{order.cashier && ` · ${order.cashier.name}`}</span>
-        <div className="ml-auto flex flex-wrap gap-2">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="font-mono text-xl font-semibold">{order.printableRef || order.orderNumber}</h1>
+            <ChannelBadge channel={order.channel} />
+          </div>
+          <dl className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+            <div className="flex items-center gap-1.5"><dt className="text-muted-foreground">Order</dt><dd><StatusBadge status={order.status} /></dd></div>
+            <div className="flex items-center gap-1.5"><dt className="text-muted-foreground">Payment</dt><dd><StatusBadge status={order.paymentStatus} /></dd></div>
+            <div className="text-muted-foreground"><dt className="sr-only">Placed</dt><dd>{order.createdAt && formatDateTime(order.createdAt)}{order.cashier && ` · ${order.cashier.name}`}</dd></div>
+          </dl>
+        </div>
+        <div className="flex flex-wrap gap-2">
           {store && <Button variant="outline" onClick={() => void printBill(billForOrder(order, store, config))}><Printer className="h-4 w-4" aria-hidden /> Print bill</Button>}
-          {store && isDelivery && <Button variant="outline" onClick={() => void printDeliveryNotesFor([order], store)}><FileText className="h-4 w-4" /> Delivery note</Button>}
-          {canWrite && !terminal && <Button variant="outline" onClick={() => setRefundOpen(true)} disabled={order.paymentStatus !== "PAID"}><Undo2 className="h-4 w-4" /> Refund</Button>}
-          {canWrite && !terminal && <Button variant="destructive" onClick={() => setCancelOpen(true)}><Ban className="h-4 w-4" /> Cancel</Button>}
+          {store && isDelivery && <Button variant="outline" onClick={() => void printDeliveryNotesFor([order], store)}><FileText className="h-4 w-4" aria-hidden /> Delivery note</Button>}
+          {canWrite && !terminal && <Button variant="outline" onClick={() => setRefundOpen(true)} disabled={order.paymentStatus !== "PAID"} title={order.paymentStatus !== "PAID" ? "Only paid orders can be refunded" : undefined}><Undo2 className="h-4 w-4" aria-hidden /> Refund</Button>}
+          {canWrite && !terminal && <Button variant="outline" className="text-danger hover:bg-danger/10" onClick={() => setCancelOpen(true)}><Ban className="h-4 w-4" aria-hidden /> Cancel order</Button>}
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
-        <div className="space-y-4">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="min-w-0 space-y-4">
           <Card>
             <CardHeader><CardTitle className="text-base">Items</CardTitle></CardHeader>
             <CardContent>
@@ -100,19 +106,19 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                   {order.items.map((i) => (
                     <tr key={i.id} className="border-b border-border/60">
                       <td className="py-2">{i.name}{i.variantName && <span className="text-muted-foreground"> — {i.variantName}</span>}<span className="block text-xs text-muted-foreground">{i.sku}</span></td>
-                      <td className="py-2 text-right">{i.quantity}</td>
-                      <td className="py-2 text-right">{formatNPR(i.unitPrice)}</td>
-                      <td className="py-2 text-right">{formatNPR(i.lineTotal)}{i.lineDiscount > 0 && <span className="block text-xs text-muted-foreground">−{formatNPR(i.lineDiscount)}</span>}</td>
+                      <td className="tabular py-2 text-right">{i.quantity}</td>
+                      <td className="tabular whitespace-nowrap py-2 pl-3 text-right">{formatNPR(i.unitPrice)}</td>
+                      <td className="tabular whitespace-nowrap py-2 pl-3 text-right">{formatNPR(i.lineTotal)}{i.lineDiscount > 0 && <span className="block text-xs text-muted-foreground">−{formatNPR(i.lineDiscount)}</span>}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              <dl className="ml-auto mt-3 max-w-xs space-y-1 text-sm">
+              <dl className="tabular ml-auto mt-3 max-w-xs space-y-1 text-sm">
                 <div className="flex justify-between"><dt className="text-muted-foreground">Subtotal</dt><dd>{formatNPR(order.subtotal)}</dd></div>
                 {order.discountAmount > 0 && <div className="flex justify-between"><dt className="text-muted-foreground">Discount</dt><dd>−{formatNPR(order.discountAmount)}</dd></div>}
                 {order.shippingCharge > 0 && <div className="flex justify-between"><dt className="text-muted-foreground">Delivery</dt><dd>{formatNPR(order.shippingCharge)}</dd></div>}
                 {order.vatAmount > 0 && <div className="flex justify-between text-xs"><dt className="text-muted-foreground">Includes VAT</dt><dd>{formatNPR(order.vatAmount)}</dd></div>}
-                <div className="flex justify-between font-semibold"><dt>Total</dt><dd>{formatNPR(order.totalAmount)}</dd></div>
+                <div className="flex justify-between border-t border-border pt-2 text-base font-semibold"><dt>Total</dt><dd>{formatNPR(order.totalAmount)}</dd></div>
                 {order.refundedAmount > 0 && <div className="flex justify-between text-danger"><dt>Refunded</dt><dd>{formatNPR(order.refundedAmount)}</dd></div>}
               </dl>
             </CardContent>
@@ -155,14 +161,14 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             <Card>
               <CardHeader><CardTitle className="text-base">Update status</CardTitle></CardHeader>
               <CardContent className="space-y-3">
-                <Field label="New status" hint={isDelivery ? "PACKED books the NCM shipment and notifies the customer on WhatsApp." : undefined}>
+                <Field label="New status" hint={isDelivery ? "Marking it Packed books the Nepal Can Move pickup and messages the customer on WhatsApp." : undefined}>
                   <Select value={nextStatus} onChange={(e) => setNextStatus(e.target.value as OrderStatus)}>
                     <option value="">Choose…</option>
                     {allowed.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
                   </Select>
                 </Field>
                 <Field label="Note (optional)"><Input value={note} onChange={(e) => setNote(e.target.value)} /></Field>
-                <Button className="w-full" onClick={applyStatus} disabled={!nextStatus || busy}>{busy ? "Saving…" : "Apply"}</Button>
+                <Button className="w-full" onClick={applyStatus} disabled={!nextStatus || busy}>{busy ? "Saving…" : "Update status"}</Button>
               </CardContent>
             </Card>
           )}
