@@ -4,11 +4,11 @@
  * - Never caches API traffic (api.glamonepal.com is cross-origin) or auth.
  * Business data lives in IndexedDB (Dexie), not here.
  */
-const VERSION = "glamo-pos-v2";
+const VERSION = "glamo-pos-v3"; // v3: new POS favicon and icons
 const SHELL = `${VERSION}-shell`;
 const ASSETS = `${VERSION}-assets`;
 const PAGES = `${VERSION}-pages`;
-const SHELL_URLS = ["/", "/pos", "/login", "/dashboard", "/orders", "/images/logo.png", "/favicon.ico"];
+const SHELL_URLS = ["/", "/pos", "/login", "/dashboard", "/orders", "/images/logo.png", "/favicon.ico", "/icon.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
