@@ -194,7 +194,7 @@ export function PaymentDialog({ open, onOpenChange, total, methods, initialMetho
                         </Button>
                       ))}
                     </div>
-                    <div className={cn("flex items-baseline justify-between rounded-xl px-4 py-3", summary.change > 0 ? "bg-success/10" : "bg-muted")}>
+                    <div className={cn("flex flex-wrap items-baseline justify-between gap-2 rounded-xl px-4 py-3", summary.change > 0 ? "bg-success/10" : "bg-muted")}>
                       <span className="text-sm font-semibold">{summary.remaining > 0 ? "Still to pay" : "Change to give"}</span>
                       <span className={cn("money text-4xl", summary.remaining > 0 ? "text-danger" : summary.change > 0 ? "text-success" : "")} aria-live="polite">
                         {formatNPR(summary.remaining > 0 ? summary.remaining : summary.change)}
@@ -218,7 +218,7 @@ export function PaymentDialog({ open, onOpenChange, total, methods, initialMetho
                 )}
 
                 {methods.length > 1 && (
-                  <Button variant="link" className="h-auto" onClick={startSplit}>
+                  <Button variant="link" className="min-h-11 whitespace-normal text-left" onClick={startSplit}>
                     <Split className="h-4 w-4" aria-hidden /> Split payment (e.g. part cash, part eSewa)
                   </Button>
                 )}
@@ -242,7 +242,7 @@ export function PaymentDialog({ open, onOpenChange, total, methods, initialMetho
                               <QrCode className="h-4 w-4" aria-hidden /> {r.confirmed ? "Received" : "Show QR"}
                             </Button>
                           )}
-                          <Input aria-label={`${paymentTitle(r.method)} reference (optional)`} value={r.reference} onChange={(e) => updateRow(i, { reference: e.target.value })} placeholder="Reference (optional)" className="h-9 min-w-0 flex-1" />
+                          <Input aria-label={`${paymentTitle(r.method)} reference (optional)`} value={r.reference} onChange={(e) => updateRow(i, { reference: e.target.value })} placeholder="Reference (optional)" className="h-11 min-w-0 flex-1" />
                         </div>
                       )}
                     </li>
@@ -265,9 +265,9 @@ export function PaymentDialog({ open, onOpenChange, total, methods, initialMetho
             {cashTooHigh && <p role="alert" className="text-sm font-medium text-danger">Check the cash amount: {formatNPR(cashGiven)} is much more than the total.</p>}
             {summary.error && (mode === "split" || tenders.length > 0) && <p role="alert" className="text-sm font-medium text-danger">{ERROR_TEXT[summary.error]}</p>}
 
-            <div className="grid grid-cols-[auto_1fr] gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-[auto_1fr]">
               <Button variant="outline" size="lg" onClick={() => onOpenChange(false)}>Back</Button>
-              <Button type="submit" variant="brand" size="xl" disabled={Boolean(summary.error) || cashTooHigh || busy} aria-busy={busy}>
+              <Button type="submit" variant="brand" size="xl" className="h-auto min-h-14 whitespace-normal py-3 text-base sm:text-lg" disabled={Boolean(summary.error) || cashTooHigh || busy} aria-busy={busy}>
                 {busy ? "Saving…" : method === "CARD" && mode === "single" ? "Card payment received" : allowShortfall && summary.due > 0 ? `Place order · ${formatNPR(summary.due)} on delivery` : "Complete sale"}
               </Button>
             </div>

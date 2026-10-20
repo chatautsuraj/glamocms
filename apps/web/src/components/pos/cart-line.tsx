@@ -1,7 +1,7 @@
 "use client";
 
-import { memo } from "react";
-import { Minus, Plus, Trash2 } from "lucide-react";
+import { memo, useState } from "react";
+import { Minus, Plus, SlidersHorizontal, Trash2 } from "lucide-react";
 import { ProductImage } from "@/components/product-image";
 import { Button } from "@/components/ui/button";
 import type { CartLine } from "@/lib/pos/cart";
@@ -23,10 +23,14 @@ type Props = {
 export const CartLineRow = memo(function CartLineRow({ line: l, canOverride, flash, onQty, onBump, onRemove, onLineDiscount, onUnitPrice }: Props) {
   const lineTotal = l.unitPrice * l.quantity - l.lineDiscount;
   const overStock = l.trackInventory && l.quantity > l.stock;
+  const adjusted = l.lineDiscount > 0 || l.unitPrice !== l.listPrice;
+  // Price and discount fields stay folded away until a manager asks for them, so a line is one row tall.
+  const [adjustOpen, setAdjustOpen] = useState(adjusted);
+  const showAdjust = canOverride && (adjustOpen || adjusted);
   return (
-    <li className="relative px-3 py-2.5 sm:px-4">
-      {/* Re-keyed overlay replays the "just scanned" flash without remounting the inputs. */}
-      {flash > 0 && <span key={flash} aria-hidden className="pointer-events-none absolute inset-0 animate-scan-flash" />}
+    <li className="relative isolate px-3 py-2.5 sm:px-4">
+      {/* Re-keyed overlay replays the "just scanned" flash without remounting the inputs; it sits behind the text. */}
+      {flash > 0 && <span key={flash} aria-hidden className="pointer-events-none absolute inset-0 -z-10 animate-scan-flash" />}
       <div className="flex items-start gap-3">
         <ProductImage src={l.imageUrl} name={l.name} className="h-11 w-11 shrink-0 border border-border" />
         <div className="min-w-0 flex-1">
@@ -59,7 +63,12 @@ export const CartLineRow = memo(function CartLineRow({ line: l, canOverride, fla
             <Plus className="h-4 w-4" />
           </Button>
         </div>
-        {canOverride && (
+        {canOverride && !showAdjust && (
+          <Button variant="ghost" size="sm" className="h-10 text-muted-foreground" onClick={() => setAdjustOpen(true)} aria-label={`Change price or discount for ${l.name}`}>
+            <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden /> Price
+          </Button>
+        )}
+        {showAdjust && (
           <>
             <label className="flex items-center gap-1 text-xs text-muted-foreground">
               Discount Rs

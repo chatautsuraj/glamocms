@@ -18,6 +18,10 @@ export function DropdownMenu({ trigger, children, align = "end", className }: Dr
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const id = useId();
+  const close = () => {
+    setOpen(false);
+    ref.current?.querySelector<HTMLButtonElement>("button[aria-haspopup='menu']")?.focus();
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -26,28 +30,41 @@ export function DropdownMenu({ trigger, children, align = "end", className }: Dr
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        e.preventDefault();
         e.stopPropagation();
         setOpen(false);
+        ref.current?.querySelector<HTMLButtonElement>("button[aria-haspopup='menu']")?.focus();
+        return;
       }
+      const items = Array.from(ref.current?.querySelectorAll<HTMLButtonElement>("[role='menuitem']:not([disabled])") ?? []);
+      const current = items.indexOf(document.activeElement as HTMLButtonElement);
+      if (current < 0 || !["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) return;
+      e.preventDefault();
+      const next = e.key === "Home" ? 0 : e.key === "End" ? items.length - 1 : (current + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
+      items[next]?.focus();
     };
+    const focus = window.setTimeout(() => ref.current?.querySelector<HTMLButtonElement>("[role='menuitem']:not([disabled])")?.focus(), 0);
     document.addEventListener("pointerdown", onDown);
     window.addEventListener("keydown", onKey, true);
     return () => {
+      window.clearTimeout(focus);
       document.removeEventListener("pointerdown", onDown);
       window.removeEventListener("keydown", onKey, true);
     };
   }, [open]);
 
   return (
-    <div ref={ref} className="relative inline-block">
+    <div ref={ref} className="relative inline-block" onBlur={(event) => {
+      if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOpen(false);
+    }}>
       {trigger({ onClick: () => setOpen((o) => !o), "aria-expanded": open, "aria-haspopup": "menu", "aria-controls": id })}
       {open && (
         <div
           id={id}
           role="menu"
-          className={cn("absolute z-50 mt-2 min-w-[220px] animate-pop-in rounded-xl border border-border bg-popover p-1 shadow-pop", align === "end" ? "right-0" : "left-0", className)}
+          className={cn("absolute z-50 mt-2 min-w-[220px] max-w-[calc(100vw-2rem)] animate-pop-in rounded-xl border border-border bg-popover p-1 shadow-pop", align === "end" ? "right-0" : "left-0", className)}
         >
-          <CloseContext.Provider value={() => setOpen(false)}>{children}</CloseContext.Provider>
+          <CloseContext.Provider value={close}>{children}</CloseContext.Provider>
         </div>
       )}
     </div>

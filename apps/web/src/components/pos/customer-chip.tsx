@@ -22,21 +22,21 @@ export function CustomerChip({ customer, onChange, required }: { customer: CartC
   const label = customer?.name || customer?.phone;
   return (
     <>
-      <div className="flex min-w-0 items-center gap-1">
+      <div className="flex min-w-0 flex-wrap items-center gap-1">
         {label ? (
-          <span className="flex min-w-0 items-center gap-1.5 rounded-full bg-rose-tint py-1 pl-3 pr-1 text-sm font-medium">
+          <span className="flex min-w-0 items-center gap-1.5 max-w-full rounded-full bg-rose-tint pl-3 text-sm font-medium">
             <UserRound className="h-4 w-4 shrink-0" aria-hidden />
-            <button type="button" className="truncate hover:underline" onClick={() => setOpen(true)} title="Change customer">
+            <button type="button" className="min-h-11 min-w-0 truncate hover:underline" onClick={() => setOpen(true)} title="Change customer">
               {label}
             </button>
-            <Button variant="ghost" size="icon-sm" className="h-7 w-7" aria-label="Remove customer (walk-in)" onClick={() => onChange(null)}>
+            <Button variant="ghost" size="icon-sm" className="h-11 w-11 shrink-0" aria-label="Remove customer (walk-in)" onClick={() => onChange(null)}>
               <X className="h-3.5 w-3.5" />
             </Button>
           </span>
         ) : (
           <>
             <span className="text-sm text-muted-foreground">Walk-in</span>
-            <Button variant="link" size="sm" className="h-9 text-sm" onClick={() => setOpen(true)}>
+            <Button variant="link" size="sm" className="min-h-11 px-1 text-sm" onClick={() => setOpen(true)}>
               <Phone className="h-3.5 w-3.5" aria-hidden /> {required ? "Add customer phone (required)" : "Add customer (phone)"}
             </Button>
           </>

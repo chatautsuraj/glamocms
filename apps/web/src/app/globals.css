@@ -38,10 +38,10 @@
   --brand: var(--rose);
   --brand-foreground: var(--ink-strong);
 
-  /* status */
-  --success: #1e7a4c;
+  /* status — darkened so text-on-tint pills keep 4.5:1 on paper and muted surfaces */
+  --success: #1a6e44;
   --success-foreground: #ffffff;
-  --warning: #9a5b0a;
+  --warning: #8a5108;
   --warning-foreground: #ffffff;
   --danger: #b4321f;
   --danger-foreground: #ffffff;
