@@ -48,7 +48,7 @@ function onListKey(e: KeyboardEvent<HTMLDivElement>) {
 
 export function TabsList({ children, className, label }: { children: ReactNode; className?: string; label?: string }) {
   return (
-    <div role="tablist" aria-label={label} onKeyDown={onListKey} className={cn("no-scrollbar flex max-w-full items-end gap-1 overflow-x-auto border-b border-border", className)}>
+    <div role="tablist" aria-label={label} onKeyDown={onListKey} className={cn("no-scrollbar scroll-fade-x flex max-w-full items-end gap-1 overflow-x-auto border-b border-border", className)}>
       {children}
     </div>
   );
