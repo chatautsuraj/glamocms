@@ -185,7 +185,7 @@ function SellingForm({ s, disabled, onSave }: FormProps) {
       <div className="rounded-xl border border-border p-4">
         <SwitchField
           label="Charge VAT"
-          hint={f.vatEnabled ? "Prices include VAT. Bills show the VAT amount." : "VAT is off: no VAT is calculated and bills show no VAT lines."}
+              hint={f.vatEnabled ? "Prices include VAT for every product. Bills show the VAT amount." : "VAT is off for every product: no VAT is calculated and bills show no VAT lines."}
           checked={f.vatEnabled}
           onChange={(v) => sec.set("vatEnabled", v)}
         />

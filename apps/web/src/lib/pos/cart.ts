@@ -42,7 +42,7 @@ export function lineFromProduct(p: PosProduct, variantId: string | null, quantit
     unitPrice: price,
     quantity,
     lineDiscount: 0,
-    vatApplicable: p.vatApplicable,
+    vatApplicable: true,
     stock: v ? v.stock : p.stock,
     trackInventory: p.trackInventory ?? true,
   };

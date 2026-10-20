@@ -128,7 +128,6 @@ function ProductList() {
                                 {p.variants.length > 0 && <Badge variant="secondary">{p.variants.length} shades</Badge>}
                                 {!p.isActive && <Badge variant="danger">Hidden</Badge>}
                                 {p.isActive && !p.posVisible && <Badge variant="muted">Not at counter</Badge>}
-                                {!p.vatApplicable && <Badge variant="muted">No VAT</Badge>}
                                 {p.attributes?.tester && <Badge variant="warning">Tester</Badge>}
                                 {exp === "expired" && <Badge variant="danger">Expired</Badge>}
                                 {exp === "soon" && <Badge variant="warning">Expires {p.attributes.expiry}</Badge>}

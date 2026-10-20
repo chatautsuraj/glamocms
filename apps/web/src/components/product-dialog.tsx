@@ -22,7 +22,7 @@ import { upsertCachedProduct } from "@/lib/offline/catalog-cache";
 type Form = {
   name: string; sku: string; barcode: string; description: string; categoryId: string; brandId: string;
   basePrice: string; salePrice: string; mrp: string; costPrice: string; stock: string; lowStockThreshold: string;
-  vatApplicable: boolean; posVisible: boolean; isActive: boolean; trackInventory: boolean;
+  posVisible: boolean; isActive: boolean; trackInventory: boolean;
   shade: string; batch: string; expiry: string; tester: boolean;
 };
 
@@ -30,7 +30,7 @@ type Errors = CodeErrors & { name?: string; categoryId?: string; basePrice?: str
 
 const empty: Form = {
   name: "", sku: "", barcode: "", description: "", categoryId: "", brandId: "", basePrice: "", salePrice: "", mrp: "", costPrice: "", stock: "0",
-  lowStockThreshold: "5", vatApplicable: true, posVisible: true, isActive: true, trackInventory: true, shade: "", batch: "", expiry: "", tester: false,
+  lowStockThreshold: "5", posVisible: true, isActive: true, trackInventory: true, shade: "", batch: "", expiry: "", tester: false,
 };
 
 function fromProduct(p: PosProduct): Form {
@@ -38,7 +38,7 @@ function fromProduct(p: PosProduct): Form {
     name: p.name, sku: p.sku ?? "", barcode: p.barcode ?? "", description: p.description ?? "", categoryId: p.categoryId ?? "", brandId: p.brandId ?? "",
     basePrice: String(p.basePrice ?? ""), salePrice: p.salePrice != null ? String(p.salePrice) : "", mrp: p.mrp != null ? String(p.mrp) : "",
     costPrice: p.costPrice != null ? String(p.costPrice) : "", stock: String(p.stock), lowStockThreshold: String(p.lowStockThreshold),
-    vatApplicable: p.vatApplicable, posVisible: p.posVisible, isActive: p.isActive, trackInventory: p.trackInventory ?? true,
+    posVisible: p.posVisible, isActive: p.isActive, trackInventory: p.trackInventory ?? true,
     shade: p.attributes?.shade ?? "", batch: p.attributes?.batch ?? "", expiry: p.attributes?.expiry ?? "", tester: Boolean(p.attributes?.tester),
   };
 }
@@ -98,7 +98,6 @@ export function ProductDialog({ open, onOpenChange, product, onSaved }: { open: 
       salePrice,
       mrp: money(f.mrp),
       costPrice: money(f.costPrice),
-      vatApplicable: f.vatApplicable,
       posVisible: f.posVisible,
       isActive: f.isActive,
       trackInventory: f.trackInventory,
@@ -156,8 +155,8 @@ export function ProductDialog({ open, onOpenChange, product, onSaved }: { open: 
               <fieldset className="grid gap-3 sm:grid-cols-4">
                 <legend className="mb-2 text-sm font-semibold">Price (Rs)</legend>
                 <Field label="Selling price *" error={errors.basePrice}><Input inputMode="numeric" value={f.basePrice} onChange={(e) => set("basePrice", digits(e.target.value))} aria-invalid={Boolean(errors.basePrice)} /></Field>
-                <Field label="Sale price" error={errors.salePrice}><Input inputMode="numeric" value={f.salePrice} onChange={(e) => set("salePrice", digits(e.target.value))} placeholder="None" aria-invalid={Boolean(errors.salePrice)} /></Field>
-                <Field label="MRP (printed price)"><Input inputMode="numeric" value={f.mrp} onChange={(e) => set("mrp", digits(e.target.value))} /></Field>
+                <Field label="Sale price (optional)" error={errors.salePrice}><Input inputMode="numeric" value={f.salePrice} onChange={(e) => set("salePrice", digits(e.target.value))} placeholder="Optional" aria-invalid={Boolean(errors.salePrice)} /></Field>
+                <Field label="MRP (optional)"><Input inputMode="numeric" value={f.mrp} onChange={(e) => set("mrp", digits(e.target.value))} placeholder="Optional" /></Field>
                 <Field label="Cost (what we pay)"><Input inputMode="numeric" value={f.costPrice} onChange={(e) => set("costPrice", digits(e.target.value))} /></Field>
               </fieldset>
               <fieldset className="grid gap-3 sm:grid-cols-4">
@@ -180,8 +179,7 @@ export function ProductDialog({ open, onOpenChange, product, onSaved }: { open: 
                 <Field label="Warn when stock is at or below"><Input inputMode="numeric" value={f.lowStockThreshold} onChange={(e) => set("lowStockThreshold", digits(e.target.value))} /></Field>
                 <div className="flex items-end"><CheckField label="Count stock" checked={f.trackInventory} onChange={(v) => set("trackInventory", v)} /></div>
               </fieldset>
-              <div className="grid gap-x-6 sm:grid-cols-3">
-                <CheckField label="VAT applies" hint="Turn off for VAT-free items" checked={f.vatApplicable} onChange={(v) => set("vatApplicable", v)} />
+              <div className="grid gap-x-6 sm:grid-cols-2">
                 <CheckField label="Sell at the counter" checked={f.posVisible} onChange={(v) => set("posVisible", v)} />
                 <CheckField label="Active" hint="Off hides it everywhere" checked={f.isActive} onChange={(v) => set("isActive", v)} />
               </div>
