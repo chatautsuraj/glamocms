@@ -12,11 +12,17 @@ const cormorant = Cormorant_Garamond({ variable: "--font-glamo-display", subsets
 export const metadata: Metadata = {
   title: { default: "GLAMO POS", template: "%s · GLAMO POS" },
   description: "GLAMO Nepal point of sale and commerce cockpit",
-  icons: { icon: "/favicon.ico" },
+  // POS mark: ink tile, rose serif G and a barcode rule, so the counter tab is never mistaken for
+  // the storefront. favicon.ico (16/32/48), icon.png and apple-icon.png sit beside this file.
+  icons: {
+    icon: [{ url: "/favicon.ico", sizes: "any" }, { url: "/icon.png", type: "image/png", sizes: "192x192" }],
+    apple: [{ url: "/apple-icon.png", sizes: "180x180" }],
+  },
+  manifest: "/manifest.webmanifest",
   robots: { index: false, follow: false },
 };
 
-export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#9f2d4a" };
+export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#1a1512" };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
