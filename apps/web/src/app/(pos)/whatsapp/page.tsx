@@ -13,9 +13,12 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { WhatsAppComplaintsPanel } from "@/components/whatsapp/complaints-panel";
+import { WhatsAppDigestCard } from "@/components/whatsapp/digest-card";
 import { whatsappApi } from "@/lib/api/whatsapp";
-import type { BroadcastResult, WaConversation } from "@/lib/api/types";
+import type { BroadcastResult, WaComplaint, WaConversation } from "@/lib/api/types";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { formatDateTime } from "@/lib/format";
 import { toastError } from "@/lib/notify";
@@ -24,10 +27,24 @@ import { useApi } from "@/lib/use-api";
 
 export default function WhatsAppPage() {
   const canBroadcast = useAuthStore((s) => s.permissions.includes("whatsapp.broadcast"));
+  const canAnalytics = useAuthStore((s) => s.permissions.includes("analytics.read"));
+  const [tab, setTab] = useState("chats");
   const [status, setStatus] = useState<"open" | "handoff" | "all">("open");
   const [active, setActive] = useState<WaConversation | null>(null);
   const [broadcastOpen, setBroadcastOpen] = useState(false);
   const list = useApi(() => whatsappApi.conversations(status), [status]);
+  const openChat = (complaint: WaComplaint) => {
+    setActive({
+      waId: complaint.waId,
+      phone: complaint.phone ?? complaint.waId,
+      name: complaint.name,
+      lastMessage: null,
+      lastAt: null,
+      unread: 0,
+      handoff: false,
+    });
+    setTab("chats");
+  };
 
   const reloadList = list.reload;
   useEffect(() => {
@@ -42,48 +59,60 @@ export default function WhatsAppPage() {
         description="Customer chats from the shop WhatsApp number. Chats marked “needs a person” are waiting for staff."
         actions={canBroadcast && <Button variant="outline" onClick={() => setBroadcastOpen(true)}><Megaphone className="h-4 w-4" aria-hidden /> Send offer message</Button>}
       />
-      <div className="grid gap-4 lg:grid-cols-[340px_1fr]">
-        <Card>
-          <CardContent className="space-y-3 p-3">
-            <div className="flex gap-2">
-              <Select aria-label="Conversation filter" value={status} onChange={(e) => setStatus(e.target.value as typeof status)}>
-                <option value="open">Open chats</option>
-                <option value="handoff">Needs a person</option>
-                <option value="all">All</option>
-              </Select>
-              <Button variant="ghost" size="icon" aria-label="Refresh conversations" onClick={() => void list.reload()}><RefreshCw className="h-4 w-4" /></Button>
-            </div>
-            {list.error ? <ErrorPanel error={list.error} onRetry={list.reload} /> : list.loading && !list.data ? <LoadingRows /> : (
-              <ul className="max-h-[65vh] divide-y divide-border overflow-y-auto" aria-label="Conversations">
-                {(list.data?.items ?? []).map((c) => (
-                  <li key={c.waId}>
-                    <button
-                      type="button"
-                      onClick={() => setActive(c)}
-                      aria-current={active?.waId === c.waId ? "true" : undefined}
-                      className={cn("w-full space-y-0.5 px-2 py-3 text-left hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", active?.waId === c.waId && "bg-accent")}
-                    >
-                      <span className="flex items-center gap-2">
-                        <span className="truncate font-medium">{c.name || c.phone}</span>
-                        {c.handoff && <Badge variant="warning">Needs a person</Badge>}
-                        {c.unread > 0 && <Badge>{c.unread}</Badge>}
-                        <span className="ml-auto shrink-0 text-[11px] text-muted-foreground">{c.lastAt && formatDateTime(c.lastAt)}</span>
-                      </span>
-                      <span className="line-clamp-1 block text-xs text-muted-foreground">{c.lastMessage}</span>
-                    </button>
-                  </li>
-                ))}
-                {!list.data?.items.length && <li className="py-8 text-center text-sm text-muted-foreground">No chats here.</li>}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-0">
-            {active ? <Thread key={active.waId} waId={active.waId} onChanged={() => void list.reload()} /> : <p className="p-10 text-center text-sm text-muted-foreground">Choose a chat on the left.</p>}
-          </CardContent>
-        </Card>
-      </div>
+      {canAnalytics ? <WhatsAppDigestCard onOpenComplaints={() => setTab("complaints")} /> : null}
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList label="WhatsApp sections">
+          <TabsTrigger value="chats">Chats</TabsTrigger>
+          <TabsTrigger value="complaints">Complaints</TabsTrigger>
+        </TabsList>
+        <TabsContent value="chats">
+          <div className="grid gap-4 lg:grid-cols-[340px_1fr]">
+            <Card>
+              <CardContent className="space-y-3 p-3">
+                <div className="flex gap-2">
+                  <Select aria-label="Conversation filter" value={status} onChange={(e) => setStatus(e.target.value as typeof status)}>
+                    <option value="open">Open chats</option>
+                    <option value="handoff">Needs a person</option>
+                    <option value="all">All</option>
+                  </Select>
+                  <Button variant="ghost" size="icon" aria-label="Refresh conversations" onClick={() => void list.reload()}><RefreshCw className="h-4 w-4" /></Button>
+                </div>
+                {list.error ? <ErrorPanel error={list.error} onRetry={list.reload} /> : list.loading && !list.data ? <LoadingRows /> : (
+                  <ul className="max-h-[65vh] divide-y divide-border overflow-y-auto" aria-label="Conversations">
+                    {(list.data?.items ?? []).map((c) => (
+                      <li key={c.waId}>
+                        <button
+                          type="button"
+                          onClick={() => setActive(c)}
+                          aria-current={active?.waId === c.waId ? "true" : undefined}
+                          className={cn("w-full space-y-0.5 px-2 py-3 text-left hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", active?.waId === c.waId && "bg-accent")}
+                        >
+                          <span className="flex items-center gap-2">
+                            <span className="truncate font-medium">{c.name || c.phone}</span>
+                            {c.handoff && <Badge variant="warning">Needs a person</Badge>}
+                            {c.unread > 0 && <Badge>{c.unread}</Badge>}
+                            <span className="ml-auto shrink-0 text-[11px] text-muted-foreground">{c.lastAt && formatDateTime(c.lastAt)}</span>
+                          </span>
+                          <span className="line-clamp-1 block text-xs text-muted-foreground">{c.lastMessage}</span>
+                        </button>
+                      </li>
+                    ))}
+                    {!list.data?.items.length && <li className="py-8 text-center text-sm text-muted-foreground">No chats here.</li>}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-0">
+                {active ? <Thread key={active.waId} waId={active.waId} onChanged={() => void list.reload()} /> : <p className="p-10 text-center text-sm text-muted-foreground">Choose a chat on the left.</p>}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+        <TabsContent value="complaints">
+          <WhatsAppComplaintsPanel onOpenChat={openChat} />
+        </TabsContent>
+      </Tabs>
       {canBroadcast && <BroadcastDialog open={broadcastOpen} onOpenChange={setBroadcastOpen} />}
     </div>
   );

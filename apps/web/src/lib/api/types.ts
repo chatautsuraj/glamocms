@@ -620,6 +620,78 @@ export interface WaConversationDetail {
   messages: WaMessage[];
 }
 
+export interface WaComplaint {
+  id: string;
+  waId: string;
+  phone: string | null;
+  name: string | null;
+  orderId: string | null;
+  orderRef: string | null;
+  category: string;
+  severity: "normal" | "high";
+  status: string;
+  summary: string;
+  assignedTo: string | null;
+  resolutionNote: string | null;
+  createdAt: string | null;
+  firstReplyAt: string | null;
+  resolvedAt: string | null;
+  resolvedBy: string | null;
+}
+
+export interface WaComplaintStats {
+  open: number;
+  inProgress: number;
+  high: number;
+  resolved: number;
+  /** Present once the API ships the SLA stat; older deployments omit it. */
+  breached?: number;
+}
+
+export interface WaComplaintList {
+  items: WaComplaint[];
+  total: number;
+  stats: WaComplaintStats;
+}
+
+export interface WaConversionFunnel {
+  conversations: number;
+  engaged: number;
+  newConversations: number;
+  orderStarts: number;
+  orders: number;
+  cancelled: number;
+  netOrders: number;
+  handoffs: number;
+  complaints: number;
+  openComplaints: number;
+  highSeverityComplaints: number;
+  aiReplies: number;
+  offTopic: number;
+  revenue: number;
+  paidRevenue: number;
+  averageOrderValue: number;
+  conversionRate: number;
+  engagedConversionRate: number;
+  handoffRate: number;
+  orderStartRate: number;
+}
+
+export interface WaConversionSeriesPoint {
+  date: string;
+  conversations: number;
+  orders: number;
+  revenue: number;
+}
+
+export interface WaConversionAnalytics {
+  range: { days: number; from: string; to: string };
+  funnel: WaConversionFunnel;
+  series: WaConversionSeriesPoint[];
+  topIntents: Array<{ intent: string; count: number }>;
+  events: Array<{ name: string; count: number }>;
+}
+
 export interface BroadcastInput {
   templateName: string;
   language: string;
